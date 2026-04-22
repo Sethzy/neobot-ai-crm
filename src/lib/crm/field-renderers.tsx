@@ -6,7 +6,19 @@
  */
 import type { ReactNode } from "react";
 
+import { avatarColorFor, tagColorFor } from "./display";
 import type { FieldSource, FieldType } from "./field-definitions";
+
+/** Returns up to two uppercase initials from a display name. */
+function getInitialsFrom(fullName: string): string {
+  const parts = fullName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]!.charAt(0) + parts[parts.length - 1]!.charAt(0)).toUpperCase();
+}
 
 /**
  * Extract the raw value from a row based on field key and source.
@@ -63,7 +75,7 @@ export function formatFieldDisplay(type: FieldType, value: unknown): string | nu
  */
 export function renderFieldCell(type: FieldType, value: unknown): ReactNode {
   if (value === null || value === undefined || value === "") {
-    return <span className="text-muted-foreground">—</span>;
+    return null;
   }
 
   switch (type) {
@@ -97,7 +109,7 @@ export function renderFieldCell(type: FieldType, value: unknown): ReactNode {
           href={urlStr.startsWith("http") ? urlStr : `https://${urlStr}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="block max-w-[200px] truncate text-foreground/80 hover:underline"
+          className="block max-w-[220px] truncate text-primary underline-offset-2 hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
           {displayUrl}
@@ -136,23 +148,27 @@ export function renderFieldCell(type: FieldType, value: unknown): ReactNode {
 
     case "select":
       return (
-        <span className="inline-flex items-center rounded-md bg-muted/50 px-2 py-0.5 text-xs font-medium">
+        <span
+          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${tagColorFor(String(value))}`}
+        >
           {String(value)}
         </span>
       );
 
     case "tags": {
-      const tags = Array.isArray(value) ? value : [value];
+      const tags = Array.isArray(value) ? value.map(String) : [String(value)];
+      if (tags.length === 0) return null;
+      const [first, ...rest] = tags;
       return (
-        <div className="flex flex-wrap gap-1">
-          {tags.map((tag) => (
-            <span
-              key={String(tag)}
-              className="inline-flex items-center rounded-full bg-muted/50 px-2 py-0.5 text-xs"
-            >
-              {String(tag)}
-            </span>
-          ))}
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${tagColorFor(first!)}`}
+          >
+            {first}
+          </span>
+          {rest.length > 0 ? (
+            <span className="text-xs text-muted-foreground">+{rest.length}</span>
+          ) : null}
         </div>
       );
     }
@@ -168,8 +184,22 @@ export function renderFieldCell(type: FieldType, value: unknown): ReactNode {
     case "file":
       return <span className="truncate text-foreground/80">{String(value)}</span>;
 
-    case "full_name":
-      return <span className="font-medium">{String(value)}</span>;
+    case "full_name": {
+      const name = String(value);
+      const initials = getInitialsFrom(name);
+      const avatarClasses = avatarColorFor(name);
+      return (
+        <span className="inline-flex items-center gap-2">
+          <span
+            aria-hidden
+            className={`flex size-5 shrink-0 items-center justify-center rounded-sm text-[10px] font-semibold ${avatarClasses}`}
+          >
+            {initials}
+          </span>
+          <span className="truncate font-medium">{name}</span>
+        </span>
+      );
+    }
 
     case "text":
     default:

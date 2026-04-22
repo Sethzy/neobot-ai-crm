@@ -53,6 +53,7 @@ import {
   searchTriggersTool,
   setupTriggerTool,
 } from "./triggers";
+import { requestApprovalTool } from "./approvals";
 
 export const MANAGED_AGENT_TOOL_DECLARATIONS = [
   askUserQuestionTool,
@@ -80,6 +81,7 @@ export const MANAGED_AGENT_TOOL_DECLARATIONS = [
   readRecordAttachmentTool,
   reauthorizeConnectionTool,
   renameChatTool,
+  requestApprovalTool,
   runSqlTool,
   search99coTool,
   searchCrmTool,

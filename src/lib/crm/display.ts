@@ -229,4 +229,28 @@ export function avatarColorFor(name: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+/**
+ * Soft-tinted pill classes for CRM list-table select/tag cells. Matches
+ * Attio's pale category pills while staying on Flexoki Layer 3 tokens
+ * (no raw Tailwind palette classes). Deterministic per value so the same
+ * tag always gets the same color across renders.
+ */
+const TAG_TONE_CLASSES = [
+  "bg-stage-leads/15 text-stage-leads",
+  "bg-stage-negotiation/15 text-stage-negotiation",
+  "bg-stage-offer/15 text-stage-offer",
+  "bg-stage-closing/15 text-stage-closing",
+  "bg-status-todo/15 text-status-todo",
+  "bg-status-in-progress/15 text-status-in-progress",
+  "bg-filetype-presentation/15 text-filetype-presentation",
+  "bg-filetype-document/15 text-filetype-document",
+] as const;
+
+/** Returns a deterministic pill tint class for a tag/select value. */
+export function tagColorFor(value: string): string {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) | 0;
+  return TAG_TONE_CLASSES[Math.abs(hash) % TAG_TONE_CLASSES.length]!;
+}
+
 export { DEAL_STAGE_LEFT_BORDER_CLASSES } from "@/lib/ui/color-maps";

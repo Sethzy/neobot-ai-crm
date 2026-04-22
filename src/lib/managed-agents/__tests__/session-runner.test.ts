@@ -498,6 +498,84 @@ describe("consumeAnthropicSession — approvals", () => {
       }),
     );
   });
+
+  it("fires onKickoffCustomToolResultSent after sending user.custom_tool_result", async () => {
+    stubIteration([statusIdleEvent("evt_idle", "end_turn")]);
+    const onKickoffCustomToolResultSent = vi.fn();
+
+    await consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      kickoffCustomToolResult: {
+        custom_tool_use_id: "toolu_1",
+        content: [{ type: "text", text: '{"success":true,"approved":true}' }],
+      },
+      onKickoffCustomToolResultSent,
+    });
+
+    expect(onKickoffCustomToolResultSent).toHaveBeenCalledTimes(1);
+    expect(sendEvent).toHaveBeenCalledWith(
+      "sess_1",
+      expect.objectContaining({
+        events: [
+          {
+            type: "user.custom_tool_result",
+            custom_tool_use_id: "toolu_1",
+            content: [{ type: "text", text: '{"success":true,"approved":true}' }],
+          },
+        ],
+      }),
+      expect.objectContaining({
+        timeout: 2_500,
+        maxRetries: 0,
+      }),
+    );
+  });
+
+  it("defers request_approval and waits at requires_action without sending user.custom_tool_result", async () => {
+    stubIteration([
+      customToolUseEvent("toolu_request_1", "request_approval", {
+        summary: "Delete 3 duplicate contacts",
+        action_type: "crm.delete_records",
+      }),
+      statusIdleEvent("evt_idle", "requires_action"),
+    ]);
+    (dispatchCustomTool as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      kind: "deferred",
+      toolUseId: "toolu_request_1",
+      toolName: "request_approval",
+      toolInput: {
+        summary: "Delete 3 duplicate contacts",
+        action_type: "crm.delete_records",
+      },
+    });
+
+    const result = await consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      callbacks: { onApprovalRequired: vi.fn() },
+    });
+
+    expect(createApprovalEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        approvalId: "toolu_request_1",
+        toolName: "request_approval",
+      }),
+    );
+    expect(
+      sendEvent.mock.calls.some(([, body]) =>
+        (body as { events: Array<{ type: string }> }).events.some(
+          (event) => event.type === "user.custom_tool_result",
+        ),
+      ),
+    ).toBe(false);
+    expect(result.reason).toBe("requires_action");
+  });
 });
 
 describe("consumeAnthropicSession — terminal variants + cost", () => {

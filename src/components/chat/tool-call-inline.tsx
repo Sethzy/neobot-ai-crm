@@ -67,6 +67,8 @@ interface ToolCallInlineProps {
   approval?: { id?: string; approved?: boolean };
   /** Callback for approve/deny actions. Receives (approvalId, approved). */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
+  /** Fires after request_approval submits successfully. */
+  onManagedApprovalSubmitted?: (approvalId: string) => void;
   /**
    * When true, keeps the spinner visible even after the tool completes.
    * Used for the last tool in a streaming response while the agent processes
@@ -103,6 +105,12 @@ interface PermissionRequestInput {
     activate: string[];
     deactivate: string[];
   }>;
+}
+
+interface ManagedApprovalRequestInput {
+  summary: string;
+  action_type: string;
+  payload_preview?: Record<string, unknown>;
 }
 
 interface RequestedToolChange {
@@ -183,6 +191,19 @@ function isToolPermissionRequest(
     && input !== null
     && typeof input === "object"
     && Array.isArray((input as Record<string, unknown>).connections)
+  );
+}
+
+function isManagedApprovalRequest(
+  toolName: string,
+  input: unknown,
+): input is ManagedApprovalRequestInput {
+  return (
+    toolName === "request_approval"
+    && input !== null
+    && typeof input === "object"
+    && typeof (input as Record<string, unknown>).summary === "string"
+    && typeof (input as Record<string, unknown>).action_type === "string"
   );
 }
 
@@ -906,6 +927,139 @@ function PermissionCard({
   );
 }
 
+function getManagedApprovalTitle(actionType: string): string {
+  switch (actionType) {
+    case "crm.delete_records":
+      return "Delete CRM records?";
+    case "crm.configure_crm":
+      return "Change CRM setup?";
+    default:
+      return "Approve this action?";
+  }
+}
+
+function ManagedApprovalCard({
+  input,
+  state,
+  approval,
+  approvalId,
+  onManagedApprovalSubmitted,
+}: {
+  input: ManagedApprovalRequestInput;
+  state: ToolPartState;
+  approval?: { approved?: boolean };
+  approvalId?: string;
+  onManagedApprovalSubmitted?: (approvalId: string) => void;
+}) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedDecision, setSubmittedDecision] = useState<boolean | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const isAwaitingApproval = state === "approval-requested" && submittedDecision === null;
+  const isApproved = approval?.approved === true || submittedDecision === true;
+  const isDenied = approval?.approved === false || submittedDecision === false;
+
+  const handleDecision = useCallback(async (approved: boolean) => {
+    if (!approvalId || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const response = await fetch("/api/tool-confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          approvalId,
+          approved,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as {
+          error?: string;
+        } | null;
+        throw new Error(payload?.error ?? "Failed to submit approval.");
+      }
+
+      const payload = await response.json().catch(() => null) as {
+        approved?: boolean;
+      } | null;
+      const resolvedApproved =
+        typeof payload?.approved === "boolean" ? payload.approved : approved;
+
+      setSubmittedDecision(resolvedApproved);
+      onManagedApprovalSubmitted?.(approvalId);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Failed to submit approval.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [approvalId, isSubmitting, onManagedApprovalSubmitted]);
+
+  return (
+    <div
+      className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4"
+      data-testid="managed-approval-card"
+    >
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-foreground">
+            {getManagedApprovalTitle(input.action_type)}
+          </p>
+          {isApproved ? <Badge variant="outline">Approved</Badge> : null}
+          {isDenied ? <Badge variant="outline">Denied</Badge> : null}
+        </div>
+        <p className="text-sm text-muted-foreground">{input.summary}</p>
+      </div>
+
+      {input.payload_preview ? (
+        <div className="rounded-lg border border-border/50 bg-background/80 p-2">
+          <JsonView data={input.payload_preview} />
+        </div>
+      ) : null}
+
+      {submitError ? (
+        <p className="text-xs text-destructive">{submitError}</p>
+      ) : null}
+
+      {isAwaitingApproval && approvalId ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void handleDecision(true)}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Sending..." : "Allow"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => void handleDecision(false)}
+            disabled={isSubmitting}
+          >
+            Deny
+          </Button>
+        </div>
+      ) : null}
+
+      {submittedDecision !== null ? (
+        <p className="text-xs text-muted-foreground">
+          {submittedDecision
+            ? "Approved. The agent is continuing in the background."
+            : "Denied. The agent is continuing with the safer path."}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function ToolCallInline({
   name,
   state,
@@ -915,6 +1069,7 @@ export function ToolCallInline({
   approvalId,
   approval,
   onToolApproval,
+  onManagedApprovalSubmitted,
   keepSpinning = false,
 }: ToolCallInlineProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -939,6 +1094,7 @@ export function ToolCallInline({
     ? output
     : null;
   const permissionRequest = isToolPermissionRequest(name, input) ? input : null;
+  const managedApprovalRequest = isManagedApprovalRequest(name, input) ? input : null;
   const authNeeded = isBrowserNeedsAuth(name, output) ? output : null;
   const authPlatformConfig = authNeeded
     ? getBrowserPlatformConfig(authNeeded.platform)
@@ -969,6 +1125,18 @@ export function ToolCallInline({
         approval={approval}
         approvalId={approvalId}
         onToolApproval={onToolApproval}
+      />
+    );
+  }
+
+  if (managedApprovalRequest && state !== "output-error") {
+    return (
+      <ManagedApprovalCard
+        input={managedApprovalRequest}
+        state={state}
+        approval={approval}
+        approvalId={approvalId}
+        onManagedApprovalSubmitted={onManagedApprovalSubmitted}
       />
     );
   }

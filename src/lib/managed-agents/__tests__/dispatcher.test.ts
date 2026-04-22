@@ -213,4 +213,40 @@ describe("dispatchCustomTool", () => {
       results: [],
     });
   });
+
+  it("returns a deferred result for request_approval instead of a custom tool result payload", async () => {
+    (MANAGED_AGENT_TOOLS as Record<string, ManagedAgentTool>)["request_approval"] = {
+      name: "request_approval",
+      description: "request approval",
+      inputSchema: z.object({
+        summary: z.string(),
+        action_type: z.string(),
+      }),
+      execute: vi.fn(),
+      chatOnly: true,
+    } as ManagedAgentTool;
+
+    const result = await dispatchCustomTool(
+      {
+        type: "agent.custom_tool_use",
+        id: "toolu_request_1",
+        name: "request_approval",
+        input: {
+          summary: "Delete 3 duplicate contacts",
+          action_type: "crm.delete_records",
+        },
+      },
+      stubContext(),
+    );
+
+    expect(result).toEqual({
+      kind: "deferred",
+      toolUseId: "toolu_request_1",
+      toolName: "request_approval",
+      toolInput: {
+        summary: "Delete 3 duplicate contacts",
+        action_type: "crm.delete_records",
+      },
+    });
+  });
 });

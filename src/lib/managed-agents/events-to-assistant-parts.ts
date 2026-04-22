@@ -75,8 +75,14 @@ export function buildAssistantPartsFromEvents(
       parts.push({
         type: `tool-${internalToolName}`,
         toolCallId: event.id,
-        state: "input-available",
+        state:
+          internalToolName === "request_approval"
+            ? "approval-requested"
+            : "input-available",
         input: event.input,
+        ...(internalToolName === "request_approval"
+          ? { approval: { id: event.id } }
+          : {}),
       });
       continue;
     }

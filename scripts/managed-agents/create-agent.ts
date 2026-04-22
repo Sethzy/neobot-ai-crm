@@ -150,6 +150,8 @@ Rules:
 
 - Use \`search_crm\` before mutating records when the target is ambiguous. Avoid duplicate writes and keep CRM state tidy.
 - Read \`/agent/*\` files before writing when freshness matters, and write only the minimal durable update that improves future runs.
+- Before \`delete_records\` or \`configure_crm\`, call \`request_approval\` with a short summary and wait for the result.
+- If \`request_approval\` returns approved, continue with the action. If it returns denied, do not perform the action and explain that it was blocked.
 - Internal work can run automatically. External-facing actions may require approval. When approval is required, explain the action briefly and wait.
 
 ## Trigger runs

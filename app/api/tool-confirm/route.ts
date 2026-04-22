@@ -1,14 +1,9 @@
 /**
  * Browser approval endpoint for Managed Agents tool confirmations.
  *
- * This route exists as a direct API surface for approval resolution. The
- * primary chat UI resolves approvals through the unified `POST /api/chat`
- * route, which detects approval continuation messages and sends
- * `user.tool_confirmation` via `resumeManagedAgentFromApproval()`. This
- * endpoint is for callers that just want to post the decision and let
- * the run finalize in the background. After returning 200 we drain the
- * stream via `next/server` `after()` so the run state lands in the
- * database.
+ * This route records the user's decision, resumes the paused managed-agent
+ * session in the background, and returns immediately. The Anthropic webhook
+ * remains the safety net if background continuation is interrupted.
  *
  * @module app/api/tool-confirm/route
  */
@@ -18,8 +13,8 @@ import { z } from "zod";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
-import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
 import { resumeManagedAgentFromApproval } from "@/lib/managed-agents/adapter";
+import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
 
 // Approval IDs are Anthropic `tool_use` ids (`tu_*` / `toolu_*` shapes), not
 // UUIDs — the session runner stores the tool_use_id directly in
@@ -36,7 +31,9 @@ async function drainStream(stream: ReadableStream<unknown>): Promise<void> {
   try {
     while (true) {
       const { done } = await reader.read();
-      if (done) return;
+      if (done) {
+        return;
+      }
     }
   } catch (error) {
     console.error("[tool-confirm] drain failed:", error);
@@ -72,35 +69,35 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Approval not found.", 404);
   }
 
-  if (result.status === "already_resolved") {
-    return Response.json({
-      success: true,
-      status: "already_resolved",
-    });
-  }
-
   if (result.status === "error") {
     return jsonError(result.error, 500);
   }
 
-  // Drain the post-approval stream in the background so the run finalizes
-  // (persisted assistant parts, completeRun, evaluators) even though this
-  // route doesn't return the UIMessageStream to the caller.
-  after(() => drainStream(result.stream));
+  const resolvedApproved = result.status === "already_resolved"
+    ? result.approved
+    : parsedBody.data.approved;
+  const responseStatus = result.status === "streaming"
+    ? "updated"
+    : result.status;
+
+  if (result.status === "streaming") {
+    after(() => drainStream(result.stream));
+  }
 
   await captureServerEvent({
     distinctId: clientId,
     event: "approval_resolved",
     properties: {
       approval_id: parsedBody.data.approvalId,
-      outcome: parsedBody.data.approved ? "approved" : "denied",
+      outcome: resolvedApproved ? "approved" : "denied",
       source: "web",
-      status: "updated",
+      status: responseStatus,
     },
   });
 
   return Response.json({
     success: true,
-    status: "updated",
+    status: responseStatus,
+    approved: resolvedApproved,
   });
 }

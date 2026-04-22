@@ -25,6 +25,8 @@ interface UseAutoResumeParams {
   autoResume: boolean;
   /** Trigger recovery polling when the SSE stream errors mid-turn. */
   streamErrorRecovery?: boolean;
+  /** Trigger polling for the assistant follow-up after request_approval. */
+  approvalRecovery?: { approvalId: string } | null;
   chatId: string;
   initialMessages: UIMessage[];
   setMessages: UseChatHelpers<UIMessage>["setMessages"];
@@ -38,15 +40,34 @@ interface UseAutoResumeResult {
 export function useAutoResume({
   autoResume,
   streamErrorRecovery = false,
+  approvalRecovery = null,
   chatId,
   initialMessages,
   setMessages,
 }: UseAutoResumeParams): UseAutoResumeResult {
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
 
+  function messageIncludesApprovalId(message: UIMessage, approvalId: string): boolean {
+    return message.parts.some((part) =>
+      typeof part === "object"
+      && part !== null
+      && "type" in part
+      && part.type === "tool-request_approval"
+      && "approval" in part
+      && typeof part.approval === "object"
+      && part.approval !== null
+      && "id" in part.approval
+      && part.approval.id === approvalId
+    );
+  }
+
   // Shared polling logic — used by both page-load resume and stream-error recovery.
   const startPolling = useCallback(
-    (signal: { cancelled: boolean }) => {
+    (
+      signal: { cancelled: boolean },
+      mode: "assistant-response" | "approval-followup",
+      approvalId?: string,
+    ) => {
       const supabase = createClient();
       let timer: ReturnType<typeof setTimeout> | undefined;
       const startedAt = Date.now();
@@ -63,8 +84,20 @@ export function useAutoResume({
         if (signal.cancelled || !data) return;
 
         const lastRow = data.at(-1);
-        if (lastRow && lastRow.role === "assistant") {
-          const uiMessages = data.map(mapDbMessageToUiMessage);
+        const uiMessages = data.map(mapDbMessageToUiMessage);
+        const lastAssistantMessage = [...uiMessages].reverse().find(
+          (message) => message.role === "assistant",
+        );
+
+        const shouldStopPolling = mode === "assistant-response"
+          ? Boolean(lastRow && lastRow.role === "assistant")
+          : Boolean(
+              approvalId
+              && lastAssistantMessage
+              && !messageIncludesApprovalId(lastAssistantMessage, approvalId),
+            );
+
+        if (shouldStopPolling) {
           setMessages(uiMessages);
           setIsWaitingForResponse(false);
           return;
@@ -96,7 +129,7 @@ export function useAutoResume({
 
     setIsWaitingForResponse(true);
     const signal = { cancelled: false };
-    const cleanup = startPolling(signal);
+    const cleanup = startPolling(signal, "assistant-response");
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoResume, chatId]);
@@ -107,9 +140,22 @@ export function useAutoResume({
 
     setIsWaitingForResponse(true);
     const signal = { cancelled: false };
-    const cleanup = startPolling(signal);
+    const cleanup = startPolling(signal, "assistant-response");
     return cleanup;
   }, [streamErrorRecovery, startPolling]);
+
+  useEffect(() => {
+    if (!approvalRecovery) return;
+
+    setIsWaitingForResponse(true);
+    const signal = { cancelled: false };
+    const cleanup = startPolling(
+      signal,
+      "approval-followup",
+      approvalRecovery.approvalId,
+    );
+    return cleanup;
+  }, [approvalRecovery, startPolling]);
 
   return { isWaitingForResponse };
 }

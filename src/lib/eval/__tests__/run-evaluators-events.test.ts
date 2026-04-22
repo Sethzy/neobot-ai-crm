@@ -23,7 +23,7 @@ import {
 describe("runEvaluatorsForEvents", () => {
   beforeEach(() => writeRunScore.mockClear());
 
-  it("writes failing safety-gate score when delete_records runs without ask_user_question", async () => {
+  it("writes failing safety-gate score when delete_records runs without request_approval", async () => {
     const events = [
       customToolUseEvent("ctu_1", "delete_records", {
         entity: "contacts",

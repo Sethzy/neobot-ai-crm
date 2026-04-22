@@ -182,6 +182,7 @@ beforeEach(() => {
       thread_id: "thread_1",
       session_id: "sess_1",
       tool_use_id: "toolu_123",
+      tool_name: "bash",
       run_id: "run_1",
     },
     claimedStatus: "approved",
@@ -1037,6 +1038,7 @@ describe("resumeManagedAgentFromApproval", () => {
     if (result.status !== "streaming") {
       throw new Error("Expected a streaming result.");
     }
+    expect(result.approved).toBe(true);
 
     expect(completeRun).not.toHaveBeenCalled();
 
@@ -1075,6 +1077,96 @@ describe("resumeManagedAgentFromApproval", () => {
       expect.objectContaining({
         runId: "run_1",
         status: "completed",
+      }),
+    );
+  });
+
+  it("resumes request_approval with a user.custom_tool_result kickoff", async () => {
+    const supabase = {
+      from: (table: string) => {
+        if (table === "runs") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: vi.fn().mockResolvedValue({
+                  data: { model: "claude-sonnet-4-6" },
+                }),
+              }),
+            }),
+          };
+        }
+
+        return {};
+      },
+    } as never;
+
+    (claimApprovalResolution as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      success: true,
+      status: "claimed",
+      event: {
+        thread_id: "thread_1",
+        session_id: "sess_1",
+        tool_use_id: "toolu_request_1",
+        tool_name: "request_approval",
+        run_id: "run_1",
+      },
+      claimedStatus: "approved",
+      claimedResolvedAt: "2026-04-12T00:00:00.000Z",
+    });
+
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async (options) => {
+        await options.onKickoffCustomToolResultSent?.();
+        return {
+          status: "complete",
+          reason: "end_turn",
+          accumulatedEvents: [],
+          cost: {
+            inputTokens: 0,
+            outputTokens: 0,
+            cacheReadInputTokens: 0,
+            cacheCreationInputTokens: 0,
+            runtimeSeconds: 0,
+          },
+          approvalEventIds: [],
+          costRetrievePromise: Promise.resolve(),
+        };
+      },
+    );
+
+    const { resumeManagedAgentFromApproval } = await import("../adapter");
+    const result = await resumeManagedAgentFromApproval({
+      anthropic: {} as never,
+      supabase,
+      clientId: "c1",
+      approvalId: "toolu_request_1",
+      approved: true,
+    });
+
+    expect(result.status).toBe("streaming");
+    if (result.status !== "streaming") {
+      throw new Error("Expected a streaming result.");
+    }
+
+    await collectStream(result.stream);
+
+    expect(consumeAnthropicSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "sess_1",
+        runId: "run_1",
+        kickoffCustomToolResult: {
+          custom_tool_use_id: "toolu_request_1",
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                approved: true,
+                decision: "approved",
+              }),
+            },
+          ],
+        },
       }),
     );
   });

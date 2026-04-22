@@ -31,6 +31,8 @@ import {
   openSessionTail,
 } from "./session-reconnect";
 import type {
+  SessionRunnerCallbacks,
+  DeferredCustomToolDispatchResult,
   SessionRunnerOptions,
   SessionRunnerResult,
 } from "./types";
@@ -62,6 +64,54 @@ function shouldEmitIncrementalSnapshot(eventType: AnthropicEvent["type"]): boole
     eventType === "agent.tool_result" ||
     eventType === "session.error"
   );
+}
+
+async function persistDeferredApproval(options: {
+  approval: DeferredCustomToolDispatchResult;
+  sessionId: string;
+  runId: string;
+  context: SessionRunnerOptions["context"];
+  onApprovalRequired?: SessionRunnerCallbacks["onApprovalRequired"];
+}): Promise<string> {
+  const approvalId = options.approval.toolUseId;
+  const toolInput =
+    options.approval.toolInput &&
+      typeof options.approval.toolInput === "object" &&
+      !Array.isArray(options.approval.toolInput)
+      ? (options.approval.toolInput as Record<string, unknown>)
+      : {};
+
+  const persistedApproval = await createApprovalEvent(options.context.supabase, {
+    clientId: options.context.clientId,
+    threadId: options.context.threadId ?? "",
+    runId: options.runId,
+    toolName: options.approval.toolName,
+    toolInput,
+    approvalId,
+    sessionId: options.sessionId,
+    toolUseId: options.approval.toolUseId,
+  });
+  if (!persistedApproval.success) {
+    throw new Error(
+      `Failed to persist approval event ${approvalId}: ${persistedApproval.error}`,
+    );
+  }
+
+  try {
+    await options.onApprovalRequired?.(
+      {
+        type: "agent.custom_tool_use",
+        id: options.approval.toolUseId,
+        name: options.approval.toolName,
+        input: options.approval.toolInput,
+      },
+      approvalId,
+    );
+  } catch (callbackError) {
+    console.warn("[session-runner] deferred approval callback failed, continuing", callbackError);
+  }
+
+  return approvalId;
 }
 
 export async function consumeAnthropicSession(
@@ -114,6 +164,20 @@ export async function consumeAnthropicSession(
       await options.onKickoffApprovalSent?.();
     }
 
+    if (options.kickoffCustomToolResult) {
+      await anthropic.beta.sessions.events.send(options.sessionId, {
+        events: [
+          {
+            type: "user.custom_tool_result",
+            custom_tool_use_id: options.kickoffCustomToolResult.custom_tool_use_id,
+            content: options.kickoffCustomToolResult.content,
+            ...(options.kickoffCustomToolResult.is_error ? { is_error: true } : {}),
+          },
+        ],
+      } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
+      await options.onKickoffCustomToolResultSent?.();
+    }
+
     iterator = iterateSessionEventsAfter(
       anthropic,
       options.sessionId,
@@ -162,6 +226,20 @@ export async function consumeAnthropicSession(
         ],
       } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
       await options.onKickoffApprovalSent?.();
+    }
+
+    if (options.kickoffCustomToolResult) {
+      await anthropic.beta.sessions.events.send(options.sessionId, {
+        events: [
+          {
+            type: "user.custom_tool_result",
+            custom_tool_use_id: options.kickoffCustomToolResult.custom_tool_use_id,
+            content: options.kickoffCustomToolResult.content,
+            ...(options.kickoffCustomToolResult.is_error ? { is_error: true } : {}),
+          },
+        ],
+      } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
+      await options.onKickoffCustomToolResultSent?.();
     }
 
     const preferLiveOnly = true;
@@ -282,31 +360,45 @@ export async function consumeAnthropicSession(
           options.context,
         );
         const tToolDispatched = performance.now();
-        await anthropic.beta.sessions.events.send(options.sessionId, {
-          events: [
-            {
+        if (dispatchResult.kind === "deferred") {
+          const approvalId = await persistDeferredApproval({
+            approval: dispatchResult,
+            sessionId: options.sessionId,
+            runId: options.runId,
+            context: options.context,
+            onApprovalRequired: options.callbacks?.onApprovalRequired,
+          });
+          approvalEventIds.push(approvalId);
+          console.log(
+            `${logPrefix} deferred custom tool ${result.customToolCall.name} (${result.customToolCall.id.slice(-8)}) exec=${Math.round(tToolDispatched - tToolStart)}ms approval=${approvalId.slice(-8)}`,
+          );
+        } else {
+          await anthropic.beta.sessions.events.send(options.sessionId, {
+            events: [
+              {
+                type: "user.custom_tool_result",
+                custom_tool_use_id: dispatchResult.custom_tool_use_id,
+                content: dispatchResult.content,
+                ...(dispatchResult.is_error ? { is_error: true } : {}),
+              },
+            ],
+          } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
+          const tToolSent = performance.now();
+          dispatchedCustomToolIds.add(result.customToolCall.id);
+          console.log(`${logPrefix} dispatched custom tool ${result.customToolCall.name} (${result.customToolCall.id.slice(-8)}) is_error=${dispatchResult.is_error ?? false} exec=${Math.round(tToolDispatched - tToolStart)}ms send=${Math.round(tToolSent - tToolDispatched)}ms`);
+          // Synthesize a minimal tool-result event for the callback so chat
+          // adapters can write a tool-result UI part. Non-fatal — same rationale
+          // as the pre-dispatch callback above.
+          try {
+            await options.callbacks?.onAgentToolResult?.({
               type: "user.custom_tool_result",
               custom_tool_use_id: dispatchResult.custom_tool_use_id,
               content: dispatchResult.content,
               ...(dispatchResult.is_error ? { is_error: true } : {}),
-            },
-          ],
-        } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
-        const tToolSent = performance.now();
-        dispatchedCustomToolIds.add(result.customToolCall.id);
-        console.log(`${logPrefix} dispatched custom tool ${result.customToolCall.name} (${result.customToolCall.id.slice(-8)}) is_error=${dispatchResult.is_error ?? false} exec=${Math.round(tToolDispatched - tToolStart)}ms send=${Math.round(tToolSent - tToolDispatched)}ms`);
-        // Synthesize a minimal tool-result event for the callback so chat
-        // adapters can write a tool-result UI part. Non-fatal — same rationale
-        // as the pre-dispatch callback above.
-        try {
-          await options.callbacks?.onAgentToolResult?.({
-            type: "user.custom_tool_result",
-            custom_tool_use_id: dispatchResult.custom_tool_use_id,
-            content: dispatchResult.content,
-            ...(dispatchResult.is_error ? { is_error: true } : {}),
-          });
-        } catch (callbackError) {
-          console.warn(`${logPrefix} post-dispatch callback failed, continuing`, callbackError);
+            });
+          } catch (callbackError) {
+            console.warn(`${logPrefix} post-dispatch callback failed, continuing`, callbackError);
+          }
         }
       } catch (toolError) {
         console.error(`${logPrefix} tool dispatch failed for ${result.customToolCall.name} (${result.customToolCall.id.slice(-8)}):`, toolError);

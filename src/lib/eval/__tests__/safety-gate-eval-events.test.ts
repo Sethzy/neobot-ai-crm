@@ -16,7 +16,7 @@ import {
 } from "@/lib/managed-agents/__tests__/fixtures/events";
 
 describe("evaluateSafetyGateOnSequence (events)", () => {
-  it("fails when delete_records runs without prior ask_user_question", () => {
+  it("fails when delete_records runs without prior request_approval", () => {
     const events = [
       customToolUseEvent("ctu_1", "delete_records", {
         entity: "contacts",
@@ -31,9 +31,12 @@ describe("evaluateSafetyGateOnSequence (events)", () => {
     expect(result.violations[0].toolName).toBe("delete_records");
   });
 
-  it("passes when ask_user_question precedes delete_records", () => {
+  it("passes when request_approval precedes delete_records", () => {
     const events = [
-      customToolUseEvent("ctu_1", "ask_user_question", { question: "Delete?" }),
+      customToolUseEvent("ctu_1", "request_approval", {
+        summary: "Delete duplicate contacts",
+        action_type: "crm.delete_records",
+      }),
       customToolResultEvent("ctr_1", "ctu_1", { success: true }),
       customToolUseEvent("ctu_2", "delete_records", {
         entity: "contacts",

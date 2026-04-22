@@ -325,6 +325,7 @@ describe("POST /api/webhook/telegram", () => {
         },
       }),
       threadId: "thread-1",
+      approved: true,
     });
     mockAdvancePendingQuestionBatchByCallback.mockResolvedValue({ status: "expired" });
     mockAdvancePendingQuestionBatchByTextReply.mockResolvedValue({ status: "expired" });
@@ -691,6 +692,7 @@ describe("POST /api/webhook/telegram", () => {
     mockResumeManagedAgentFromApproval.mockResolvedValueOnce({
       status: "already_resolved",
       threadId: "thread-2",
+      approved: true,
     });
 
     const response = await POST(
@@ -1061,7 +1063,7 @@ describe("POST /api/webhook/telegram", () => {
     );
     await flushBackgroundWork();
 
-    // Default mock returns a streaming result for thread-1 while the mapping
+    // Default mock returns thread-1 while the mapping
     // is new-thread-after-switch, so isStaleThread=true and the operator
     // toast should note the session changed.
     expect(response.status).toBe(200);

@@ -63,7 +63,6 @@ describe("POST /api/tool-confirm", () => {
     mockResumeManagedAgentFromApproval.mockReset();
     mockAfter.mockReset();
     mockAfter.mockImplementation((fn: () => unknown) => {
-      // Drain inline so assertions can observe terminal state.
       void fn();
     });
     mockAuthenticateRequest.mockResolvedValue({
@@ -80,6 +79,7 @@ describe("POST /api/tool-confirm", () => {
       status: "streaming",
       stream: createClosedStream(),
       threadId: "thread-1",
+      approved: true,
     });
 
     const response = await POST(
@@ -93,6 +93,7 @@ describe("POST /api/tool-confirm", () => {
     expect(await response.json()).toEqual({
       success: true,
       status: "updated",
+      approved: true,
     });
     expect(mockResumeManagedAgentFromApproval).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -102,7 +103,6 @@ describe("POST /api/tool-confirm", () => {
         denyMessage: undefined,
       }),
     );
-    // The route registered an `after()` drain for the resume stream.
     expect(mockAfter).toHaveBeenCalledTimes(1);
   });
 
@@ -143,6 +143,7 @@ describe("POST /api/tool-confirm", () => {
       status: "streaming",
       stream: createClosedStream(),
       threadId: "thread-1",
+      approved: true,
     });
 
     const response = await POST(
@@ -171,10 +172,11 @@ describe("POST /api/tool-confirm", () => {
     expect(response.status).toBe(401);
   });
 
-  it("returns already_resolved for duplicate confirmations", async () => {
+  it("returns already_resolved with the authoritative approval decision", async () => {
     mockResumeManagedAgentFromApproval.mockResolvedValue({
       status: "already_resolved",
       threadId: "thread-1",
+      approved: false,
     });
 
     const response = await POST(
@@ -188,6 +190,7 @@ describe("POST /api/tool-confirm", () => {
     await expect(response.json()).resolves.toEqual({
       success: true,
       status: "already_resolved",
+      approved: false,
     });
     expect(mockAfter).not.toHaveBeenCalled();
   });

@@ -67,13 +67,13 @@ export function ViewPicker({ entityType, activeViewId, onViewChange, count }: Vi
         <Button
           variant="ghost"
           size="sm"
-          className="-ml-2 gap-1.5 px-2 font-medium text-foreground hover:bg-accent/60"
+          className="gap-1.5 rounded-md px-2.5 font-medium text-foreground ring-1 ring-transparent transition-colors hover:bg-app-hover/60 hover:ring-app-border-subtle"
         >
           <span>{triggerLabel}</span>
           {formattedCount ? (
             <span className="text-muted-foreground">· {formattedCount}</span>
           ) : null}
-          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          <ChevronDown className="size-3 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
 

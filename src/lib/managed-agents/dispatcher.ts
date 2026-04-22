@@ -11,8 +11,8 @@ import { MANAGED_AGENT_TOOLS } from "@/lib/managed-agents/tools";
 import { toInternalManagedAgentToolName } from "@/lib/managed-agents/tool-name-aliases";
 
 import type {
-  CustomToolResultContent,
   CustomToolUseEvent,
+  DispatchCustomToolResult,
   DispatchContext,
   ToolResult,
 } from "./types";
@@ -74,8 +74,9 @@ function asContent(
   result: ToolResult,
   toolUseId: string,
   isError: boolean,
-): CustomToolResultContent {
+): DispatchCustomToolResult {
   return {
+    kind: "immediate",
     custom_tool_use_id: toolUseId,
     content: [{ type: "text", text: JSON.stringify(result) }],
     ...(isError ? { is_error: true } : {}),
@@ -99,7 +100,7 @@ type RegistryEntry = {
 export async function dispatchCustomTool(
   event: CustomToolUseEvent,
   context: DispatchContext,
-): Promise<CustomToolResultContent> {
+): Promise<DispatchCustomToolResult> {
   const internalToolName = toInternalManagedAgentToolName(event.name);
   const tool = (MANAGED_AGENT_TOOLS as unknown as Record<string, RegistryEntry>)[
     internalToolName
@@ -139,6 +140,15 @@ export async function dispatchCustomTool(
       event.id,
       true,
     );
+  }
+
+  if (internalToolName === "request_approval") {
+    return {
+      kind: "deferred",
+      toolUseId: event.id,
+      toolName: internalToolName,
+      toolInput: parsed.data,
+    };
   }
 
   const result = (await tool.execute(parsed.data, context)) as ToolResult;

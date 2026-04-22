@@ -47,6 +47,8 @@ interface MessageBubbleProps {
   isLast?: boolean;
   /** Callback for tool approval actions. */
   onToolApproval?: (approvalId: string, approved: boolean) => void;
+  /** Fires after a request_approval decision is submitted. */
+  onManagedApprovalSubmitted?: (approvalId: string) => void;
 }
 
 function filePartToAttachment(part: ChatFilePart): Attachment {
@@ -241,7 +243,13 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export const MessageBubble = memo(function MessageBubble({ message, isStreaming = false, isLast = false, onToolApproval }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({
+  message,
+  isStreaming = false,
+  isLast = false,
+  onToolApproval,
+  onManagedApprovalSubmitted,
+}: MessageBubbleProps) {
   const isUserMessage = message.role === "user";
   const { spec, hasSpec } = useJsonRenderMessage(message.parts);
   const skillSlug = useMemo(() => extractSkillSlug(message.parts), [message.parts]);
@@ -419,6 +427,7 @@ export const MessageBubble = memo(function MessageBubble({ message, isStreaming 
                 approvalId={toolPart.approval?.id}
                 approval={toolPart.approval}
                 onToolApproval={onToolApproval}
+                onManagedApprovalSubmitted={onManagedApprovalSubmitted}
                 keepSpinning={isStreaming && isLast && index === lastRenderableIndex}
               />
             );

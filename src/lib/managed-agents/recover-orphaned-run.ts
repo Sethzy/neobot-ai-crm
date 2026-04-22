@@ -116,6 +116,66 @@ function extractCurrentTurnEvents(
     : allEvents;
 }
 
+function findLastResolvedRequestApprovalIndex(
+  events: ReadonlyArray<AnthropicEvent>,
+): number {
+  const requestApprovalIds = new Set(
+    events.flatMap((event) =>
+      event.type === "agent.custom_tool_use" && event.name === "request_approval"
+        ? [event.id]
+        : []
+    ),
+  );
+
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (
+      event.type === "user.custom_tool_result"
+      && requestApprovalIds.has(event.custom_tool_use_id)
+    ) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function extractRecoverableEvents(allEvents: AnthropicEvent[]): {
+  events: AnthropicEvent[];
+  conversationInput: string;
+} {
+  const lastResolvedApprovalIndex = findLastResolvedRequestApprovalIndex(allEvents);
+
+  if (lastResolvedApprovalIndex >= 0) {
+    const decisionEvent = allEvents[lastResolvedApprovalIndex] as Extract<
+      AnthropicEvent,
+      { type: "user.custom_tool_result" }
+    >;
+    const postDecisionEvents = allEvents.slice(lastResolvedApprovalIndex + 1);
+    let approved = false;
+
+    try {
+      const payload = JSON.parse(decisionEvent.content[0]?.text ?? "{}") as {
+        approved?: boolean;
+      };
+      approved = payload.approved === true;
+    } catch {
+      approved = false;
+    }
+
+    return {
+      events: postDecisionEvents,
+      conversationInput: `[approval-resume ${decisionEvent.custom_tool_use_id}: ${approved ? "allow" : "deny"}]`,
+    };
+  }
+
+  const currentTurnEvents = extractCurrentTurnEvents(allEvents);
+  return {
+    events: currentTurnEvents,
+    conversationInput: getConversationInput(currentTurnEvents),
+  };
+}
+
 export async function recoverOrphanedRun(
   input: RecoverOrphanedRunInput,
 ): Promise<{ recovered: boolean; reason: string }> {
@@ -161,8 +221,11 @@ export async function recoverOrphanedRun(
     return { recovered: false, reason: "no events found" };
   }
 
-  // 2. Extract current turn's events
-  const turnEvents = extractCurrentTurnEvents(allEvents);
+  // 2. Extract the event slice that belongs to the orphaned work.
+  const {
+    events: turnEvents,
+    conversationInput,
+  } = extractRecoverableEvents(allEvents);
   console.log(
     `${logPrefix} ${turnEvents.length} turn events`,
   );
@@ -271,7 +334,7 @@ export async function recoverOrphanedRun(
   // 8. Run evaluators
   try {
     await runEvaluatorsForEvents(turnEvents, run.runId, supabase, {
-      conversationInput: getConversationInput(turnEvents),
+      conversationInput,
     });
   } catch (evalError) {
     console.error(`${logPrefix} evaluators failed:`, evalError);

@@ -19,4 +19,15 @@ describe("managed-agent system prompt source", () => {
       "Do not look for attached skills under `/agent/skills/*`. Attached managed-agent skills live under `/workspace/skills/*` in this environment.",
     );
   });
+
+  it("documents the request_approval gate for destructive CRM actions", () => {
+    const systemPrompt = buildManagedAgentSystem("- xlsx: spreadsheet workflow");
+
+    expect(systemPrompt).toContain(
+      "Before `delete_records` or `configure_crm`, call `request_approval` with a short summary and wait for the result.",
+    );
+    expect(systemPrompt).toContain(
+      "If `request_approval` returns approved, continue with the action. If it returns denied, do not perform the action and explain that it was blocked.",
+    );
+  });
 });

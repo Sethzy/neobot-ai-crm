@@ -96,7 +96,7 @@ function formatMaybeDateValue(value: unknown, columnId: string): string {
 
 function renderPrimitiveCellValue(value: unknown, columnId: string): React.ReactNode {
   if (value == null || value === "") {
-    return <span className="text-muted-foreground">—</span>;
+    return null;
   }
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     const display = formatMaybeDateValue(value, columnId);
@@ -212,18 +212,20 @@ export function ListTable<TData>({
                       {header.isPlaceholder ? null : header.column.getCanSort() ? (
                         <button
                           type="button"
-                          className="type-table-heading inline-flex items-center gap-1 uppercase transition-colors hover:text-foreground"
+                          className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
                           onClick={() =>
                             header.column.toggleSorting(header.column.getIsSorted() === "asc")
                           }
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {header.column.getIsSorted() ? (
-                            <span>{header.column.getIsSorted() === "asc" ? "▲" : "▼"}</span>
+                            <span className="text-muted-foreground">
+                              {header.column.getIsSorted() === "asc" ? "▲" : "▼"}
+                            </span>
                           ) : null}
                         </button>
                       ) : (
-                        <span className="type-table-heading inline-flex items-center uppercase">
+                        <span className="inline-flex items-center">
                           {flexRender(header.column.columnDef.header, header.getContext())}
                         </span>
                       )}
@@ -236,7 +238,7 @@ export function ListTable<TData>({
           <tbody>
             {isLoading
               ? Array.from({ length: 6 }).map((_, rowIndex) => (
-                  <tr key={rowIndex} className="border-t border-app-border-subtle/80">
+                  <tr key={rowIndex} className="border-t border-app-border-subtle/40">
                     {resolvedColumns.map((col, colIndex) => {
                       const colId = (col.id as string | undefined) ?? `col${colIndex}`;
                       const isActionsCol = colId === "__row_actions";
@@ -270,7 +272,7 @@ export function ListTable<TData>({
                         <tr
                           key={row.id}
                           className={cn(
-                            "group/row border-t border-app-border-subtle/80",
+                            "group/row border-t border-app-border-subtle/40",
                             onRowClick && "cursor-pointer transition-colors hover:bg-app-hover/70",
                             isSelected && "bg-app-hover/80",
                           )}

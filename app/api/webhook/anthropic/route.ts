@@ -15,6 +15,7 @@
 import { after } from "next/server";
 
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
+import { reconcilePendingApprovals } from "@/lib/managed-agents/reconcile-pending-approvals";
 import { recoverOrphanedRun } from "@/lib/managed-agents/recover-orphaned-run";
 import {
   verifyWebhookSignature,
@@ -109,16 +110,30 @@ export async function POST(request: Request): Promise<Response> {
   after(async () => {
     try {
       const anthropic = getAnthropicClient();
+      const run = {
+        runId: runRow.run_id,
+        threadId: runRow.thread_id,
+        clientId: runRow.client_id,
+        sessionId,
+        model: runRow.model ?? "claude-sonnet-4-6",
+      };
+
+      if (stopReasonType === "requires_action") {
+        const result = await reconcilePendingApprovals({
+          supabase,
+          anthropic,
+          run,
+        });
+        console.log(
+          `[anthropic-webhook] approval reconcile: reconciled=${result.reconciled} reason=${result.reason}`,
+        );
+        return;
+      }
+
       const result = await recoverOrphanedRun({
         supabase,
         anthropic,
-        run: {
-          runId: runRow.run_id,
-          threadId: runRow.thread_id,
-          clientId: runRow.client_id,
-          sessionId,
-          model: runRow.model ?? "claude-sonnet-4-6",
-        },
+        run,
         stopReasonType: stopReasonType ?? "unknown",
       });
       console.log(

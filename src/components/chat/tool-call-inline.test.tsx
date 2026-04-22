@@ -343,6 +343,51 @@ describe("approval-requested state", () => {
     expect(dot.tagName.toLowerCase()).toBe("svg");
     expect(dot.getAttribute("class")).not.toMatch(/animate-spin/);
   });
+
+  it("uses the authoritative server decision for request_approval duplicates", async () => {
+    const user = userEvent.setup();
+    const onManagedApprovalSubmitted = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          status: "already_resolved",
+          approved: false,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <ToolCallInline
+        name="request_approval"
+        state="approval-requested"
+        input={{
+          summary: "Delete duplicate contacts",
+          action_type: "crm.delete_records",
+        }}
+        approvalId="approval-1"
+        onManagedApprovalSubmitted={onManagedApprovalSubmitted}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /allow/i }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/tool-confirm",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
+    expect(
+      await screen.findByText("Denied. The agent is continuing with the safer path."),
+    ).toBeInTheDocument();
+    expect(onManagedApprovalSubmitted).toHaveBeenCalledWith("approval-1");
+  });
 });
 
 describe("connection cards", () => {

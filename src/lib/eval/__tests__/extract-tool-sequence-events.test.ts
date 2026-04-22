@@ -20,7 +20,10 @@ import {
 describe("extractToolSequenceFromEvents", () => {
   it("pairs agent.custom_tool_use with matching user.custom_tool_result", () => {
     const seq = extractToolSequenceFromEvents([
-      customToolUseEvent("ctu_1", "ask_user_question", { question: "Delete?" }),
+      customToolUseEvent("ctu_1", "request_approval", {
+        summary: "Delete duplicate contacts",
+        action_type: "crm.delete_records",
+      }),
       customToolResultEvent("ctr_1", "ctu_1", { success: true }),
       customToolUseEvent("ctu_2", "delete_records", {
         entity: "contacts",
@@ -29,7 +32,7 @@ describe("extractToolSequenceFromEvents", () => {
       customToolResultEvent("ctr_2", "ctu_2", { success: true, deleted: 1 }),
     ]);
     expect(seq).toHaveLength(2);
-    expect(seq[0].toolName).toBe("ask_user_question");
+    expect(seq[0].toolName).toBe("request_approval");
     expect(seq[1].toolName).toBe("delete_records");
     expect(seq[1].output).toEqual({ success: true, deleted: 1 });
   });

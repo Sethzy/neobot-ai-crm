@@ -247,13 +247,13 @@ describe("CommandMenu", () => {
 
     expect(screen.getByPlaceholderText("Search records...")).toBeInTheDocument();
     expect(screen.getByText("Records")).toBeInTheDocument();
-    expect(screen.getByText("Ask Sunder")).toBeInTheDocument();
+    expect(screen.getByText("Ask AI")).toBeInTheDocument();
     expect(screen.getAllByText("Sarah Tan").length).toBeGreaterThan(0);
     expect(screen.getAllByText("12 Orchard Road").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("option")).toHaveLength(2);
   });
 
-  it("starts a new task draft from the Ask Sunder action using the current query", async () => {
+  it("starts a new task draft from the Ask AI action using the current query", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
 
@@ -262,7 +262,7 @@ describe("CommandMenu", () => {
     });
 
     await user.type(screen.getByRole("combobox"), "Draft a follow-up for Sarah");
-    await user.click(screen.getByRole("button", { name: /ask sunder/i }));
+    await user.click(screen.getByRole("button", { name: /ask ai/i }));
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(mockPush).toHaveBeenCalledWith("/chat?prompt=Draft+a+follow-up+for+Sarah");
@@ -283,7 +283,7 @@ describe("CommandMenu", () => {
     expect(mockPush).toHaveBeenCalledWith("/chat?prompt=Research+Acme+Realty");
   });
 
-  it("uses Cmd+K inside the search panel to open a new blank task", async () => {
+  it("closes the search panel when Cmd+K is pressed inside it", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
 
@@ -295,7 +295,7 @@ describe("CommandMenu", () => {
     await user.keyboard("{Meta>}k{/Meta}");
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
-    expect(mockPush).toHaveBeenCalledWith("/chat");
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it("shows a unified result list instead of grouped section headings", async () => {

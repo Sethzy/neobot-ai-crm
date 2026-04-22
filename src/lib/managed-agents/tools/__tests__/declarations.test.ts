@@ -18,6 +18,10 @@ describe("MANAGED_AGENT_TOOL_DECLARATIONS", () => {
     expect(MANAGED_AGENT_TOOL_NAMES).toContain("execute_composio_tool");
   });
 
+  it("publishes request_approval for destructive-action gating", () => {
+    expect(MANAGED_AGENT_TOOL_NAMES).toContain("request_approval");
+  });
+
   it("does not publish the retired activation and discovery tools", () => {
     expect(MANAGED_AGENT_TOOL_NAMES).not.toContain("search_integrations");
     expect(MANAGED_AGENT_TOOL_NAMES).not.toContain("get_integration_capabilities");

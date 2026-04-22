@@ -79,21 +79,45 @@ function getInitials(label: string) {
   return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
 }
 
-function FooterKey({
+function FooterKbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="rounded bg-muted/60 px-1.5 py-0.5 text-caption font-medium text-foreground/80">
+      {children}
+    </kbd>
+  );
+}
+
+function FooterHint({
   keys,
   label,
+  onClick,
 }: {
-  keys: string;
+  keys: string[];
   label: string;
+  onClick?: () => void;
 }) {
-  return (
-    <div className="flex items-center gap-2 rounded-full border border-border/60 bg-background px-2.5 py-1 shadow-xs">
-      <kbd className="rounded bg-muted/55 px-1.5 py-0.5 text-caption font-medium text-foreground ring-1 ring-border/40">
-        {keys}
-      </kbd>
-      <span className="text-caption text-muted-foreground/90">{label}</span>
-    </div>
+  const content = (
+    <>
+      {keys.map((key) => (
+        <FooterKbd key={key}>{key}</FooterKbd>
+      ))}
+      <span className="text-caption text-muted-foreground">{label}</span>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors hover:text-foreground"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return <div className="flex items-center gap-1.5 px-1 py-0.5">{content}</div>;
 }
 
 function ResultAvatar({ record }: { record: GlobalSearchRecord }) {
@@ -179,7 +203,7 @@ function SearchResultItem({
           <Badge
             variant="outline"
             className={cn(
-              "h-6 shrink-0 rounded-full border px-2.5 text-control font-medium shadow-none",
+              "h-6 shrink-0 rounded-full border px-2.5 text-caption font-medium shadow-none",
               resultBadgeClassMap[record.entityType],
             )}
           >
@@ -246,7 +270,7 @@ function PreviewChip({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-control font-medium",
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-caption font-medium",
         tone === "info"
           ? "border-info/15 bg-info/10 text-info"
           : "border-border/60 bg-background text-muted-foreground",
@@ -681,7 +705,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
   }, [onOpenChange, query, router]);
 
   const handleCommandMenuKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.defaultPrevented || event.isComposing) {
+    if (event.defaultPrevented || event.nativeEvent.isComposing) {
       return;
     }
 
@@ -689,7 +713,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
     if (isCommandShortcut) {
       event.preventDefault();
       event.stopPropagation();
-      handleAskSunder();
+      onOpenChange(false);
       return;
     }
 
@@ -707,7 +731,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
     event.preventDefault();
     event.stopPropagation();
     handleAskSunder();
-  }, [handleAskSunder]);
+  }, [handleAskSunder, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -739,19 +763,8 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
               value={query}
               onValueChange={setQuery}
               placeholder="Search records..."
-              className="min-w-0 flex-1 border-0 bg-transparent text-toolbar text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 border-0 bg-transparent text-base font-normal text-foreground outline-none placeholder:text-muted-foreground"
             />
-
-            <button
-              type="button"
-              className="hidden shrink-0 items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-control text-muted-foreground shadow-xs transition-colors hover:bg-muted/50 hover:text-foreground sm:flex"
-              onClick={handleAskSunder}
-            >
-              <span>Ask Sunder</span>
-              <kbd className="rounded bg-background px-1.5 py-0.5 text-caption text-foreground ring-1 ring-border/60">
-                Tab
-              </kbd>
-            </button>
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.03fr)_minmax(0,0.97fr)]">
@@ -798,42 +811,8 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
           </div>
         </CommandPrimitive>
 
-        <div className="flex items-center justify-between border-t border-border/60 bg-background px-3 py-2">
-          <div className="flex items-center gap-2">
-            <FooterKey keys="↑↓" label="Navigate" />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <FooterKey keys="Esc" label="Close" />
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background px-3 py-1.5 text-control text-muted-foreground shadow-xs transition-colors hover:bg-muted/50 hover:text-foreground"
-              onClick={handleAskSunder}
-            >
-              <span>New task</span>
-              <kbd className="rounded bg-muted/55 px-1.5 py-0.5 text-caption text-foreground ring-1 ring-border/40">
-                ⌘K
-              </kbd>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full bg-info px-3.5 py-2 text-control font-medium text-info-foreground shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50",
-            )}
-            onClick={() => {
-              if (selectedRecord) {
-                handleSelect(selectedRecord);
-              }
-            }}
-            disabled={!selectedRecord}
-          >
-            <span>Open record</span>
-            <kbd className="rounded bg-info-foreground/15 px-1.5 py-0.5 text-caption">
-              ↵
-            </kbd>
-          </button>
+        <div className="flex items-center justify-end border-t border-border/60 bg-background px-4 py-2.5 text-muted-foreground">
+          <FooterHint keys={["Tab"]} label="Ask AI" onClick={handleAskSunder} />
         </div>
       </DialogContent>
     </Dialog>

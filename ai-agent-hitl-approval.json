@@ -1,0 +1,71 @@
+{
+  "search_id": "search_11dad32dfa684a08ba1d97dcf6b1720a",
+  "status": "ok",
+  "results": [
+    {
+      "url": "https://openai.github.io/openai-agents-js/guides/human-in-the-loop/",
+      "title": "Human-in-the-loop | OpenAI Agents SDK",
+      "publish_date": null,
+      "excerpts": [
+        "Tool approval definition\nimport { tool } from '@openai/agents' ;\nimport z from 'zod' ;\nconst sensitiveTool = tool ({\nname : 'cancelOrder' ,\ndescription : 'Cancel order' ,\nparameters : z . object ({\norderId : z . number (),\n}),\n// always requires approval\nneedsApproval : true ,\nexecute : async ({ orderId }, args ) => {\n// prepare order return\n},\n});\nconst sendEmail = tool ({\nname : 'sendEmail' ,\ndescription : 'Send an email' ,\nparameters : z . object ({\nto : z . string (),\nsubject : z . string (),\nbody : z . string (),\n}),\nneedsApproval : async ( _context , { subject }) => {\n// check if the email is spam\nreturn subject . includes ( 'spam' );\n},\nexecute : async ({ to , subject , body }, args ) => {\n// send email\n},\n});\nFlow Section titled \u201cFlow\u201d\n    * If the agent decides to call a tool (or many) it will check if this tool needs approval by evaluating\nneedsApproval . * If the approval is required, the agent will check if approval is already granted or rejected."
+      ]
+    },
+    {
+      "url": "https://www.lindy.ai/blog/ai-agents-examples",
+      "title": "Top 30 AI Agent Examples for 2026 (Real-World Use Cases)",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: ... > Try Lindy to create AI agents for sales, CRM, and support\nContent:\n**Update CRM fields without manual entry:** Instead of just logging a transcript, you can set up Lindy to update CRM fields and fill in missing data in [Salesforce](https://www.lindy.ai/integrations/salesforce) and [HubSpot](https://www.lindy.ai/integrations/hubspot) without manual input\u200b. **Send follow-up emails and keep everyone in sync:** Lindy agents can [send follow-up emails](https://www.lindy.ai/templates/follow-up-email-drafter) and keep everyone in the loop by sending notifications with a [Slackbot](https://www.lindy.ai/academy-lessons/slackbot) . [**Lead enrichment**](https://www.lindy.ai/academy-lessons/lead-enrichment) **:** You can configure Lindy to use a prospecting API to research prospects and to provide sales teams with richer insights before outreach."
+      ]
+    },
+    {
+      "url": "https://www.jeeva.ai/blog/autonomous-operations-blueprint-ai-agents-in-your-back-office",
+      "title": "Autonomous Operations Blueprint: AI Agents in Your Back Office",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: Autonomous Operations Blueprint: AI Agents in Your Back Office > **System Architecture Overview**\nContent:\n\\\nIntegration code to call various internal/external APIs (the \u201ctools\u201d). \\\nLogic to manage its conversation or task state (often facilitated by the orchestrator, see below). \\\n**Integration Layer (Tools & Connectors):** This is a collection of API connectors and modules that allow agents to perform actions in our internal systems:\n\n\\\nDatabase connector for reading/writing business data (e.g. customer records, invoice data) via SQL or an ORM \u2013 restricted to necessary tables. \\\nCRM API client (for systems like Salesforce) to create or update records (e.g. updating a sales opportunity or support ticket). \\\nSlack bot API to send notifications or prompt humans for approval/input via Slack messages. \\\nEmail or Messaging service to send emails or alerts if needed (for tasks where Slack isn\u2019t suitable)."
+      ]
+    },
+    {
+      "url": "https://www.permit.io/blog/human-in-the-loop-for-ai-agents-best-practices-frameworks-use-cases-and-demo",
+      "title": "Human-in-the-Loop for AI Agents: Best Practices, Frameworks, Use Cases, and Demo",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: ... > The HITL Control Loop\nContent:\nThe HITL workflow follows a predictable and repeatable pattern:\nhttps://www.notion.so/image/attachment:2c36152b-db46-4f43-b7d4-559bb670cec2:image.png?table=block&id=1f91af21-8505-80b3-843e-ec880029c936&spaceId=48f31e07-1306-4196-b097-866f06339b53&width=2000&userId=dc560c56-eb2d-4661-a5fa-fa184d52d923&cache=v2\n**Agent receives a task by** processing a prompt or trigger.\n**Agent proposes an action,** like \u201cI need access to this document\u201d.\n**Agent pauses and** routes the request to a human approver using built-in `interrupt()` .\n**Human reviews** the context and either approves or rejects the proposed action.\n**Agent resumes,** executing the action only if it has been approved.\nThis pattern works across roles, industries, and use cases\u2014from DevOps and security to customer service and compliance."
+      ]
+    },
+    {
+      "url": "https://aws.amazon.com/blogs/machine-learning/implement-human-in-the-loop-confirmation-with-amazon-bedrock-agents/",
+      "title": "Implement human-in-the-loop confirmation with Amazon Bedrock Agents | Artificial Intelligence",
+      "publish_date": "2025-04-09",
+      "excerpts": [
+        "Section Title: Implement human-in-the-loop confirmation with Amazon Bedrock Agents\nContent:\nIn this post, we focus specifically on enabling end-users to approve actions and provide feedback using built-in Amazon Bedrock Agents features, specifically HITL patterns for providing safe and effective agent operations. We explore the patterns available using a Human Resources (HR) agent example that helps employees requesting time off. You can recreate the example manually or using the [AWS Cloud Development Kit](https://aws.amazon.com/cdk/) (AWS CDK) by following our [GitHub repository](https://github.com/awslabs/amazon-bedrock-agent-samples/tree/main/examples/agents/human_in_the_loop) . We show you what these methods look like from an application developer\u2019s perspective while providing you with the overall idea behind the concepts."
+      ]
+    },
+    {
+      "url": "https://fast.io/resources/ai-agent-human-in-the-loop/",
+      "title": "Human-in-the-Loop AI Agents: The Complete Guide (2026) | Fast.io",
+      "publish_date": null,
+      "excerpts": [
+        "Section Title: How to Implement Human-in-the-Loop for AI Agents > Core HITL Design Patterns\nContent:\nImplementing HITL isn't just about pausing a script. It requires specific architectural patterns. Here are the three most common approaches:\n**1. The Approval Gate** In this pattern, the agent completes a unit of work (e.g., generating a report) and places it in a holding state. It cannot proceed to the next step (e.g., emailing the report) until a human signal is received. This is the most common pattern for content generation and financial transactions.\n**2. The Escalation Trigger** The agent operates autonomously by default but monitors its own confidence metrics. If a variable falls below a defined threshold, the agent triggers an escalation event. This \"management by exception\" keeps humans out of the loop for routine tasks but brings them in for difficult ones."
+      ]
+    },
+    {
+      "url": "https://docs.oracle.com/en/cloud/paas/application-integration/aiagents/run-and-test-ai-agent-human-approval.html",
+      "title": "Run and Test Human Approval in the AI Agent",
+      "publish_date": "2026-01-14",
+      "excerpts": [
+        "Section Title: Run and Test Human Approval in the AI Agent\nContent:\nAssistant : shows the agent reasoning. You should see in the reasoning that the agent is going to request human approval.System is what you sent to the LLM:Assistant displays that the AI agent is going to invoke the human approval tool. The human approval tool is the integration that runs the approval workflow. The AI agent cannot go any further. It needs to wait for human approval. You need to manually approve or reject the expense. Approve the expense. From the Test Agent page, click Back to return to the AI Agents page. Select the Observe tab. In the left toolbar of your project, click Human in the Loop .You'll see workflow instances. Hover over the Simple Human Approval Workflow that was invoked by the AI agent and click View audit .The Activity stream panel opens. The start event indicates that the workflow was started. The user task's status shows In progress indicating that the user hasn't completed the task."
+      ]
+    },
+    {
+      "url": "https://bytebridge.medium.com/from-human-in-the-loop-to-human-on-the-loop-evolving-ai-agent-autonomy-c0ae62c3bf91",
+      "title": "From Human-in-the-Loop to Human-on-the-Loop: Evolving AI Agent Autonomy | by ByteBridge | Medium",
+      "publish_date": "2026-01-20",
+      "excerpts": [
+        "Section Title: ... > Optional Human Oversight: Tools Like Peta for Hybrid Control\nContent:\nOne such example is **Peta\u2019s \u201cDesk\u201d component** , which is essentially a human-in-the-loop gateway for approvals. The way it works is straightforward: you can tag certain tools or actions in your system as requiring human approval. So an agent might be fully autonomous in pulling data or making low-impact changes, but if it tries to execute, say, a wire transfer or send an email to all customers, that action can be flagged. Peta Desk will intercept the request and **turn it into a human-readable approval prompt** \u2014 for instance, sending a message to a Slack or Microsoft Teams channel like \u201cAgent X wants to perform Action Y with these parameters \u2014 do you approve?\u201d. A human operator (which could be an on-call engineer, a manager, etc., depending on the context) can then quickly **approve, deny, or modify** the action in real-time . Only upon approval does the gateway let the agent proceed."
+      ]
+    }
+  ],
+  "warnings": [
+    

@@ -196,4 +196,52 @@ describe("recoverOrphanedRun", () => {
       expect.objectContaining({ status: "failed" }),
     );
   });
+
+  it("persists only the post-approval follow-up after request_approval resolves", async () => {
+    await recoverOrphanedRun({
+      supabase: makeSupabase(),
+      anthropic: makeAnthropic([
+        {
+          id: "sevt_user1",
+          type: "user.message",
+          content: [{ type: "text", text: "Delete duplicates" }],
+        },
+        {
+          id: "toolu_request_1",
+          type: "agent.custom_tool_use",
+          name: "request_approval",
+          input: {
+            summary: "Delete duplicates",
+            action_type: "crm.delete_records",
+          },
+        },
+        {
+          id: "toolr_request_1",
+          type: "user.custom_tool_result",
+          custom_tool_use_id: "toolu_request_1",
+          content: [{ type: "text", text: '{"success":true,"approved":true}' }],
+        },
+        {
+          id: "sevt_agent2",
+          type: "agent.message",
+          content: [{ type: "text", text: "Deleted the duplicates." }],
+        },
+        {
+          id: "sevt_idle2",
+          type: "session.status_idle",
+          stop_reason: { type: "end_turn" },
+        },
+      ]),
+      run: makeRun(),
+      stopReasonType: "end_turn",
+    });
+
+    expect(upsertMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        content: "Deleted the duplicates.",
+        source_event_id: "sevt_idle2",
+      }),
+    );
+  });
 });

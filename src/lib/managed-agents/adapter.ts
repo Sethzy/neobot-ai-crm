@@ -19,10 +19,11 @@
  *      streamed text become first-class data-spec parts (D3).
  *
  * Also exports `resumeManagedAgentFromApproval` — the post-approval
- * re-entry point used by `/api/tool-confirm` and the Telegram callback
- * handler. It mirrors `runManagedAgent`'s finalization shape but sends a
- * `user.tool_confirmation` as its kickoff and reuses the run_id recorded
- * on the approval event instead of creating a new run.
+ * re-entry point used by `/api/chat`, `/api/tool-confirm`, and the Telegram
+ * callback handler. It mirrors `runManagedAgent`'s finalization shape but
+ * resumes with the correct Anthropic event for the paused approval:
+ * `user.tool_confirmation` for built-in/MCP approvals and
+ * `user.custom_tool_result` for `request_approval`.
  *
  * @module lib/managed-agents/adapter
  */
@@ -870,18 +871,35 @@ export type ResumeManagedAgentResult =
       status: "streaming";
       stream: ReadableStream<unknown>;
       threadId: string;
+      approved: boolean;
     }
   | { status: "missing" }
-  | { status: "already_resolved"; threadId: string }
+  | { status: "already_resolved"; threadId: string; approved: boolean }
   | { status: "error"; error: string };
+
+function buildRequestApprovalDecisionPayload(input: {
+  approved: boolean;
+  denyMessage?: string;
+}) {
+  return {
+    success: true,
+    approved: input.approved,
+    decision: input.approved ? "approved" : "denied",
+    ...(input.approved
+      ? {}
+      : {
+          deny_message: input.denyMessage ?? "User denied this action.",
+        }),
+  };
+}
 
 /**
  * Re-enters a paused session after a user approves or denies a gated
  * tool call. Looks up `approval_events` for the session/tool_use/run ids,
- * kicks the session with a `user.tool_confirmation`, consumes the
- * post-approval events via the shared session runner, and finalizes the
- * run identically to `runManagedAgent` so the resumed turn is persisted,
- * delivered externally, and evaluated.
+ * kicks the session with the matching Anthropic approval event, consumes
+ * the post-approval events via the shared session runner, and finalizes
+ * the run identically to `runManagedAgent` so the resumed turn is
+ * persisted, delivered externally, and evaluated.
  *
  * The approval row is claimed before streaming so only one resolver can send
  * `user.tool_confirmation`. If the kickoff never reaches Anthropic, the claim
@@ -913,7 +931,11 @@ export async function resumeManagedAgentFromApproval(
         patchError,
       );
     });
-    return { status: "already_resolved", threadId: claimResult.event.thread_id };
+    return {
+      status: "already_resolved",
+      threadId: claimResult.event.thread_id,
+      approved: approvalDecision,
+    };
   }
 
   if (!claimResult.success || claimResult.status !== "claimed") {
@@ -943,15 +965,16 @@ export async function resumeManagedAgentFromApproval(
       );
     });
     return {
-      status: "error",
-      error: "Approval event is missing session_id, tool_use_id, or run_id.",
-    };
+        status: "error",
+        error: "Approval event is missing session_id, tool_use_id, or run_id.",
+      };
   }
 
   const sessionId = claimResult.event.session_id;
   const toolUseId = claimResult.event.tool_use_id;
   const runId = claimResult.event.run_id;
   const threadId = claimResult.event.thread_id;
+  const approvalToolName = claimResult.event.tool_name ?? "";
   const approvalId = input.approvalId;
   const clientId = input.clientId;
   const approved = input.approved;
@@ -968,8 +991,23 @@ export async function resumeManagedAgentFromApproval(
 
   const rawStream = createUIMessageStream({
     execute: async ({ writer }) => {
-      let didSendKickoffApproval = false;
+      let didSendKickoffDecision = false;
       try {
+        const patchApprovalState = async () => {
+          didSendKickoffDecision = true;
+          await patchApprovalPartState(input.supabase, {
+            clientId,
+            threadId,
+            approvalId,
+            approved,
+          }).catch((patchError) => {
+            console.error(
+              "[resumeManagedAgentFromApproval] failed to patch approval state",
+              patchError,
+            );
+          });
+        };
+
         const result = await consumeAnthropicSession({
           anthropic: input.anthropic,
           sessionId,
@@ -980,25 +1018,32 @@ export async function resumeManagedAgentFromApproval(
             threadId,
             isChatContext: true,
           },
-          kickoffApproval: {
-            toolUseId,
-            result: approved ? "allow" : "deny",
-            denyMessage,
-          },
-          onKickoffApprovalSent: async () => {
-            didSendKickoffApproval = true;
-            await patchApprovalPartState(input.supabase, {
-              clientId,
-              threadId,
-              approvalId,
-              approved,
-            }).catch((patchError) => {
-              console.error(
-                "[resumeManagedAgentFromApproval] failed to patch approval state",
-                patchError,
-              );
-            });
-          },
+          ...(approvalToolName === "request_approval"
+            ? {
+                kickoffCustomToolResult: {
+                  custom_tool_use_id: toolUseId,
+                  content: [
+                    {
+                      type: "text" as const,
+                      text: JSON.stringify(
+                        buildRequestApprovalDecisionPayload({
+                          approved,
+                          denyMessage,
+                        }),
+                      ),
+                    },
+                  ],
+                },
+                onKickoffCustomToolResultSent: patchApprovalState,
+              }
+            : {
+                kickoffApproval: {
+                  toolUseId,
+                  result: approved ? "allow" : "deny",
+                  denyMessage,
+                },
+                onKickoffApprovalSent: patchApprovalState,
+              }),
           autoDenyApprovals: false,
           callbacks: buildUiStreamCallbacks(writer),
         });
@@ -1027,7 +1072,7 @@ export async function resumeManagedAgentFromApproval(
           } as never);
         }
       } catch (resumeError) {
-        if (!didSendKickoffApproval) {
+        if (!didSendKickoffDecision) {
           await releaseApprovalResolutionClaim(input.supabase, {
             clientId,
             approvalId,
@@ -1063,5 +1108,6 @@ export async function resumeManagedAgentFromApproval(
     status: "streaming",
     stream: pipeJsonRender(rawStream) as ReadableStream<unknown>,
     threadId,
+    approved,
   };
 }

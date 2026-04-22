@@ -9,6 +9,7 @@
  * @module lib/managed-agents/dispatch-event-to-callbacks
  */
 import type { SessionRunnerCallbacks } from "./types";
+import { toInternalManagedAgentToolName } from "./tool-name-aliases";
 
 /**
  * Dispatch a single Anthropic event to the matching callback. Safe to
@@ -35,8 +36,13 @@ export async function dispatchEventToCallbacks(
     handler = "onSessionError";
     await callbacks.onSessionError?.(event);
   } else if (eventType === "agent.custom_tool_use") {
-    handler = "onAgentToolUse";
-    await callbacks.onAgentToolUse?.(event);
+    const typed = event as { name?: string };
+    if (toInternalManagedAgentToolName(typed.name ?? "") === "request_approval") {
+      handler = "deferred-approval";
+    } else {
+      handler = "onAgentToolUse";
+      await callbacks.onAgentToolUse?.(event);
+    }
   } else if (eventType === "agent.tool_use" || eventType === "agent.mcp_tool_use") {
     // Built-in or MCP tool uses must still be projected to the UI so the
     // subsequent tool_result can bind to an existing invocation. Approval-

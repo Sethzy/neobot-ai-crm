@@ -190,7 +190,7 @@ export async function claimApprovalResolution(
     .eq("client_id", input.clientId)
     .eq("approval_id", input.approvalId)
     .eq("status", "pending")
-    .select("approval_id, client_id, thread_id, run_id, session_id, tool_use_id, status, resolved_at")
+    .select("approval_id, client_id, thread_id, run_id, session_id, tool_use_id, tool_name, status, resolved_at")
     .maybeSingle();
 
   if (error) {
@@ -209,7 +209,7 @@ export async function claimApprovalResolution(
 
   const { data: existingEvent, error: existingEventError } = await supabase
     .from("approval_events")
-    .select("thread_id, status")
+    .select("thread_id, status, tool_name")
     .eq("client_id", input.clientId)
     .eq("approval_id", input.approvalId)
     .maybeSingle();

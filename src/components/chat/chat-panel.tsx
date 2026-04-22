@@ -199,6 +199,7 @@ export function ChatPanel({
   // mid-stream break (Vercel timeout) from a pre-flight error (bad request).
   const wasStreamingRef = useRef(false);
   const [streamErrorRecovery, setStreamErrorRecovery] = useState(false);
+  const [approvalRecovery, setApprovalRecovery] = useState<{ approvalId: string } | null>(null);
 
   const { messages, sendMessage, stop, status, error, setMessages, addToolApprovalResponse } = useChat({
     id: chatId,
@@ -279,6 +280,7 @@ export function ChatPanel({
   const { isWaitingForResponse } = useAutoResume({
     autoResume,
     streamErrorRecovery,
+    approvalRecovery,
     chatId,
     initialMessages,
     setMessages,
@@ -286,10 +288,11 @@ export function ChatPanel({
 
   // Clear recovery state when auto-resume finds the message.
   useEffect(() => {
-    if (streamErrorRecovery && !isWaitingForResponse) {
+    if ((streamErrorRecovery || approvalRecovery) && !isWaitingForResponse) {
       setStreamErrorRecovery(false);
+      setApprovalRecovery(null);
     }
-  }, [streamErrorRecovery, isWaitingForResponse]);
+  }, [approvalRecovery, streamErrorRecovery, isWaitingForResponse]);
 
   // Subscribe to background message delivery via Supabase Realtime.
   // When a background job completes, the server inserts a conversation_messages
@@ -352,6 +355,11 @@ export function ChatPanel({
     },
     [addToolApprovalResponse],
   );
+
+  const handleManagedApprovalSubmitted = useCallback((approvalId: string) => {
+    setApprovalRecovery({ approvalId });
+    queryClient.invalidateQueries({ queryKey: threadKeys.all });
+  }, [queryClient]);
 
   const effectiveStatus = isWaitingForResponse ? "submitted" : status;
   const isLoading = effectiveStatus === "submitted" || effectiveStatus === "streaming";
@@ -531,7 +539,13 @@ export function ChatPanel({
 
       {hasMessages ? (
         <>
-          <MessageList ref={messageListRef} messages={messages} status={effectiveStatus} onToolApproval={handleToolApproval} />
+          <MessageList
+            ref={messageListRef}
+            messages={messages}
+            status={effectiveStatus}
+            onToolApproval={handleToolApproval}
+            onManagedApprovalSubmitted={handleManagedApprovalSubmitted}
+          />
           <div className="relative">
             {messageQuota ? (
               <MessageQuotaPill

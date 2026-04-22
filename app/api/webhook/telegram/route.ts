@@ -59,6 +59,22 @@ const telegramUpdateSchema = z.object({
   callback_query: z.record(z.string(), z.unknown()).optional(),
 });
 
+async function drainStream(stream: ReadableStream<unknown>): Promise<void> {
+  const reader = stream.getReader();
+  try {
+    while (true) {
+      const { done } = await reader.read();
+      if (done) {
+        return;
+      }
+    }
+  } catch (error) {
+    console.error("[telegram/webhook] approval stream drain failed:", error);
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 // ---------------------------------------------------------------------------
 // /start — pairing
 // ---------------------------------------------------------------------------
@@ -410,10 +426,6 @@ async function handleApprovalCallback(
     return;
   }
 
-  // status === "streaming" — the post-approval turn is running. Drain the
-  // stream so the run finalizes (assistant parts persisted, completeRun,
-  // evaluators, external channel delivery). Telegram render happens via
-  // `deliverToExternalChannels` inside `finalizeRun`.
   const isStaleThread = result.threadId !== mapping.thread_id;
   await editTelegramCallbackMessage(
     ctx.bot,
@@ -428,17 +440,7 @@ async function handleApprovalCallback(
       : "Denied",
   });
 
-  const reader = result.stream.getReader();
-  try {
-    while (true) {
-      const { done } = await reader.read();
-      if (done) break;
-    }
-  } catch (drainError) {
-    console.error("[telegram/webhook] approval stream drain failed:", drainError);
-  } finally {
-    reader.releaseLock();
-  }
+  await drainStream(result.stream);
 }
 
 // ---------------------------------------------------------------------------

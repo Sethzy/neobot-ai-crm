@@ -64,6 +64,24 @@ export interface CustomToolResultContent {
   is_error?: boolean;
 }
 
+export interface ImmediateCustomToolDispatchResult {
+  kind: "immediate";
+  custom_tool_use_id: string;
+  content: Array<{ type: "text"; text: string }>;
+  is_error?: boolean;
+}
+
+export interface DeferredCustomToolDispatchResult {
+  kind: "deferred";
+  toolUseId: string;
+  toolName: string;
+  toolInput: unknown;
+}
+
+export type DispatchCustomToolResult =
+  | ImmediateCustomToolDispatchResult
+  | DeferredCustomToolDispatchResult;
+
 // ── Session runner contracts ────────────────────────────────────────────────
 
 /** Per-run cost totals accumulated inside the session runner. */
@@ -161,12 +179,25 @@ export interface SessionRunnerOptions {
     denyMessage?: string;
   };
   /**
+   * If provided, send a `user.custom_tool_result` AFTER opening the stream.
+   * Used by custom-tool approval flows like `request_approval`, where the
+   * paused session expects a custom tool result rather than
+   * `user.tool_confirmation`.
+   */
+  kickoffCustomToolResult?: CustomToolResultContent;
+  /**
    * Fires after a resume-path `user.tool_confirmation` event is accepted by
    * Anthropic. The approval adapter uses this to tell "confirmation never
    * sent, safe to release the DB claim" from "confirmation sent, do not
    * auto-retry".
    */
   onKickoffApprovalSent?: () => void | Promise<void>;
+  /**
+   * Fires after a resume-path `user.custom_tool_result` event is accepted by
+   * Anthropic. Mirrors `onKickoffApprovalSent` for custom-tool approval
+   * resumes.
+   */
+  onKickoffCustomToolResultSent?: () => void | Promise<void>;
   /**
    * Trigger-mode: auto-deny bash approvals via user.tool_confirmation.
    * Defaults to false (chat-mode behaviour).
