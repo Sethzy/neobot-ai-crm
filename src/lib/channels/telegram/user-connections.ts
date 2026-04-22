@@ -59,6 +59,11 @@ export interface TelegramReadiness {
   missingVariables: string[];
 }
 
+export interface TelegramConnectionConflictLookupInput {
+  clientId: string;
+  userId: string;
+}
+
 function mapConnection(row: TelegramConnectionRow): TelegramConnection {
   return {
     clientId: row.client_id,
@@ -131,6 +136,28 @@ export async function getTelegramConnectionByChatId(
   }
 
   return data ? mapConnection(data as TelegramConnectionRow) : null;
+}
+
+/** Finds another user's Telegram connection on the same client, if one exists. */
+export async function findTelegramClientConnectionConflict(
+  supabase: TelegramSupabaseClient,
+  input: TelegramConnectionConflictLookupInput,
+): Promise<TelegramConnection | null> {
+  const { data, error } = await supabase
+    .from("messaging_channel_connections")
+    .select("client_id, external_conversation_id, target_thread_id, user_id")
+    .eq("channel", TELEGRAM_CHANNEL)
+    .eq("client_id", input.clientId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const conflictingConnection = (data as TelegramConnectionRow[] | null)?.find(
+    (connection) => connection.user_id !== input.userId,
+  );
+
+  return conflictingConnection ? mapConnection(conflictingConnection) : null;
 }
 
 /** Inserts or replaces the Telegram chat owned by a given user. */

@@ -11,6 +11,7 @@ const {
   mockGetDefaultMessagingThreadForUser,
   mockClearTelegramPairingSessionsForUser,
   mockCreateTelegramPairingSession,
+  mockFindTelegramClientConnectionConflict,
   mockGeneratePairingDisplayCode,
   mockGeneratePairingToken,
   mockGetTelegramReadiness,
@@ -21,6 +22,7 @@ const {
   mockGetDefaultMessagingThreadForUser: vi.fn(),
   mockClearTelegramPairingSessionsForUser: vi.fn(),
   mockCreateTelegramPairingSession: vi.fn(),
+  mockFindTelegramClientConnectionConflict: vi.fn(),
   mockGeneratePairingDisplayCode: vi.fn(),
   mockGeneratePairingToken: vi.fn(),
   mockGetTelegramReadiness: vi.fn(),
@@ -55,6 +57,8 @@ vi.mock("@/lib/channels/telegram/user-connections", () => ({
     mockClearTelegramPairingSessionsForUser(...args),
   createTelegramPairingSession: (...args: unknown[]) =>
     mockCreateTelegramPairingSession(...args),
+  findTelegramClientConnectionConflict: (...args: unknown[]) =>
+    mockFindTelegramClientConnectionConflict(...args),
   getTelegramReadiness: (...args: unknown[]) => mockGetTelegramReadiness(...args),
 }));
 
@@ -72,6 +76,7 @@ describe("POST /api/telegram/generate-pairing-link", () => {
     mockGetBotUsername.mockResolvedValue("SunderBot");
     mockGetDefaultMessagingThreadForUser.mockResolvedValue("thread-1");
     mockClearTelegramPairingSessionsForUser.mockResolvedValue(undefined);
+    mockFindTelegramClientConnectionConflict.mockResolvedValue(null);
     mockCreateTelegramPairingSession.mockResolvedValue({
       clientId: "client-1",
       consumedAt: null,
@@ -223,5 +228,33 @@ describe("POST /api/telegram/generate-pairing-link", () => {
     expect(response.status).toBe(200);
     expect(mockCreateTelegramPairingSession).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
+  });
+
+  it("returns 409 when another user already owns Telegram for the client", async () => {
+    const supabase = { from: vi.fn() };
+    mockAuthenticateRequest.mockResolvedValue({
+      kind: "ok",
+      supabase,
+      userId: "user-1",
+    });
+    mockResolveClientId.mockResolvedValue("client-1");
+    mockFindTelegramClientConnectionConflict.mockResolvedValue({
+      clientId: "client-1",
+      externalConversationId: "12345",
+      targetThreadId: "thread-1",
+      userId: "user-2",
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/telegram/generate-pairing-link", {
+        method: "POST",
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Telegram is already connected for another user on this workspace.",
+    });
+    expect(mockCreateTelegramPairingSession).not.toHaveBeenCalled();
   });
 });
