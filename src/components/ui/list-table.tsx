@@ -197,13 +197,15 @@ export function ListTable<TData>({
           <thead className="border-b border-app-border-subtle">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
+                {headerGroup.headers.map((header, headerIndex) => {
                   const isActionsColumn = header.column.id === "__row_actions";
+                  const isLastHeader = headerIndex === headerGroup.headers.length - 1;
                   return (
                     <th
                       key={header.id}
                       className={cn(
                         "px-4 py-2.5 text-left",
+                        !isLastHeader && "border-r border-app-border-subtle/80",
                         isActionsColumn && "w-[1%] text-right",
                       )}
                     >
@@ -238,11 +240,13 @@ export function ListTable<TData>({
                     {resolvedColumns.map((col, colIndex) => {
                       const colId = (col.id as string | undefined) ?? `col${colIndex}`;
                       const isActionsCol = colId === "__row_actions";
+                      const isLastCol = colIndex === resolvedColumns.length - 1;
                       return (
                         <td
                           key={colIndex}
                           className={cn(
                             "px-4 py-2.5",
+                            !isLastCol && "border-r border-app-border-subtle/80",
                             isActionsCol && "w-[1%] text-right",
                           )}
                         >
@@ -282,9 +286,10 @@ export function ListTable<TData>({
                             onRowClick(row.original);
                           }}
                         >
-                          {row.getVisibleCells().map((cell) => {
+                          {row.getVisibleCells().map((cell, cellIndex, cellsArray) => {
                             const columnId = cell.column.id;
                             const isActionsColumn = columnId === "__row_actions";
+                            const isLastCell = cellIndex === cellsArray.length - 1;
                             const rawValue = cell.getValue();
                             const renderedContent = cell.column.columnDef.cell
                               ? flexRender(cell.column.columnDef.cell, cell.getContext())
@@ -300,6 +305,7 @@ export function ListTable<TData>({
                                 key={cell.id}
                                 className={cn(
                                   "px-4 py-2.5 text-meta text-foreground",
+                                  !isLastCell && "border-r border-app-border-subtle/80",
                                   isActionsColumn && "w-[1%] whitespace-nowrap text-right",
                                 )}
                               >
