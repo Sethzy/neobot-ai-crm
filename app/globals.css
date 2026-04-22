@@ -708,6 +708,32 @@
 .icon-key { animation: icon-key-wobble 2.5s ease-in-out infinite; }
 .icon-clock { animation: icon-clock-tick 2.5s ease-in-out infinite; }
 
+@property --shimmer-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 210deg;
+}
+
+@keyframes shimmer-spin {
+  to { --shimmer-angle: 570deg; }
+}
+
+.shimmer-border {
+  background: conic-gradient(
+    from var(--shimmer-angle) at 50% 50%,
+    var(--primary) 0deg,
+    color-mix(in oklch, var(--ring) 45%, white) 90deg,
+    var(--ring) 180deg,
+    var(--flexoki-cyan) 275deg,
+    var(--primary) 360deg
+  );
+  animation: shimmer-spin 8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-border { animation: none; }
+}
+
 /* Login page — showcase entrance + phone float */
 @keyframes login-slide-in {
   from { opacity: 0; transform: translateX(30px); }

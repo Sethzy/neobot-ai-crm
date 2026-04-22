@@ -59,18 +59,20 @@ export function AutomationLauncherComposer() {
 
   return (
     <div className="pointer-events-none sticky bottom-0 z-10 mt-8 pb-4 [&>*]:pointer-events-auto">
-      <ChatComposer
-        status="ready"
-        selectedChatModel={selectedChatModel}
-        value={composerValue}
-        onValueChange={setComposerValue}
-        onSelectedChatModelChange={handleModelChange}
-        onSubmit={handleSubmit}
-        placeholder="Describe an automation to create..."
-        allowAttachments={false}
-        className="pb-0"
-        innerClassName="border border-app-border-subtle bg-app-surface-elevated shadow-md"
-      />
+      <div className="shimmer-border mx-auto max-w-[44rem] rounded-2xl p-[2px] shadow-lg shadow-primary/15">
+        <ChatComposer
+          status="ready"
+          selectedChatModel={selectedChatModel}
+          value={composerValue}
+          onValueChange={setComposerValue}
+          onSelectedChatModelChange={handleModelChange}
+          onSubmit={handleSubmit}
+          placeholder="Describe an automation to create..."
+          allowAttachments={false}
+          className="px-0 pb-0"
+          innerClassName="rounded-[calc(1rem-2px)] border-0 bg-app-surface-elevated max-w-none"
+        />
+      </div>
     </div>
   );
 }
