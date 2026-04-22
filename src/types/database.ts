@@ -1926,33 +1926,22 @@ export type Database = {
         Row: {
           client_config_id: string | null
           created_at: string | null
-          default_messaging_thread_id: string | null
           id: string
           updated_at: string | null
         }
         Insert: {
           client_config_id?: string | null
           created_at?: string | null
-          default_messaging_thread_id?: string | null
           id: string
           updated_at?: string | null
         }
         Update: {
           client_config_id?: string | null
           created_at?: string | null
-          default_messaging_thread_id?: string | null
           id?: string
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_profiles_default_messaging_thread_id_fkey"
-            columns: ["default_messaging_thread_id"]
-            isOneToOne: false
-            referencedRelation: "conversation_threads"
-            referencedColumns: ["thread_id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {

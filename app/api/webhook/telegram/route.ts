@@ -3,7 +3,6 @@
  * Handles pairing, inbound messages, approvals, and ask_user_question callbacks.
  * @module app/api/webhook/telegram/route
  */
-import { randomUUID } from "node:crypto";
 
 import { after } from "next/server";
 import { z } from "zod";
@@ -20,18 +19,17 @@ import {
 import {
   advancePendingQuestionBatchByCallback,
   advancePendingQuestionBatchByTextReply,
-  clearPendingQuestionsForChat,
   restorePendingQuestionBatch,
 } from "@/lib/channels/telegram/pending-questions";
 import {
   deleteTelegramChannelMapping,
+  findTelegramClientConnectionConflict,
   findTelegramPairingSession,
   getTelegramConnectionByChatId,
   getTelegramConnectionForUser,
   markTelegramPairingSessionConsumed,
   upsertTelegramChannelMapping,
   upsertTelegramConnection,
-  updateTelegramConnectionTargetThread,
 } from "@/lib/channels/telegram/user-connections";
 import {
   editTelegramCallbackMessage,
@@ -42,11 +40,11 @@ import {
   hasValidTelegramSecret,
   parseCommand,
   recordTelegramDeliveryReceipt,
-  resolveCommandMapping,
   sendPlainTelegramMessage,
   TELEGRAM_CHANNEL,
   type TelegramWebhookContext,
 } from "@/lib/channels/telegram/webhook";
+import { getPrimaryThread } from "@/lib/chat/threads";
 import {
   resumeManagedAgentFromApproval,
   runManagedAgent,
@@ -109,16 +107,39 @@ async function pairTelegramChat(
     });
   }
 
+  const conflictingConnection = await findTelegramClientConnectionConflict(ctx.supabase, {
+    clientId: pairingSession.clientId,
+    userId: pairingSession.userId,
+  });
+  if (conflictingConnection) {
+    await sendPlainTelegramMessage(
+      ctx.bot,
+      numericChatId,
+      "Telegram is already connected for another user on this workspace.",
+    );
+    return;
+  }
+
+  const primaryThread = await getPrimaryThread(ctx.supabase, pairingSession.clientId);
+  if (!primaryThread) {
+    await sendPlainTelegramMessage(
+      ctx.bot,
+      numericChatId,
+      "This pairing link is no longer valid. Generate a new one from Sunder on web.",
+    );
+    return;
+  }
+
   await upsertTelegramConnection(ctx.supabase, {
     clientId: pairingSession.clientId,
     externalConversationId: chatId,
-    targetThreadId: pairingSession.targetThreadId,
+    targetThreadId: primaryThread.thread_id,
     userId: pairingSession.userId,
   });
   await upsertTelegramChannelMapping(ctx.supabase, {
     chatId,
     clientId: pairingSession.clientId,
-    threadId: pairingSession.targetThreadId,
+    threadId: primaryThread.thread_id,
   });
   await markTelegramPairingSessionConsumed(ctx.supabase, pairingSession.id);
 
@@ -138,107 +159,16 @@ async function handleStartCommand(
   );
 }
 
-// ---------------------------------------------------------------------------
-// /new — create fresh thread
-// ---------------------------------------------------------------------------
-
-async function handleNewCommand(
+async function handleRemovedCommand(
   ctx: TelegramWebhookContext,
   message: Record<string, unknown>,
 ): Promise<void> {
-  const resolved = await resolveCommandMapping(ctx, message);
-  if (!resolved) return;
-  const { chatId, numericChatId, mapping } = resolved;
-
-  await clearPendingQuestionsForChat(ctx.supabase, chatId);
-
-  const threadId = randomUUID();
-  const { error: threadError } = await ctx.supabase
-    .from("conversation_threads")
-    .insert({
-      thread_id: threadId,
-      client_id: mapping.client_id,
-      title: null,
-    });
-
-  if (threadError) {
-    throw threadError;
-  }
-
-  const { error: updateError } = await ctx.supabase
-    .from("conversation_channel_mappings")
-    .update({ thread_id: threadId })
-    .eq("channel", TELEGRAM_CHANNEL)
-    .eq("external_conversation_id", chatId);
-
-  if (updateError) {
-    throw updateError;
-  }
-
-  const connection = await getTelegramConnectionByChatId(ctx.supabase, chatId);
-  if (connection) {
-    await updateTelegramConnectionTargetThread(ctx.supabase, {
-      targetThreadId: threadId,
-      userId: connection.userId,
-    });
-  }
-
-  await sendPlainTelegramMessage(ctx.bot, numericChatId, "Started a new Telegram chat.");
-}
-
-// ---------------------------------------------------------------------------
-// /main — switch back to primary thread
-// ---------------------------------------------------------------------------
-
-async function handleMainCommand(
-  ctx: TelegramWebhookContext,
-  message: Record<string, unknown>,
-): Promise<void> {
-  const resolved = await resolveCommandMapping(ctx, message);
-  if (!resolved) return;
-  const { chatId, numericChatId, mapping } = resolved;
-
-  const { data: primaryThread, error: primaryError } = await ctx.supabase
-    .from("conversation_threads")
-    .select("thread_id")
-    .eq("client_id", mapping.client_id)
-    .eq("is_primary", true)
-    .single();
-
-  if (primaryError || !primaryThread) {
-    await sendPlainTelegramMessage(ctx.bot, numericChatId, "Primary thread not found.");
-    return;
-  }
-
-  // BUG FIX: Only clear pending questions when actually switching threads.
-  // Previously, clearPendingQuestionsForChat ran before this guard, discarding
-  // active question flows even when the user was already on main.
-  if (mapping.thread_id === primaryThread.thread_id) {
-    await sendPlainTelegramMessage(ctx.bot, numericChatId, "Already in the main session.");
-    return;
-  }
-
-  await clearPendingQuestionsForChat(ctx.supabase, chatId);
-
-  const { error: updateError } = await ctx.supabase
-    .from("conversation_channel_mappings")
-    .update({ thread_id: primaryThread.thread_id })
-    .eq("channel", TELEGRAM_CHANNEL)
-    .eq("external_conversation_id", chatId);
-
-  if (updateError) {
-    throw updateError;
-  }
-
-  const connection = await getTelegramConnectionByChatId(ctx.supabase, chatId);
-  if (connection) {
-    await updateTelegramConnectionTargetThread(ctx.supabase, {
-      targetThreadId: primaryThread.thread_id,
-      userId: connection.userId,
-    });
-  }
-
-  await sendPlainTelegramMessage(ctx.bot, numericChatId, "Switched back to main session.");
+  const { numericChatId } = extractChatId(message);
+  await sendPlainTelegramMessage(
+    ctx.bot,
+    numericChatId,
+    "That command was removed. Open Sunder on web and use New Task.",
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -603,13 +533,8 @@ async function processUpdate(
       return;
     }
 
-    if (command?.command === "/new") {
-      await handleNewCommand(ctx, update.message);
-      return;
-    }
-
-    if (command?.command === "/main") {
-      await handleMainCommand(ctx, update.message);
+    if (command?.command === "/new" || command?.command === "/main") {
+      await handleRemovedCommand(ctx, update.message);
       return;
     }
 

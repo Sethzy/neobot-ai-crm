@@ -13,6 +13,7 @@ import {
 import {
   clearTelegramPairingSessionsForUser,
   createTelegramPairingSession,
+  findTelegramClientConnectionConflict,
   getTelegramReadiness,
 } from "@/lib/channels/telegram/user-connections";
 import { resolveClientId } from "@/lib/chat/client-id";
@@ -74,6 +75,20 @@ export async function POST(): Promise<Response> {
     }
 
     const clientId = await resolveClientId(authResult.supabase, authResult.userId);
+    const conflictingConnection = await findTelegramClientConnectionConflict(
+      authResult.supabase,
+      {
+        clientId,
+        userId: authResult.userId,
+      },
+    );
+    if (conflictingConnection) {
+      return jsonError(
+        "Telegram is already connected for another user on this workspace.",
+        409,
+      );
+    }
+
     const targetThreadId = await getDefaultMessagingThreadForUser(authResult.supabase, {
       clientId,
       userId: authResult.userId,

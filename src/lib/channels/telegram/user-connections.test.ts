@@ -8,6 +8,7 @@ import {
   clearTelegramPairingSessionsForUser,
   createTelegramPairingSession,
   deleteTelegramChannelMapping,
+  findTelegramClientConnectionConflict,
   findTelegramPairingSession,
   getTelegramConnectionForUser,
   getTelegramReadiness,
@@ -109,6 +110,43 @@ describe("Telegram connection helpers", () => {
       onConflict: "user_id,channel",
     });
     expect(connection?.targetThreadId).toBe("thread-2");
+  });
+
+  it("finds another user's Telegram connection on the same client", async () => {
+    const eqClient = vi.fn().mockResolvedValue({
+      data: [
+        {
+          client_id: "client-1",
+          external_conversation_id: "12345",
+          target_thread_id: "thread-1",
+          user_id: "user-1",
+        },
+        {
+          client_id: "client-1",
+          external_conversation_id: "54321",
+          target_thread_id: "thread-2",
+          user_id: "user-2",
+        },
+      ],
+      error: null,
+    });
+    const eqChannel = vi.fn(() => ({ eq: eqClient }));
+    const select = vi.fn(() => ({ eq: eqChannel }));
+    const from = vi.fn(() => ({ select }));
+
+    const conflict = await findTelegramClientConnectionConflict({ from } as never, {
+      clientId: "client-1",
+      userId: "user-1",
+    });
+
+    expect(eqChannel).toHaveBeenCalledWith("channel", "telegram");
+    expect(eqClient).toHaveBeenCalledWith("client_id", "client-1");
+    expect(conflict).toEqual({
+      clientId: "client-1",
+      externalConversationId: "54321",
+      targetThreadId: "thread-2",
+      userId: "user-2",
+    });
   });
 
   it("updates the target thread for the current user's Telegram connection", async () => {

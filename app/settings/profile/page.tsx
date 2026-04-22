@@ -1,29 +1,21 @@
 /**
  * Settings → User → Profile.
- * Personal home for Telegram connection and default messaging destination.
+ * Personal home for Telegram connection and profile-level messaging surfaces.
  * @module app/(dashboard)/settings/profile/page
  */
-import { DefaultMessagingAgentForm } from "@/components/settings/profile/default-messaging-agent-form";
 import { TelegramConnectRow } from "@/components/settings/messaging-channels/telegram-connect-row";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageCanvas } from "@/components/layout/page-canvas";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getTelegramConnectionForUser, getTelegramReadiness } from "@/lib/channels/telegram/user-connections";
-import { resolveClientId } from "@/lib/chat/client-id";
-import {
-  getDefaultMessagingThreadForUser,
-  listAvailableMessagingThreads,
-} from "@/lib/settings/profile/messaging-preferences";
 import { createClient } from "@/lib/supabase/server";
 
 type LoadedProfilePage =
   | {
       kind: "loaded";
-      defaultThreadId: string;
       isTelegramAvailable: boolean;
       telegramAvailabilityMessage: string | null;
       telegramConnection: { chatId: string; targetThreadId: string } | null;
-      threads: Awaited<ReturnType<typeof listAvailableMessagingThreads>>;
       userId: string;
     }
   | { kind: "error" };
@@ -40,20 +32,11 @@ async function loadProfilePage(): Promise<LoadedProfilePage> {
       return { kind: "error" };
     }
 
-    const clientId = await resolveClientId(supabase, user.id);
     const readiness = getTelegramReadiness();
-    const [threads, defaultThreadId, telegramConnection] = await Promise.all([
-      listAvailableMessagingThreads(supabase, clientId),
-      getDefaultMessagingThreadForUser(supabase, {
-        clientId,
-        userId: user.id,
-      }),
-      getTelegramConnectionForUser(supabase, user.id),
-    ]);
+    const telegramConnection = await getTelegramConnectionForUser(supabase, user.id);
 
     return {
       kind: "loaded",
-      defaultThreadId,
       isTelegramAvailable: readiness.isConfigured,
       telegramAvailabilityMessage: readiness.isConfigured
         ? null
@@ -64,7 +47,6 @@ async function loadProfilePage(): Promise<LoadedProfilePage> {
             targetThreadId: telegramConnection.targetThreadId,
           }
         : null,
-      threads,
       userId: user.id,
     };
   } catch (error) {
@@ -80,7 +62,7 @@ export default async function ProfilePage() {
     <PageCanvas variant="form" contentClassName="max-w-4xl">
         <PageHeader
           title="Profile"
-          description="Manage personal messaging settings for your account. Connect Telegram once, then choose which Sunder conversation should receive those messages by default."
+          description="Manage Telegram for your account. Telegram always routes to your pinned primary chat, so pairing is a one-time connection step."
           descriptionClassName="max-w-3xl"
         />
 
@@ -99,10 +81,6 @@ export default async function ProfilePage() {
               initialConnection={profilePage.telegramConnection}
               isAvailable={profilePage.isTelegramAvailable}
               realtimeUserId={profilePage.userId}
-            />
-            <DefaultMessagingAgentForm
-              initialDefaultThreadId={profilePage.defaultThreadId}
-              threads={profilePage.threads}
             />
           </>
         )}

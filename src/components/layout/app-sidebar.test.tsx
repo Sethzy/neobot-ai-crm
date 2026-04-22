@@ -49,7 +49,25 @@ vi.mock("@/hooks/use-mobile", () => ({
 
 vi.mock("@/contexts/thread-context", () => ({
   useThreads: () => ({
-    threads: [{ id: "thread-1", title: "Test Chat", isPinned: false, createdAt: new Date() }],
+    threads: [
+      {
+        id: "thread-primary",
+        title: "Main",
+        isPinned: true,
+        isPrimary: true,
+        createdAt: new Date(),
+        sourceType: "chat",
+      },
+      {
+        id: "thread-1",
+        title: "Test Chat",
+        isPinned: false,
+        isPrimary: false,
+        createdAt: new Date(),
+        sourceType: "chat",
+      },
+    ],
+    isLoading: false,
     updateThreadTitle: mockUpdateThreadTitle,
     archiveThread: mockArchiveThread,
   }),
@@ -74,16 +92,16 @@ describe("AppSidebar", () => {
     expect(screen.getByText("neobot")).toBeInTheDocument();
   });
 
-  it("renders agent-related nav items", () => {
+  it("renders AGENT section nav items", () => {
     render(<AppSidebar />, { wrapper });
-    expect(screen.getByText("Agent")).toBeInTheDocument();
     expect(screen.getByText("New Task")).toBeInTheDocument();
     expect(screen.getByText("Skills")).toBeInTheDocument();
     expect(screen.getByText("Tasks")).toBeInTheDocument();
     expect(screen.getByText("Automations")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /agent/i })).not.toBeInTheDocument();
   });
 
-  it("renders CRM nav items without Knowledge or Workspace", () => {
+  it("renders customer and database section nav items without Knowledge or Workspace", () => {
     render(<AppSidebar />, { wrapper });
     expect(screen.getByText("People")).toBeInTheDocument();
     expect(screen.getByText("Companies")).toBeInTheDocument();
@@ -93,11 +111,10 @@ describe("AppSidebar", () => {
     expect(screen.getByText("Meetings")).toBeInTheDocument();
   });
 
-  it("does not render Agent / Customers / Database section headers", () => {
+  it("renders section headers", () => {
     render(<AppSidebar />, { wrapper });
-    // Nav item "Agent" still exists, but there should be no standalone "Customers" or "Database" labels
-    expect(screen.queryByText("Customers")).not.toBeInTheDocument();
-    expect(screen.queryByText("Database")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Agent").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Database")).toBeInTheDocument();
   });
 
   it("renders Settings in footer", () => {
@@ -123,11 +140,23 @@ describe("AppSidebar", () => {
     expect(screen.queryByText("Instructions")).not.toBeInTheDocument();
   });
 
-  it("renders chats section with thread history", () => {
+  it("renders sessions section with thread history", () => {
     render(<AppSidebar />, { wrapper });
 
-    expect(screen.getByText("Chats")).toBeInTheDocument();
+    expect(screen.getByText("Sessions")).toBeInTheDocument();
+    expect(screen.getByText("Main")).toBeInTheDocument();
     expect(screen.getByText("Test Chat")).toBeInTheDocument();
+  });
+
+  it("shows the primary thread before regular chats in the sidebar list", () => {
+    render(<AppSidebar />, { wrapper });
+
+    const chatLinks = screen.getAllByRole("link").filter((link) =>
+      link.getAttribute("href")?.startsWith("/chat/")
+    );
+
+    expect(chatLinks[0]).toHaveTextContent("Main");
+    expect(chatLinks[1]).toHaveTextContent("Test Chat");
   });
 
   it("hides the search button when command menu callback is not provided", () => {

@@ -7,7 +7,6 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
-import { MessageSquareIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppIcon } from "@/components/icons/app-icons";
@@ -94,8 +93,6 @@ export function AllChatsPopover({ pathname, onNavigate, children }: AllChatsPopo
           ) : (
             filtered.map((thread) => {
               const isActive = pathname.startsWith(`/chat/${thread.id}`);
-              const Icon =
-                thread.sourceType === "automation_run" ? null : MessageSquareIcon;
               return (
                 <Link
                   key={thread.id}
@@ -106,14 +103,16 @@ export function AllChatsPopover({ pathname, onNavigate, children }: AllChatsPopo
                     isActive && "bg-muted/60",
                   )}
                 >
-                  {Icon ? (
-                    <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  ) : (
-                    <AppIcon
-                      name="automations"
-                      className="h-4 w-4 shrink-0 text-muted-foreground"
-                    />
-                  )}
+                  <AppIcon
+                    name={
+                      thread.isPrimary
+                        ? "home"
+                        : thread.sourceType === "automation_run"
+                          ? "automations"
+                          : "chat"
+                    }
+                    className="h-4 w-4 shrink-0 text-muted-foreground"
+                  />
                   <span className="flex-1 truncate type-control">{thread.title}</span>
                   <span className="shrink-0 type-row-meta text-muted-foreground">
                     {format(thread.createdAt, "MMM d")}

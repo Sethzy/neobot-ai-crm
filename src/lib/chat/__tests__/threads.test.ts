@@ -23,12 +23,22 @@ function findMethodCall(
 }
 
 describe("listThreads", () => {
-  test("returns threads for a client ordered by updated_at desc", async () => {
+  test("returns threads for a client ordered with primary first, then pinned, then updated_at desc", async () => {
     const rows = [
+      {
+        thread_id: "thread-primary",
+        client_id: "client-1",
+        title: "Main",
+        is_primary: true,
+        is_pinned: true,
+        created_at: "2026-03-01T00:00:00Z",
+        updated_at: "2026-03-01T02:00:00Z",
+      },
       {
         thread_id: "thread-1",
         client_id: "client-1",
         title: "Thread 1",
+        is_primary: false,
         is_pinned: false,
         created_at: "2026-03-01T00:00:00Z",
         updated_at: "2026-03-01T01:00:00Z",
@@ -41,7 +51,11 @@ describe("listThreads", () => {
     await expect(listThreads(client as never, "client-1")).resolves.toEqual(rows);
     expect(client.calls.from).toContain("conversation_threads");
     expect(findMethodCall(client, "eq")?.args).toEqual(["client_id", "client-1"]);
-    expect(findMethodCall(client, "order")?.args).toEqual(["updated_at", { ascending: false }]);
+    expect(client.calls.methods.filter((call) => call.method === "order")).toEqual([
+      { method: "order", args: ["is_primary", { ascending: false }] },
+      { method: "order", args: ["is_pinned", { ascending: false }] },
+      { method: "order", args: ["updated_at", { ascending: false }] },
+    ]);
   });
 
   test("throws on query errors", async () => {
@@ -185,15 +199,15 @@ describe("getPrimaryThread", () => {
   });
 });
 
-describe("listThreads - primary filtering", () => {
-  test("includes is_primary=false filter in the query", async () => {
+describe("listThreads - primary inclusion", () => {
+  test("does not filter the primary thread out of the query", async () => {
     const client = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });
 
     await listThreads(client as never, "client-1");
     const eqCalls = client.calls.methods.filter((c) => c.method === "eq");
-    expect(eqCalls).toContainEqual({ method: "eq", args: ["is_primary", false] });
+    expect(eqCalls).not.toContainEqual({ method: "eq", args: ["is_primary", false] });
   });
 });
 

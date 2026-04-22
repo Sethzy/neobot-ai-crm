@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import posthog from "posthog-js";
 import { toast } from "sonner";
 import { Logo } from "@/components/landing/Logo";
@@ -16,7 +16,6 @@ import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/use-session";
 import { supabase } from "@/lib/supabase";
-import { cn } from "@/lib/utils";
 import {
   Sidebar,
   SidebarContent,
@@ -46,22 +45,44 @@ interface NavigationItem {
   icon: AppIconName;
 }
 
-/** Primary navigation — flat list, no section headers */
-const primaryNavItems: NavigationItem[] = [
-  { label: "Agent", href: "/agent", icon: "agent" },
+/** AGENT section — primary operating surfaces */
+const agentNavItems: NavigationItem[] = [
   { label: "New Task", href: "/chat", icon: "compose" },
+  { label: "Skills", href: "/skills", icon: "document" },
   { label: "Tasks", href: "/tasks", icon: "tasks" },
   { label: "Automations", href: "/automations", icon: "automations" },
-  { label: "Skills", href: "/skills", icon: "document" },
+];
+
+/** CUSTOMERS section — people, companies, deals */
+const customersNavItems: NavigationItem[] = [
   { label: "People", href: "/customers/people", icon: "contacts" },
   { label: "Companies", href: "/customers/companies", icon: "building" },
   { label: "Deals", href: "/customers/deals", icon: "deals" },
+];
+
+/** DATABASE section — data-centric surfaces */
+const databaseNavItems: NavigationItem[] = [
   { label: "Meetings", href: "/meetings", icon: "meeting" },
 ];
 
 interface AppSidebarProps {
   /** Opens the global command menu from the sidebar search button. */
   onOpenCommandMenu?: () => void;
+}
+
+function getThreadIconName(thread: {
+  isPrimary: boolean;
+  sourceType?: string | null;
+}): AppIconName {
+  if (thread.isPrimary) {
+    return "home";
+  }
+
+  if (thread.sourceType === "automation_run") {
+    return "automations";
+  }
+
+  return "chat";
 }
 
 export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
@@ -72,7 +93,6 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
   const { threads, isLoading: isThreadsLoading, archiveThread } = useThreads();
   const visibleThreads = threads.slice(0, 5);
   const hasOverflow = threads.length > 5;
-  const [isChatsOpen, setIsChatsOpen] = useState(true);
 
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) {
@@ -141,17 +161,16 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
 
   return (
     <Sidebar collapsible="icon" className="bg-app-sidebar">
-      {/* Logo — tighter vertical padding */}
-      <SidebarHeader className="px-3 pt-3 pb-2">
+      {/* Logo */}
+      <SidebarHeader className="px-3 pb-2 pt-3">
         <Logo />
       </SidebarHeader>
 
-      {/* Navigation — reduced group spacing */}
       <SidebarContent className="px-2">
-        {/* Primary nav — flat list, Search inline so it groups with the rest */}
-        <SidebarGroup className="py-1">
-          <SidebarMenu>
-            {onOpenCommandMenu ? (
+        {/* Search */}
+        {onOpenCommandMenu ? (
+          <SidebarGroup className="py-1">
+            <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Search"
@@ -165,45 +184,40 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                   <span>Search</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            ) : null}
-            {renderNavItems(primaryNavItems)}
-          </SidebarMenu>
+            </SidebarMenu>
+          </SidebarGroup>
+        ) : null}
+
+        {/* AGENT section */}
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="h-6 type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
+            Agent
+          </SidebarGroupLabel>
+          <SidebarMenu>{renderNavItems(agentNavItems)}</SidebarMenu>
         </SidebarGroup>
 
-        {/* Chats section — thread history, always visible */}
+        {/* CUSTOMERS section */}
         <SidebarGroup className="py-1">
-          <SidebarGroupLabel className="h-7 gap-0 px-0 type-control-muted font-normal normal-case tracking-normal text-muted-foreground">
-            <button
-              type="button"
-              onClick={() => setIsChatsOpen((open) => !open)}
-              aria-expanded={isChatsOpen}
-              aria-controls="sidebar-chats-list"
-              className="flex h-full flex-1 items-center gap-1 rounded-md px-2 text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-            >
-              <span>Chats</span>
-              <AppIcon
-                name="chevronDown"
-                className={cn(
-                  "h-3.5 w-3.5 text-muted-foreground/60 transition-transform duration-150",
-                  !isChatsOpen && "-rotate-90",
-                )}
-              />
-            </button>
-            <Link
-              href="/chat"
-              onClick={closeMobileSidebar}
-              aria-label="New chat"
-              title="New chat"
-              className="mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-            >
-              <AppIcon name="add" className="h-3.5 w-3.5" />
-              <span className="sr-only">New chat</span>
-            </Link>
+          <SidebarGroupLabel className="h-6 type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
+            Customers
           </SidebarGroupLabel>
-          <SidebarMenu
-            id="sidebar-chats-list"
-            className={cn(!isChatsOpen && "hidden")}
-          >
+          <SidebarMenu>{renderNavItems(customersNavItems)}</SidebarMenu>
+        </SidebarGroup>
+
+        {/* DATABASE section */}
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="h-6 type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
+            Database
+          </SidebarGroupLabel>
+          <SidebarMenu>{renderNavItems(databaseNavItems)}</SidebarMenu>
+        </SidebarGroup>
+
+        {/* SESSIONS section — thread history */}
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="h-6 type-caption text-muted-foreground/50 tracking-[0.12em] normal-case">
+            Sessions
+          </SidebarGroupLabel>
+          <SidebarMenu>
             {isThreadsLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <SidebarMenuItem key={i}>
@@ -224,12 +238,11 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                     href={`/chat/${thread.id}`}
                     onClick={() => closeMobileSidebar()}
                   >
-                    {thread.sourceType === "automation_run" ? (
-                      <AppIcon name="automations" className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    ) : (
-                      <AppIcon name="chat" className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    )}
-                    <span className="truncate">{thread.title}</span>
+                    <AppIcon
+                      name={getThreadIconName(thread)}
+                      className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    />
+                    <span className="truncate type-control">{thread.title}</span>
                   </Link>
                 </SidebarMenuButton>
                 {thread.isPinned ? null : (
@@ -237,7 +250,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                     <DropdownMenuTrigger asChild>
                       <SidebarMenuAction
                         aria-label={`More actions for ${thread.title}`}
-                        className="opacity-0 group-hover/thread:opacity-100 transition-opacity"
+                        className="opacity-0 transition-opacity group-hover/thread:opacity-100"
                       >
                         <AppIcon name="more" className="h-4 w-4" />
                       </SidebarMenuAction>
@@ -269,7 +282,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Footer — compact: Settings link + user dropdown with sign-out */}
+      {/* Footer — Settings link + user dropdown with sign-out */}
       <SidebarFooter className="border-t border-border px-2 py-2">
         <SidebarMenu>
           <SidebarMenuItem>
@@ -294,7 +307,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                   tooltip={user?.email || "User"}
                   className="transition-colors hover:bg-sidebar-accent/70"
                 >
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-foreground text-caption font-semibold text-background">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-foreground type-caption font-semibold text-background">
                     {user?.email?.charAt(0).toUpperCase()}
                   </div>
                   <span className="truncate type-control text-foreground/80">
@@ -306,12 +319,12 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                   />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  side="top"
-                  align="start"
-                  className="w-[--radix-dropdown-menu-trigger-width] min-w-48"
-                >
-                <DropdownMenuItem disabled className="text-caption text-muted-foreground">
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-48"
+              >
+                <DropdownMenuItem disabled className="type-caption text-muted-foreground">
                   {user?.email}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

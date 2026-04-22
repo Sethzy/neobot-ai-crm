@@ -7,6 +7,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { TelegramCtaBanner } from "@/components/agent/telegram-cta-banner";
 import { DataStreamHandler } from "@/components/chat/data-stream-handler";
 import { CHAT_MODEL_COOKIE_NAME, resolveModelId } from "@/lib/ai/models";
 import { resolveClientId } from "@/lib/chat/client-id";
@@ -36,7 +37,7 @@ export default async function ChatThreadPage({ params }: ChatThreadPageProps) {
 
   const { data: thread, error: threadLookupError } = await supabase
     .from("conversation_threads")
-    .select("thread_id")
+    .select("thread_id, is_primary")
     .eq("thread_id", threadId)
     .eq("client_id", clientId)
     .eq("is_archived", false)
@@ -51,16 +52,34 @@ export default async function ChatThreadPage({ params }: ChatThreadPageProps) {
     return null;
   }
 
-  const persistedMessages = await listMessages(supabase, threadId);
+  const [
+    persistedMessages,
+    initialQuota,
+    cookieStore,
+    authResult,
+  ] = await Promise.all([
+    listMessages(supabase, threadId),
+    loadCurrentMessageQuota(),
+    cookies(),
+    thread.is_primary ? supabase.auth.getUser() : Promise.resolve({ data: { user: null } }),
+  ]);
   const initialMessages = persistedMessages.map(mapDbMessageToUiMessage);
-  const initialQuota = await loadCurrentMessageQuota();
-  const cookieStore = await cookies();
   const initialChatModel = resolveModelId(
     cookieStore.get(CHAT_MODEL_COOKIE_NAME)?.value,
   );
+  const telegramConnection = thread.is_primary && authResult.data.user
+    ? await supabase
+      .from("messaging_channel_connections")
+      .select("id")
+      .eq("user_id", authResult.data.user.id)
+      .eq("channel", "telegram")
+      .maybeSingle()
+    : null;
+  const shouldShowTelegramCta = thread.is_primary && !telegramConnection?.data;
 
   return (
     <>
+      {shouldShowTelegramCta ? <TelegramCtaBanner /> : null}
       <ChatThreadPageClient
         threadId={threadId}
         initialMessages={initialMessages}
