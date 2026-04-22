@@ -8,86 +8,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
+import {
+  listAutomationTriggers,
+  triggerKeys,
+  type AutomationTrigger,
+  TRIGGER_LIST_SELECT,
+} from "@/lib/triggers/automation-trigger-query";
 import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database";
 
-export type AutomationTrigger = Pick<
-  Database["public"]["Tables"]["agent_triggers"]["Row"],
-  | "id"
-  | "thread_id"
-  | "name"
-  | "trigger_type"
-  | "cron_expression"
-  | "payload"
-  | "enabled"
-  | "next_fire_at"
-  | "last_fired_at"
-  | "last_status"
-  | "invocation_message"
-  | "instruction_path"
-> & {
-  isRunning?: boolean;
-};
-
-export const TRIGGER_LIST_SELECT = [
-  "id",
-  "thread_id",
-  "name",
-  "trigger_type",
-  "cron_expression",
-  "payload",
-  "enabled",
-  "next_fire_at",
-  "last_fired_at",
-  "last_status",
-  "invocation_message",
-  "instruction_path",
-].join(", ");
-
-export const triggerKeys = {
-  all: ["triggers"] as const,
-  lists: () => [...triggerKeys.all, "list"] as const,
-  list: () => [...triggerKeys.lists(), "all"] as const,
-};
-
-async function fetchTriggers(): Promise<AutomationTrigger[]> {
-  const { data, error } = await supabase
-    .from("agent_triggers")
-    .select(TRIGGER_LIST_SELECT)
-    .neq("trigger_type", "pulse")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    throw error;
-  }
-
-  const triggers = (data ?? []) as unknown as Omit<AutomationTrigger, "isRunning">[];
-
-  if (triggers.length === 0) {
-    return [];
-  }
-
-  const { data: runningRuns, error: runningRunsError } = await supabase
-    .from("runs")
-    .select("trigger_id")
-    .eq("status", "running")
-    .not("trigger_id", "is", null);
-
-  if (runningRunsError) {
-    throw runningRunsError;
-  }
-
-  const runningTriggerIds = new Set(
-    (runningRuns ?? [])
-      .map((run) => run.trigger_id)
-      .filter((triggerId): triggerId is string => typeof triggerId === "string"),
-  );
-
-  return triggers.map((trigger) => ({
-    ...trigger,
-    isRunning: runningTriggerIds.has(trigger.id),
-  }));
-}
+export { TRIGGER_LIST_SELECT, triggerKeys } from "@/lib/triggers/automation-trigger-query";
+export type { AutomationTrigger } from "@/lib/triggers/automation-trigger-query";
 
 /**
  * Returns all user-created triggers for the current client and subscribes to realtime invalidation.
@@ -111,7 +42,7 @@ export function useTriggers() {
 
   return useQuery({
     queryKey: triggerKeys.list(),
-    queryFn: fetchTriggers,
+    queryFn: () => listAutomationTriggers(supabase),
   });
 }
 

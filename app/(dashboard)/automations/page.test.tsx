@@ -1,11 +1,11 @@
 /**
- * Tests for the Automations page.
+ * Tests for the automations client page body.
  * @module app/(dashboard)/automations/page
  */
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import AutomationsPage from "./page";
+import { AutomationsPageClient } from "./automations-page-client";
 
 const mockUseTriggers = vi.fn();
 const mockUseSetTriggerEnabled = vi.fn();
@@ -21,7 +21,7 @@ vi.mock("@/components/automations/automation-launcher-composer", () => ({
   ),
 }));
 
-describe("AutomationsPage", () => {
+describe("AutomationsPageClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -54,7 +54,7 @@ describe("AutomationsPage", () => {
       variables: null,
     });
 
-    render(<AutomationsPage />);
+    render(<AutomationsPageClient />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Automations" })).toBeInTheDocument();
     expect(screen.getByText("PropertyGuru morning check")).toBeInTheDocument();
@@ -79,7 +79,7 @@ describe("AutomationsPage", () => {
       variables: null,
     });
 
-    render(<AutomationsPage />);
+    render(<AutomationsPageClient />);
 
     expect(
       screen.getByText("Create and manage automated tasks that run on a schedule."),
@@ -98,7 +98,7 @@ describe("AutomationsPage", () => {
       variables: null,
     });
 
-    render(<AutomationsPage />);
+    render(<AutomationsPageClient />);
 
     expect(screen.getByText("No automations yet")).toBeInTheDocument();
   });
@@ -115,7 +115,7 @@ describe("AutomationsPage", () => {
       variables: null,
     });
 
-    render(<AutomationsPage />);
+    render(<AutomationsPageClient />);
 
     expect(screen.getByTestId("automation-launcher-composer")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /new automation/i })).not.toBeInTheDocument();
