@@ -72,6 +72,7 @@ describe("useCrmViews", () => {
     await waitFor(() => expect(result.current.data).toBeDefined());
     expect(result.current.data).toHaveLength(2);
     expect(result.current.data?.[0].name).toBe("Active pipeline");
+    expect(result.current.data?.[0].state.viewType).toBe("table");
   });
 
   it("subscribes to crm_views realtime invalidation for the current client", () => {

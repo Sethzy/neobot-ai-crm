@@ -6,7 +6,7 @@
 
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 import { CompanyDrawerContent } from "./company-drawer-content";
@@ -47,7 +47,10 @@ export function RecordDrawer({ isOpen, recordId, objectType, onClose }: RecordDr
         className="w-full p-0 sm:w-[540px] sm:max-w-[540px]"
       >
         <VisuallyHidden>
-          <SheetTitle>Record detail</SheetTitle>
+          <>
+            <SheetTitle>Record detail</SheetTitle>
+            <SheetDescription>Inspect and update CRM record details.</SheetDescription>
+          </>
         </VisuallyHidden>
         {recordId ? (
           <>

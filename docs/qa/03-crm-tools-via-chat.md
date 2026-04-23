@@ -1,6 +1,6 @@
 # QA Surface 3: CRM Tools via Chat
 
-> **PRs covered:** 5 (schema), 6 (CRM tools), 15c (configurability + custom fields), 15d (companies), 15e (read parity + introspection), 15f (configurable columns), CRM consolidation (28→8 tools), 48 (CRM config mode — time-limited activation from Settings), 67 (saved views — manage_views tool)
+> **PRs covered:** 5 (schema), 6 (CRM tools), 15c (configurability + custom fields), 15d (companies), 15e (read parity + introspection), 15f (configurable columns), CRM consolidation (28→8 tools), 48 (CRM config mode — time-limited activation from Settings), 67 (saved views — manage_views tool), 2026-04-23 KISS CRM UX foundation (state-based saved workspaces + SQL read views)
 > **Dogfoodable:** Partial (via chat UI)
 > **Time estimate:** 35-45 min manual (lots of agent prompts)
 > **v2 tools:** `search_crm`, `create_record`, `update_record`, `delete_records`, `link_records`, `create_interaction`, `create_task`, `update_task`, `configure_crm`, `manage_views`
@@ -180,7 +180,7 @@
 
 1. "Create a view called 'Hot leads' for deals in the leads stage"
 2. **Expected:** Agent calls `manage_views` with operation: create, entity_type: deals, filters: { stage: "leads" }
-3. **Verify in Supabase:** `crm_views` row exists with correct client_id, entity_type, filters
+3. **Verify in Supabase:** `crm_views` row exists with correct client_id, entity_type, legacy `filters`, and populated `state`
 4. **Verify in UI:** Navigate to `/customers/deals` — "Hot leads" pill tab appears
 
 **Notes / failures:**
@@ -209,10 +209,36 @@
 
 ---
 
+### 3.15 configure_crm warns about affected saved workspaces
+
+1. Create a contacts view that filters on `type = buyer`
+2. Ask: "Remove buyer from my contact types"
+3. **Expected:** `configure_crm` returns a warning mentioning affected saved views
+4. **Expected:** Warning references saved-view filters or saved workspace fields that now need review
+
+**Notes / failures:**
+
+---
+
+### 3.16 get_agent_db_schema + run_sql expose CRM read views
+
+1. Ask: "Show me the SQL schema I can query"
+2. **Expected:** `get_agent_db_schema` includes `crm_contacts_index_v`, `crm_companies_index_v`, `crm_deals_index_v`, and `crm_tasks_index_v`
+3. Ask: "Use SQL to list my deals with company and primary contact names"
+4. **Expected:** Agent can query `crm_deals_index_v` directly through `run_sql`
+5. Ask: "Use SQL to show my overdue tasks with contact and company names"
+6. **Expected:** Agent can query `crm_tasks_index_v` directly through `run_sql`
+
+**Notes / failures:**
+
+---
+
 ## Edge Cases
 
 - [ ] manage_views with symbolic date tokens ($today, $week_start) — creates view successfully, filters resolve at query time
 - [ ] manage_views update with invalid sort column — returns validation error
+- [ ] manage_views create/update with `state.viewType`, `state.columns`, `state.openMode` — persists into `crm_views.state`
+- [ ] Saved view still works when caller uses legacy top-level `filters` / `sort`
 - [ ] Create view with duplicate name on same entity — unique constraint error handled gracefully
 - [ ] Create contact with minimal info (just a name) — should succeed (first_name + last_name minimum)
 - [ ] Create deal with no price — should succeed (price is optional, address is required)
@@ -233,5 +259,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** All CRUD operations work for contacts, deals, tasks, companies, and interactions via consolidated v2 tools. CRM configurability changes vocabulary and custom fields. Relationship reads via search_crm with entity: deal_contacts work. Schema info is available from system-reminder context. manage_views creates/lists/updates/deletes saved views, validates filter keys against entity whitelist.
-- **Fail:** Tool calls fail silently, data not persisted to DB, configurability doesn't propagate to tool schemas, relationship reads return wrong data. manage_views accepts invalid filter keys that error at query time.
+- **Pass:** All CRUD operations work for contacts, deals, tasks, companies, and interactions via consolidated v2 tools. CRM configurability changes vocabulary and custom fields. Relationship reads via search_crm with entity: deal_contacts work. Schema info is available from system-reminder context. `manage_views` creates/lists/updates/deletes saved workspaces, validates filter keys against entity whitelist, and persists the richer `state` shape. `run_sql` and `get_agent_db_schema` expose the CRM read views for flatter reporting queries.
+- **Fail:** Tool calls fail silently, data not persisted to DB, configurability doesn't propagate to tool schemas, relationship reads return wrong data. `manage_views` loses compatibility with legacy `filters` / `sort`, accepts invalid filter keys, or fails to persist workspace state. `get_agent_db_schema` omits the new CRM read views.

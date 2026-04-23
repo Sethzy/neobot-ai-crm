@@ -1027,6 +1027,7 @@ export type Database = {
           is_seeded: boolean
           name: string
           sort: Json | null
+          state: Json
           updated_at: string
           view_id: string
         }
@@ -1039,6 +1040,7 @@ export type Database = {
           is_seeded?: boolean
           name: string
           sort?: Json | null
+          state?: Json
           updated_at?: string
           view_id?: string
         }
@@ -1051,6 +1053,7 @@ export type Database = {
           is_seeded?: boolean
           name?: string
           sort?: Json | null
+          state?: Json
           updated_at?: string
           view_id?: string
         }

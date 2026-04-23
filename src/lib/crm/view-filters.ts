@@ -107,14 +107,14 @@ export const ENTITY_ALLOWED_COLUMNS: Record<
       "type", "company_id",
       "created_at_after", "created_at_before",
     ]),
-    sortColumns: new Set(["first_name", "last_name", "type", "created_at"]),
+    sortColumns: new Set(["first_name", "last_name", "type", "created_at", "updated_at"]),
   },
   companies: {
     filterKeys: new Set([
       "industry",
       "created_at_after", "created_at_before",
     ]),
-    sortColumns: new Set(["name", "industry", "created_at"]),
+    sortColumns: new Set(["name", "industry", "created_at", "updated_at"]),
   },
   deals: {
     filterKeys: new Set([
@@ -122,7 +122,7 @@ export const ENTITY_ALLOWED_COLUMNS: Record<
       "close_date_after", "close_date_before",
       "created_at_after", "created_at_before",
     ]),
-    sortColumns: new Set(["address", "stage", "amount", "close_date", "created_at"]),
+    sortColumns: new Set(["address", "stage", "amount", "close_date", "created_at", "updated_at"]),
   },
   tasks: {
     filterKeys: new Set([
@@ -130,7 +130,7 @@ export const ENTITY_ALLOWED_COLUMNS: Record<
       "due_date_after", "due_date_before",
       "created_at_after", "created_at_before",
     ]),
-    sortColumns: new Set(["title", "status", "due_date", "created_at"]),
+    sortColumns: new Set(["title", "status", "due_date", "created_at", "updated_at"]),
   },
 };
 

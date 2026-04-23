@@ -8,7 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
-import type { CrmViewEntityType } from "@/lib/crm/schemas";
+import type { CrmView, CrmViewEntityType } from "@/lib/crm/schemas";
+import { normalizeCrmView } from "@/lib/crm/view-state";
 import { supabase } from "@/lib/supabase";
 
 /** Query key factory for CRM views. */
@@ -46,7 +47,7 @@ export function useCrmViews(entityType: CrmViewEntityType) {
         throw error;
       }
 
-      return data;
+      return (data ?? []).map((view) => normalizeCrmView(view)) as CrmView[];
     },
     enabled: Boolean(clientId),
   });

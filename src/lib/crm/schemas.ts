@@ -5,6 +5,7 @@
 import { z } from "zod";
 
 import { customFieldDefinitionSchema } from "@/lib/crm/config";
+import { crmViewStateSchema, crmViewSortSchema } from "@/lib/crm/view-state";
 
 /** ISO-8601 timestamp validator aligned with existing chat schemas. */
 const isoDateTimeSchema = z.string().datetime({ offset: true });
@@ -351,12 +352,8 @@ export const crmViewSchema = z.object({
     z.string(),
     z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())]),
   ),
-  sort: z
-    .object({
-      column: z.string(),
-      ascending: z.boolean(),
-    })
-    .nullable(),
+  sort: crmViewSortSchema.nullable(),
+  state: crmViewStateSchema,
   is_default: z.boolean(),
   is_seeded: z.boolean(),
   created_at: isoDateTimeSchema,

@@ -13,20 +13,19 @@ import posthog from "posthog-js";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
+import { applyViewColumns } from "@/components/crm/apply-view-columns";
+import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
 import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { OpenRecordHint } from "@/components/crm/open-record-hint";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
-import { ViewPicker } from "@/components/crm/view-picker";
-import { ViewToggle } from "@/components/crm/view-toggle";
-import { PageCanvas } from "@/components/layout/page-canvas";
-import { PageHeader } from "@/components/layout/page-header";
+import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
+import { useRecordOpenBehavior } from "@/components/crm/use-record-open-behavior";
 import { Button } from "@/components/ui/button";
 
 import { ListTable } from "@/components/ui/list-table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FilterBar } from "@/components/ui/filter-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 import { useClientId } from "@/hooks/use-client-id";
@@ -279,8 +278,11 @@ export default function DealsPage() {
   const { data: crmConfigResult } = useCrmConfig();
   const { data: companies = [] } = useCompanies({});
   const { view, setView } = useViewPreference("deals");
+  const savedViewId = searchParams?.get("savedView") ?? null;
+  const { data: views } = useCrmViews("deals");
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<PipelineSortOption>("amount_desc");
+  const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<FilterValues>(() => {
     const stageQuery = searchParams?.get("stage")?.trim();
 
@@ -289,12 +291,31 @@ export default function DealsPage() {
 
   const rawViewParam = searchParams?.get("view") ?? null;
   const queryView = normalizeDealsView(rawViewParam);
-  const activeLayout = queryView ?? (view === "kanban" ? "kanban" : "table");
-  const savedViewId = searchParams?.get("savedView") ?? null;
-  const { data: views } = useCrmViews("deals");
-  const activeSavedView = views?.find((viewItem) => viewItem.view_id === savedViewId) ?? null;
+  const {
+    activeSavedView,
+    activeState,
+    activeViewType,
+    isSavedViewActive,
+    openMode,
+  } = useActiveCrmViewState({
+    activeViewId: savedViewId,
+    adHocViewType: queryView ?? (view === "kanban" ? "kanban" : "table"),
+    allowPageOpen: true,
+    supportedViewTypes: ["table", "kanban"],
+    views,
+  });
+  const activeLayout = activeViewType === "kanban" ? "kanban" : "table";
+  const { openRecord } = useRecordOpenBehavior({
+    objectType: "deal",
+    openDrawer: open,
+    openMode,
+  });
 
   useEffect(() => {
+    if (isSavedViewActive) {
+      return;
+    }
+
     if (!queryView) {
       return;
     }
@@ -306,7 +327,7 @@ export default function DealsPage() {
     if (rawViewParam === "board") {
       router.replace(buildDealsHref(searchParams, "kanban"));
     }
-  }, [queryView, rawViewParam, router, searchParams, setView, view]);
+  }, [isSavedViewActive, queryView, rawViewParam, router, searchParams, setView, view]);
 
   const stages = useMemo(
     () => crmConfigResult?.config.deal_stages ?? [...dealStageValues],
@@ -331,17 +352,18 @@ export default function DealsPage() {
 
   const sharedFilters = useMemo(
     () => ({
-      ...(activeSavedView
+      ...(isSavedViewActive
         ? {
-            viewFilters: activeSavedView.filters as Record<string, unknown>,
-            viewSort: activeSavedView.sort as { column: string; ascending: boolean } | undefined,
+            viewFilters: activeState?.filters ?? {},
+            viewSort: activeState?.sort ?? undefined,
           }
         : {
+            search: search.trim().length > 0 ? search.trim() : undefined,
             stage: typeof filterValues.stage === "string" ? (filterValues.stage as Deal["stage"]) : undefined,
             createdAt: getDateRangeValue(filterValues.createdAt),
           }),
     }),
-    [activeSavedView, filterValues.createdAt, filterValues.stage],
+    [activeState?.filters, activeState?.sort, filterValues.createdAt, filterValues.stage, isSavedViewActive, search],
   );
 
   const tableFilters = useMemo(
@@ -533,7 +555,7 @@ export default function DealsPage() {
                   className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
                   onClick={(event) => {
                     event.stopPropagation();
-                    open(row.original.deal_id);
+                    openRecord(row.original.deal_id);
                   }}
                 >
                   {row.original.address}
@@ -607,7 +629,11 @@ export default function DealsPage() {
           return col;
       }
     });
-  }, [companies, crmConfig, open, stages]);
+  }, [companies, crmConfig, openRecord, stages]);
+  const visibleColumns = useMemo(
+    () => applyViewColumns(columns, activeState),
+    [activeState, columns],
+  );
 
   const stageColumns = useMemo(
     () =>
@@ -634,8 +660,8 @@ export default function DealsPage() {
     [],
   );
 
-  const hasLocalFilters = Object.keys(filterValues).length > 0;
-  const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
+  const hasLocalFilters = Object.keys(filterValues).length > 0 || search.trim().length > 0;
+  const hasActiveFiltering = isSavedViewActive || hasLocalFilters;
   const isBoardView = activeLayout === "kanban";
 
   function handleSavedViewChange(viewId: string | null) {
@@ -668,7 +694,7 @@ export default function DealsPage() {
   );
 
   const boardSortControl =
-    isBoardView && !activeSavedView ? (
+    isBoardView && !isSavedViewActive ? (
       <label className="flex items-center gap-1.5 type-control-muted text-muted-foreground">
         <span>Sort</span>
         <select
@@ -687,94 +713,79 @@ export default function DealsPage() {
     ) : null;
 
   return (
-    <PageCanvas>
-      <PageHeader title="Deals" />
-      <FilterBar
-        leadingSlot={
-          <>
-            <ViewPicker
-              entityType="deals"
-              activeViewId={activeSavedView?.view_id ?? null}
-              onViewChange={handleSavedViewChange}
-              count={dealCount}
-            />
-            <ViewToggle
-              current={activeLayout}
-              views={["table", "kanban"]}
-              onChange={(nextView) => {
-                setView(nextView);
-                router.replace(buildDealsHref(searchParams, nextView));
-              }}
-            />
-          </>
-        }
-        trailingSlot={
-          <>
-            {boardSortControl}
-            {newDealButton}
-          </>
-        }
-        {...(activeSavedView
-          ? {}
-          : {
-              filters,
-              values: filterValues,
-              onApply: (nextValues: FilterValues) => {
-                setPage(1);
-                setFilterValues(nextValues);
-              },
-              onClear: () => {
-                setPage(1);
-                setFilterValues({});
-              },
-            })}
-      />
-
-        {isBoardView ? (
-          isBoardLoading ? (
-            <div className="grid gap-4 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, colIndex) => (
-                <div key={colIndex} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
-                  <Skeleton className="mb-1 h-4 w-24" style={{ animationDelay: `${colIndex * 30}ms` }} />
-                  {Array.from({ length: 3 }).map((_, cardIndex) => (
-                    <div key={cardIndex} className="space-y-2 rounded-md border border-border bg-background p-3">
-                      <Skeleton className="h-3.5 w-3/4" style={{ animationDelay: `${colIndex * 30 + cardIndex * 50}ms` }} />
-                      <Skeleton className="h-3 w-1/2" style={{ animationDelay: `${colIndex * 30 + cardIndex * 50 + 20}ms` }} />
-                      <Skeleton className="h-3 w-1/3" style={{ animationDelay: `${colIndex * 30 + cardIndex * 50 + 40}ms` }} />
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          ) : isBoardError ? (
-            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6">
-              <p className="type-control text-destructive">Unable to load pipeline data.</p>
-            </div>
-          ) : sortedBoardDeals.length === 0 ? (
-            <EmptyState
-              iconName="deals"
-              title={hasActiveFiltering ? "No results match your filters" : "No deals yet"}
-              description={hasActiveFiltering
-                ? "Try adjusting or clearing your filters."
-                : "Your AI agent will create deals as it processes conversations."}
-            />
-          ) : (
-            <KanbanBoard
-              boardLabel="By Stage"
-              items={sortedBoardDeals}
-              columns={stageColumns}
-              groupBy={(deal) => matchStageToConfigKey(deal.stage)}
-              getItemId={(deal) => deal.deal_id}
-              getColumnSummary={getColumnSummary}
-              renderCard={(deal) => <DealKanbanCard deal={deal} />}
-              onCardClick={(dealId) => open(dealId)}
-              onColumnChange={handleBoardColumnChange}
-              emptyStateMessage="No deals in this stage yet."
-            />
-          )
+    <CrmWorkspaceShell
+      title="Deals"
+      entityType="deals"
+      activeViewId={activeSavedView?.view_id ?? null}
+      onViewChange={handleSavedViewChange}
+      count={dealCount}
+      filters={filters}
+      filterValues={filterValues}
+      isSavedViewActive={isSavedViewActive}
+      searchValue={search}
+      searchPlaceholder="Search deals by address..."
+      onSearchChange={setSearch}
+      onFilterApply={(nextValues: FilterValues) => {
+        setPage(1);
+        setFilterValues(nextValues);
+      }}
+      onFilterClear={() => {
+        setPage(1);
+        setFilterValues({});
+      }}
+      primaryAction={newDealButton}
+      secondaryActions={boardSortControl}
+      viewType={activeLayout}
+      views={["table", "kanban"]}
+      onViewTypeChange={(nextView) => {
+        setView(nextView);
+        router.replace(buildDealsHref(searchParams, nextView));
+      }}
+      bodyByView={{
+        kanban: isBoardLoading ? (
+          <div className="grid gap-4 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, colIndex) => (
+              <div key={colIndex} className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
+                <Skeleton className="mb-1 h-4 w-24" style={{ animationDelay: `${colIndex * 30}ms` }} />
+                {Array.from({ length: 3 }).map((_, cardIndex) => (
+                  <div key={cardIndex} className="space-y-2 rounded-md border border-border bg-background p-3">
+                    <Skeleton className="h-3.5 w-3/4" style={{ animationDelay: `${colIndex * 30 + cardIndex * 50}ms` }} />
+                    <Skeleton className="h-3 w-1/2" style={{ animationDelay: `${colIndex * 30 + cardIndex * 50 + 20}ms` }} />
+                    <Skeleton className="h-3 w-1/3" style={{ animationDelay: `${colIndex * 30 + cardIndex * 50 + 40}ms` }} />
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : isBoardError ? (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-6">
+            <p className="type-control text-destructive">Unable to load pipeline data.</p>
+          </div>
+        ) : sortedBoardDeals.length === 0 ? (
+          <EmptyState
+            iconName="deals"
+            title={hasActiveFiltering ? "No results match your filters" : "No deals yet"}
+            description={hasActiveFiltering
+              ? "Try adjusting or clearing your filters."
+              : "Your AI agent will create deals as it processes conversations."}
+          />
         ) : (
+          <KanbanBoard
+            boardLabel="By Stage"
+            items={sortedBoardDeals}
+            columns={stageColumns}
+            groupBy={(deal) => matchStageToConfigKey(deal.stage)}
+            getItemId={(deal) => deal.deal_id}
+            getColumnSummary={getColumnSummary}
+            renderCard={(deal) => <DealKanbanCard deal={deal} />}
+            onCardClick={(dealId) => openRecord(dealId)}
+            onColumnChange={handleBoardColumnChange}
+            emptyStateMessage="No deals in this stage yet."
+          />
+        ),
+        table: (
           <ListTable
-            columns={columns}
+            columns={visibleColumns}
             data={tableRows}
             pinFirstColumn
             isLoading={isTableLoading}
@@ -798,7 +809,7 @@ export default function DealsPage() {
                 }
               : undefined}
             rowActions={(row) => [
-              { id: "view", label: "View", onSelect: () => open(row.deal_id) },
+              { id: "view", label: "View", onSelect: () => openRecord(row.deal_id) },
               {
                 id: "delete",
                 label: "Delete",
@@ -812,17 +823,20 @@ export default function DealsPage() {
                 },
               },
             ]}
-            onRowClick={(row) => open(row.deal_id)}
+            onRowClick={(row) => openRecord(row.deal_id)}
             selectedRowId={recordId ?? undefined}
             getRowId={(row) => row.deal_id}
-            />
-          )}
-      <RecordDrawer
-        isOpen={isDrawerOpen}
-        recordId={recordId}
-        objectType="deal"
-        onClose={close}
-      />
-    </PageCanvas>
+          />
+        ),
+      }}
+      drawer={(
+        <RecordDrawer
+          isOpen={isDrawerOpen}
+          recordId={recordId}
+          objectType="deal"
+          onClose={close}
+        />
+      )}
+    />
   );
 }

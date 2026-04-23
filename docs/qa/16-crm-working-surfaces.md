@@ -1,6 +1,6 @@
 # QA Surface 16: CRM Working Surfaces
 
-> **PRs covered:** 46 (view switching, deals board, tasks calendar, quick edit), 46a (timeline audit log — drawer timeline), 67 (saved views — pill tabs, view filtering)
+> **PRs covered:** 46 (view switching, deals board, tasks calendar, quick edit), 46a (timeline audit log — drawer timeline), 67 (saved views — pill tabs, view filtering), 2026-04-23 KISS CRM UX foundation (state-based saved workspaces, shared CRM shell, full record pages)
 > **Dogfoodable:** Yes
 > **Time estimate:** 50-60 min manual
 
@@ -270,6 +270,35 @@
 
 ---
 
+### 16.17a Saved workspace layout + open mode (KISS CRM UX foundation)
+
+1. Create or seed a deals saved view whose state uses `viewType=kanban` and `openMode=page`
+2. Navigate to `/customers/deals?savedView=<uuid>`
+3. **Expected:** Deals surface loads directly in board mode
+4. Click a deal card
+5. **Expected:** Navigates to `/customers/deals/<dealId>` instead of opening the drawer
+6. Use browser Back
+7. **Expected:** Returns to `/customers/deals?savedView=<uuid>` with the same saved workspace active
+
+**Notes / failures:**
+
+---
+
+### 16.17b Drawer quick peek + full page deep work (KISS CRM UX foundation)
+
+1. Navigate to `/customers/people`, click a person row from **All**
+2. **Expected:** Drawer opens for quick inspection
+3. Click **Open page** in the detail header
+4. **Expected:** Navigates to `/customers/people/<contactId>`
+5. Repeat on `/customers/companies` and `/customers/deals`
+6. **Expected:** Companies and Deals also have full pages; Tasks remain drawer-only
+7. Compare the drawer and full page for the same record
+8. **Expected:** Tabs, editable fields, timeline, notes, and files are the same underlying content
+
+**Notes / failures:**
+
+---
+
 ### PR 46a: Timeline Audit Log
 
 ### 16.18 Contact drawer — Timeline tab (PR 46a)
@@ -403,5 +432,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** View toggles work and persist preference. Board shows deals by stage with working stage movement. Calendar shows tasks by date with day drill-down. Quick edit works for high-value fields on all entity pages. Filters carry across views. Detail pages preserved. Mobile uses dialog fallback. Saved view pill tabs appear with seeded defaults, filter server-side, persist via URL, reset pagination, update via realtime. Timeline tab visible on all four drawer types. Audit entries show before→after diffs with human-readable labels. Rapid edits merge within 10 minutes. Agent-authored changes attributed to "Sunder". Timeline updates in realtime.
-- **Fail:** View switching crashes. Board stage movement doesn't persist. Calendar doesn't show tasks. Quick edit silently fails or corrupts data. Filters lost on view switch. Detail pages broken. Saved view pills missing, filtering broken, stale after agent creates view. Timeline tab missing from any drawer. Raw UUIDs or enum values shown in diffs. Audit capture blocks or fails the CRM mutation. Dedup merge loses the original "before" snapshot.
+- **Pass:** View toggles work and persist ad hoc preference. Board shows deals by stage with working stage movement. Calendar shows tasks by date with day drill-down. Quick edit works for high-value fields on all entity pages. Filters carry across views. Drawer quick-peek and full record pages both work for People, Companies, and Deals. Saved workspaces restore mode/open behavior, persist via URL, reset pagination, update via realtime, and never crash on stale ids. Timeline tab visible on all four drawer types. Audit entries show before→after diffs with human-readable labels. Rapid edits merge within 10 minutes. Agent-authored changes attributed to "Sunder". Timeline updates in realtime.
+- **Fail:** Shared shell drifts across CRM pages. Row click ignores saved view open mode. Full pages and drawers diverge. Saved view pills missing, filtering broken, stale after agent creates view, or malformed state crashes a page. Timeline tab missing from any drawer. Raw UUIDs or enum values shown in diffs. Audit capture blocks or fails the CRM mutation. Dedup merge loses the original "before" snapshot.

@@ -19,6 +19,7 @@ import {
   COMPANY_DEFAULT_FIELDS,
   DEAL_DEFAULT_FIELDS,
 } from "@/lib/crm/field-definitions";
+import { normalizeCrmView } from "@/lib/crm/view-state";
 
 import type { ManagedAgentTool, ToolContext } from "../types";
 
@@ -226,11 +227,86 @@ const vocabToViewEntity: Partial<Record<VocabularyFieldName, { entityType: strin
   company_industries: { entityType: "companies", filterKey: "industry" },
 };
 
+const fieldConfigToViewEntity = {
+  contact_fields: "contacts",
+  company_fields: "companies",
+  deal_fields: "deals",
+} as const;
+
+const customFieldConfigToViewEntity = {
+  deal_custom_fields: "deals",
+  contact_custom_fields: "contacts",
+  company_custom_fields: "companies",
+  task_custom_fields: "tasks",
+} as const;
+
+type FieldArrayConfigName = keyof typeof fieldConfigToViewEntity;
+
 interface AffectedView {
   name: string;
   entity_type: string;
   view_id: string;
   affectedKeys: string[];
+}
+
+function addAffectedView(
+  affected: AffectedView[],
+  nextView: AffectedView,
+) {
+  const existingView = affected.find((view) => view.view_id === nextView.view_id);
+
+  if (existingView) {
+    existingView.affectedKeys = Array.from(
+      new Set([...existingView.affectedKeys, ...nextView.affectedKeys]),
+    ).sort();
+    return;
+  }
+
+  affected.push({
+    ...nextView,
+    affectedKeys: [...new Set(nextView.affectedKeys)].sort(),
+  });
+}
+
+function getViewStateFieldReferences(view: {
+  entity_type: string;
+  filters?: unknown;
+  is_default?: boolean;
+  sort?: unknown;
+  state?: unknown;
+}) {
+  const normalizedView = normalizeCrmView({
+    client_id: "client",
+    created_at: new Date(0).toISOString(),
+    entity_type: view.entity_type,
+    filters: view.filters,
+    is_default: view.is_default ?? false,
+    is_seeded: false,
+    name: "view",
+    sort: view.sort,
+    state: view.state,
+    updated_at: new Date(0).toISOString(),
+    view_id: "view",
+  });
+
+  return new Set(
+    [
+      ...normalizedView.state.columns,
+      ...normalizedView.state.columnOrder,
+      normalizedView.state.groupBy,
+      normalizedView.state.calendarField,
+    ].filter((value): value is string => typeof value === "string" && value.length > 0),
+  );
+}
+
+function getRemovedFieldKeys(
+  currentFields: FieldDefinition[],
+  nextFields: FieldDefinition[],
+) {
+  const nextFieldKeys = new Set(nextFields.map((field) => field.key));
+  return currentFields
+    .map((field) => field.key)
+    .filter((fieldKey) => !nextFieldKeys.has(fieldKey));
 }
 
 async function checkAffectedViews(
@@ -254,7 +330,7 @@ async function checkAffectedViews(
 
     const { data: views } = await context.supabase
       .from("crm_views")
-      .select("view_id, name, entity_type, filters")
+      .select("view_id, name, entity_type, filters, sort, state, is_default")
       .eq("client_id", context.clientId)
       .eq("entity_type", mapping.entityType);
 
@@ -277,11 +353,91 @@ async function checkAffectedViews(
       const broken = referencedValues.some((value) => removedValues.includes(String(value)));
 
       if (broken) {
-        affected.push({
+        addAffectedView(affected, {
           name: view.name,
           entity_type: view.entity_type,
           view_id: view.view_id,
           affectedKeys: [mapping.filterKey],
+        });
+      }
+    }
+  }
+
+  for (const [fieldKey, entityType] of Object.entries(fieldConfigToViewEntity) as Array<
+    [FieldArrayConfigName, (typeof fieldConfigToViewEntity)[FieldArrayConfigName]]
+  >) {
+    const nextFields = updates[fieldKey];
+    if (!nextFields) {
+      continue;
+    }
+
+    const currentFields = currentConfig[fieldKey];
+    const removedFieldKeys = getRemovedFieldKeys(currentFields, nextFields);
+    if (removedFieldKeys.length === 0) {
+      continue;
+    }
+
+    const { data: views } = await context.supabase
+      .from("crm_views")
+      .select("view_id, name, entity_type, filters, sort, state, is_default")
+      .eq("client_id", context.clientId)
+      .eq("entity_type", entityType);
+
+    if (!views) {
+      continue;
+    }
+
+    for (const view of views) {
+      const referencedKeys = getViewStateFieldReferences(view);
+      const affectedKeys = removedFieldKeys.filter((fieldName) => referencedKeys.has(fieldName));
+
+      if (affectedKeys.length > 0) {
+        addAffectedView(affected, {
+          name: view.name,
+          entity_type: view.entity_type,
+          view_id: view.view_id,
+          affectedKeys,
+        });
+      }
+    }
+  }
+
+  for (const [fieldKey, entityType] of Object.entries(customFieldConfigToViewEntity) as Array<
+    [CustomFieldConfigName, (typeof customFieldConfigToViewEntity)[CustomFieldConfigName]]
+  >) {
+    const nextFields = updates[fieldKey];
+    if (!nextFields) {
+      continue;
+    }
+
+    const removedFieldKeys = currentConfig[fieldKey]
+      .map((field) => field.key)
+      .filter((fieldKeyValue) => !nextFields.some((field) => field.key === fieldKeyValue));
+
+    if (removedFieldKeys.length === 0) {
+      continue;
+    }
+
+    const { data: views } = await context.supabase
+      .from("crm_views")
+      .select("view_id, name, entity_type, filters, sort, state, is_default")
+      .eq("client_id", context.clientId)
+      .eq("entity_type", entityType);
+
+    if (!views) {
+      continue;
+    }
+
+    for (const view of views) {
+      const referencedKeys = getViewStateFieldReferences(view);
+      const affectedKeys = removedFieldKeys.filter((fieldName) => referencedKeys.has(fieldName));
+
+      if (affectedKeys.length > 0) {
+        addAffectedView(affected, {
+          name: view.name,
+          entity_type: view.entity_type,
+          view_id: view.view_id,
+          affectedKeys,
         });
       }
     }

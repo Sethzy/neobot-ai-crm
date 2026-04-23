@@ -33,6 +33,8 @@ interface RecordDetailPanelShellProps<TId extends string = string> {
   meta?: ReactNode;
   /** Optional avatar element rendered before the title. */
   avatar?: ReactNode;
+  /** Optional actions rendered on the header row. */
+  headerActions?: ReactNode;
   /**
    * When set, the title becomes click-to-edit. Called with the trimmed new
    * value on Enter or blur; throw from this callback to abort the save and
@@ -51,6 +53,8 @@ interface RecordDetailPanelShellProps<TId extends string = string> {
   maxVisibleTabs?: number; // Default: 4
   /** Optional footer node rendered pinned at the panel bottom. */
   footer?: ReactNode;
+  /** Reserve room for the drawer close button on the trailing edge. */
+  reserveTrailingSpace?: boolean;
   /** Active tab content. */
   children: ReactNode;
 }
@@ -63,6 +67,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
   title,
   meta,
   avatar,
+  headerActions,
   onTitleSave,
   badge,
   tabs,
@@ -70,6 +75,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
   onTabChange,
   maxVisibleTabs = 4,
   footer,
+  reserveTrailingSpace = true,
   children,
 }: RecordDetailPanelShellProps<TId>) {
   const visibleTabs = tabs.slice(0, maxVisibleTabs);
@@ -130,7 +136,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
         <div className="space-y-4 p-5">
           {/* Compact header row — right padding reserves space for the Sheet's
               absolute-positioned close button so the meta text doesn't collide. */}
-          <header className="space-y-2 pr-10">
+          <header className={cn("space-y-2", reserveTrailingSpace && "pr-10")}>
             <div className="flex items-center gap-2.5">
               {avatar ? (
                 <div className="shrink-0">{avatar}</div>
@@ -165,6 +171,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
                   ) : null}
                 </button>
               )}
+              {headerActions ? <div className="shrink-0">{headerActions}</div> : null}
               {isSavingTitle ? (
                 <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-hidden />
               ) : null}

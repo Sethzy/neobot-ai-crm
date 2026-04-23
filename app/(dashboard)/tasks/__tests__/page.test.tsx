@@ -2,7 +2,7 @@
  * Tests for Tasks page query states and search wiring.
  * @module app/(dashboard)/tasks/__tests__/page
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -152,7 +152,12 @@ describe("TasksPage", () => {
 
     await user.type(screen.getByPlaceholderText(/search tasks/i), "  follow up  ");
 
-    expect(vi.mocked(useCrmTasks)).toHaveBeenLastCalledWith({ search: "follow up" });
+    await waitFor(
+      () => {
+        expect(vi.mocked(useCrmTasks)).toHaveBeenLastCalledWith({ search: "follow up" });
+      },
+      { timeout: 1500 },
+    );
   });
 
   it("captures a created timeline activity when a task is created from the page", async () => {

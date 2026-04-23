@@ -47,6 +47,7 @@ vi.mock("@/components/ui/sheet", () => ({
     </div>
   ),
   SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+  SheetDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
 }));
 
 vi.mock("../contact-drawer-content", () => ({

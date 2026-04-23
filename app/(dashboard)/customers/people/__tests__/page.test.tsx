@@ -27,7 +27,10 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/hooks/use-contacts", () => ({
   usePaginatedContacts: vi.fn(),
-  contactKeys: { all: ["contacts"] },
+  contactKeys: {
+    all: ["contacts"],
+    detail: (contactId: string) => ["contacts", "detail", contactId],
+  },
 }));
 
 vi.mock("@/hooks/use-companies", () => ({

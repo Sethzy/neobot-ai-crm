@@ -12,14 +12,14 @@ import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
+import { applyViewColumns } from "@/components/crm/apply-view-columns";
+import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
 import { OpenRecordHint } from "@/components/crm/open-record-hint";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
-import { ViewPicker } from "@/components/crm/view-picker";
-import { PageCanvas } from "@/components/layout/page-canvas";
-import { PageHeader } from "@/components/layout/page-header";
+import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
+import { useRecordOpenBehavior } from "@/components/crm/use-record-open-behavior";
 import { Button } from "@/components/ui/button";
-import { FilterBar } from "@/components/ui/filter-bar";
 import { ListTable } from "@/components/ui/list-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
@@ -251,7 +251,23 @@ export default function PeoplePage() {
   const [page, setPage] = useState(1);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
   const savedViewId = searchParams?.get("savedView") ?? null;
-  const activeSavedView = views?.find((view) => view.view_id === savedViewId) ?? null;
+  const {
+    activeSavedView,
+    activeState,
+    isSavedViewActive,
+    openMode,
+  } = useActiveCrmViewState({
+    activeViewId: savedViewId,
+    adHocViewType: "table",
+    allowPageOpen: true,
+    supportedViewTypes: ["table"],
+    views,
+  });
+  const { openRecord } = useRecordOpenBehavior({
+    objectType: "contact",
+    openDrawer: open,
+    openMode,
+  });
 
   const filters = useMemo<FilterDef[]>(
     () => [
@@ -285,10 +301,10 @@ export default function PeoplePage() {
 
   const queryFilters = useMemo(
     () => ({
-      ...(activeSavedView
+      ...(isSavedViewActive
         ? {
-            viewFilters: activeSavedView.filters as Record<string, unknown>,
-            viewSort: activeSavedView.sort as { column: string; ascending: boolean } | undefined,
+            viewFilters: activeState?.filters ?? {},
+            viewSort: activeState?.sort ?? undefined,
           }
         : {
             type: typeof filterValues.type === "string" ? (filterValues.type as ContactType) : undefined,
@@ -299,13 +315,13 @@ export default function PeoplePage() {
       page,
       pageSize,
     }),
-    [activeSavedView, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.type, page],
+    [activeState?.filters, activeState?.sort, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.type, isSavedViewActive, page],
   );
 
   const contactTypes = crmConfigResult?.config.contact_types ?? contactTypeValues;
   const { data, isLoading, isError } = usePaginatedContacts(queryFilters);
   const hasLocalFilters = Object.keys(filterValues).length > 0;
-  const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
+  const hasActiveFiltering = isSavedViewActive || hasLocalFilters;
 
   const createContact = useMutation({
     mutationFn: async () => {
@@ -439,7 +455,7 @@ export default function PeoplePage() {
                   className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
                   onClick={(event) => {
                     event.stopPropagation();
-                    open(row.original.contact_id);
+                    openRecord(row.original.contact_id);
                   }}
                 >
                   {formatContactFullName(row.original)}
@@ -499,7 +515,11 @@ export default function PeoplePage() {
           return col;
       }
     });
-  }, [crmConfig, companies, contactTypes, open]);
+  }, [crmConfig, companies, contactTypes, openRecord]);
+  const visibleColumns = useMemo(
+    () => applyViewColumns(columns, activeState),
+    [activeState, columns],
+  );
 
   const newContactButton = (
     <Button
@@ -513,84 +533,81 @@ export default function PeoplePage() {
   );
 
   return (
-    <PageCanvas>
-      <PageHeader title="People" />
-      <FilterBar
-        leadingSlot={
-          <ViewPicker
-            entityType="contacts"
-            activeViewId={activeSavedView?.view_id ?? null}
-            onViewChange={handleSavedViewChange}
-            count={data?.total}
-          />
-        }
-        trailingSlot={newContactButton}
-        {...(activeSavedView
-          ? {}
-          : {
-              filters,
-              values: filterValues,
-              onApply: (nextValues: FilterValues) => {
-                setPage(1);
-                setFilterValues(nextValues);
-              },
-              onClear: () => {
-                setPage(1);
-                setFilterValues({});
-              },
-            })}
-      />
-
-      <ListTable
-        columns={columns}
-        data={rows}
-        pinFirstColumn
-        isLoading={isLoading}
-        error={isError ? <span>Unable to load people.</span> : null}
-        emptyState={
-          <EmptyState
-            iconName="contacts"
-            title={hasActiveFiltering ? "No results match your filters" : "No people yet"}
-            description={
-              hasActiveFiltering
-                ? "Try adjusting or clearing your filters."
-                : "Your AI agent will create contacts as it processes conversations."
+    <CrmWorkspaceShell
+      title="People"
+      entityType="contacts"
+      activeViewId={activeSavedView?.view_id ?? null}
+      onViewChange={handleSavedViewChange}
+      count={data?.total}
+      filters={filters}
+      filterValues={filterValues}
+      isSavedViewActive={isSavedViewActive}
+      onFilterApply={(nextValues: FilterValues) => {
+        setPage(1);
+        setFilterValues(nextValues);
+      }}
+      onFilterClear={() => {
+        setPage(1);
+        setFilterValues({});
+      }}
+      primaryAction={newContactButton}
+      viewType="table"
+      bodyByView={{
+        table: (
+          <ListTable
+            columns={visibleColumns}
+            data={rows}
+            pinFirstColumn
+            isLoading={isLoading}
+            error={isError ? <span>Unable to load people.</span> : null}
+            emptyState={
+              <EmptyState
+                iconName="contacts"
+                title={hasActiveFiltering ? "No results match your filters" : "No people yet"}
+                description={
+                  hasActiveFiltering
+                    ? "Try adjusting or clearing your filters."
+                    : "Your AI agent will create contacts as it processes conversations."
+                }
+              />
             }
+            pagination={
+              data
+                ? {
+                    page: data.page,
+                    pageSize: data.pageSize,
+                    total: data.total,
+                    totalPages: data.totalPages,
+                    onPageChange: setPage,
+                  }
+                : undefined
+            }
+            rowActions={(row) => [
+              { id: "view", label: "View", onSelect: () => openRecord(row.contact_id) },
+              {
+                id: "delete",
+                label: "Delete",
+                destructive: true,
+                onSelect: () => {
+                  if (!window.confirm(`Delete ${formatContactFullName(row)}? This cannot be undone.`)) return;
+                  deletePerson.mutate({ contactId: row.contact_id });
+                },
+              },
+            ]}
+            onRowClick={(row) => openRecord(row.contact_id)}
+            selectedRowId={recordId ?? undefined}
+            getRowId={(row) => row.contact_id}
           />
-        }
-        pagination={
-          data
-            ? {
-                page: data.page,
-                pageSize: data.pageSize,
-                total: data.total,
-                totalPages: data.totalPages,
-                onPageChange: setPage,
-              }
-            : undefined
-        }
-        rowActions={(row) => [
-          { id: "view", label: "View", onSelect: () => open(row.contact_id) },
-          {
-            id: "delete",
-            label: "Delete",
-            destructive: true,
-            onSelect: () => {
-              if (!window.confirm(`Delete ${formatContactFullName(row)}? This cannot be undone.`)) return;
-              deletePerson.mutate({ contactId: row.contact_id });
-            },
-          },
-        ]}
-        onRowClick={(row) => open(row.contact_id)}
-        selectedRowId={recordId ?? undefined}
-        getRowId={(row) => row.contact_id}
-      />
-      <RecordDrawer
-        isOpen={isDrawerOpen}
-        recordId={recordId}
-        objectType="contact"
-        onClose={close}
-      />
-    </PageCanvas>
+        ),
+      }}
+      drawer={(
+        <RecordDrawer
+          isOpen={isDrawerOpen}
+          recordId={recordId}
+          objectType="contact"
+          onClose={close}
+        />
+      )}
+    />
   );
 }

@@ -8,13 +8,14 @@ import { z } from "zod";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { crmViewEntityTypes } from "@/lib/crm/schemas";
 import { validateViewFilters, viewFiltersSchema } from "@/lib/crm/view-filters";
+import {
+  crmViewSortSchema,
+  crmViewStatePatchSchema,
+  normalizeCrmView,
+  normalizeCrmViewState,
+} from "@/lib/crm/view-state";
 
 import type { ManagedAgentTool } from "../types";
-
-const sortSchema = z.object({
-  column: z.string().min(1),
-  ascending: z.boolean(),
-});
 
 const inputSchema = z.object({
   operation: z.enum(["create", "list", "update", "delete"]).describe(
@@ -25,22 +26,41 @@ const inputSchema = z.object({
     .enum(crmViewEntityTypes)
     .optional()
     .describe("CRM entity this view filters (contacts, companies, deals, tasks)."),
-  filters: viewFiltersSchema
+  state: crmViewStatePatchSchema
     .optional()
     .describe(
-      "Filter object for create or update. Keys are column names or column_after/column_before for date ranges. Values can be strings, numbers, booleans, string arrays, or symbolic date tokens.",
+      "Optional saved workspace state for create or update. Supports viewType, filters, sort, columns, columnOrder, groupBy, calendarField, openMode, and isDefault.",
     ),
-  sort: sortSchema.nullable().optional().describe("Optional sort config for create or update."),
+  filters: viewFiltersSchema
+    .optional()
+    .describe("Legacy compatibility field. When provided, it overrides state.filters."),
+  sort: crmViewSortSchema.nullable().optional().describe(
+    "Legacy compatibility field. When provided, it overrides state.sort.",
+  ),
   view_id: z.string().uuid().optional().describe("UUID of the view to update or delete."),
 });
 
 type ManageViewsInput = z.infer<typeof inputSchema>;
 
+function validateNextState(
+  entityType: string,
+  nextState: ManageViewsInput["state"],
+  legacyFilters: ManageViewsInput["filters"],
+  legacySort: ManageViewsInput["sort"],
+) {
+  const nextFilters =
+    legacyFilters ?? nextState?.filters ?? {};
+  const nextSort =
+    legacySort !== undefined ? legacySort : nextState?.sort;
+
+  return validateViewFilters(entityType, nextFilters, nextSort ?? null);
+}
+
 export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
   name: "manage_views",
   description:
     "Create, list, update, or delete saved CRM views. " +
-    "A view is a named filter+sort preset that appears as a pill tab on the CRM page. " +
+    "A view is a named saved workspace that can remember layout, filters, sort, columns, and record open behavior. " +
     "Only create views when the user explicitly asks. " +
     "Filter keys match CRM columns: stage, status, type, industry, company_id, contact_id, deal_id. " +
     "For date ranges use column_after/column_before (e.g. due_date_before, close_date_after). " +
@@ -49,15 +69,16 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
   execute: async (input, context) => {
     switch (input.operation) {
       case "create": {
-        if (!input.name || !input.entity_type || !input.filters) {
+        if (!input.name || !input.entity_type || (!input.state && !input.filters)) {
           return {
             success: false as const,
-            error: "create requires name, entity_type, and filters.",
+            error: "create requires name, entity_type, and either state or filters.",
           };
         }
 
-        const validationError = validateViewFilters(
+        const validationError = validateNextState(
           input.entity_type,
+          input.state,
           input.filters,
           input.sort,
         );
@@ -65,14 +86,25 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           return { success: false as const, error: validationError };
         }
 
+        const state = normalizeCrmViewState({
+          entityType: input.entity_type,
+          state: {
+            ...(input.state ?? {}),
+            ...(input.filters !== undefined ? { filters: input.filters } : {}),
+            ...(input.sort !== undefined ? { sort: input.sort } : {}),
+          },
+        });
+
         const { data, error } = await context.supabase
           .from("crm_views")
           .insert({
             client_id: context.clientId,
             name: input.name,
             entity_type: input.entity_type,
-            filters: input.filters,
-            sort: input.sort ?? null,
+            filters: state.filters,
+            sort: state.sort,
+            state,
+            is_default: state.isDefault,
           })
           .select()
           .single();
@@ -87,7 +119,7 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           properties: { entity_type: input.entity_type, source: "agent" },
         });
 
-        return { success: true as const, view: data };
+        return { success: true as const, view: normalizeCrmView(data) };
       }
 
       case "list": {
@@ -108,7 +140,8 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           return { success: false as const, error: error.message };
         }
 
-        return { success: true as const, views: data ?? [], count: (data ?? []).length };
+        const views = (data ?? []).map((view) => normalizeCrmView(view));
+        return { success: true as const, views, count: views.length };
       }
 
       case "update": {
@@ -120,37 +153,61 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
         if (input.name !== undefined) {
           updates.name = input.name;
         }
-        if (input.filters !== undefined) {
-          updates.filters = input.filters;
-        }
-        if (input.sort !== undefined) {
-          updates.sort = input.sort;
-        }
+        const hasStateChanges =
+          input.state !== undefined ||
+          input.filters !== undefined ||
+          input.sort !== undefined;
 
-        if (Object.keys(updates).length === 0) {
+        if (Object.keys(updates).length === 0 && !hasStateChanges) {
           return { success: false as const, error: "No fields to update." };
         }
 
-        if (input.filters || input.sort) {
-          const { data: existing } = await context.supabase
+        if (hasStateChanges) {
+          const { data: existing, error: existingError } = await context.supabase
             .from("crm_views")
-            .select("entity_type")
+            .select("entity_type, filters, sort, state, is_default")
             .eq("view_id", input.view_id)
             .eq("client_id", context.clientId)
             .single();
+
+          if (existingError) {
+            return { success: false as const, error: existingError.message };
+          }
 
           if (!existing) {
             return { success: false as const, error: "View not found." };
           }
 
-          const validationError = validateViewFilters(
+          const validationError = validateNextState(
             existing.entity_type,
-            input.filters ?? {},
+            input.state,
+            input.filters,
             input.sort,
           );
           if (validationError) {
             return { success: false as const, error: validationError };
           }
+
+          const state = normalizeCrmViewState({
+            entityType: existing.entity_type,
+            state: {
+              ...normalizeCrmViewState({
+                entityType: existing.entity_type,
+                state: existing.state,
+                filters: existing.filters,
+                sort: existing.sort,
+                isDefault: existing.is_default,
+              }),
+              ...(input.state ?? {}),
+              ...(input.filters !== undefined ? { filters: input.filters } : {}),
+              ...(input.sort !== undefined ? { sort: input.sort } : {}),
+            },
+          });
+
+          updates.filters = state.filters;
+          updates.sort = state.sort;
+          updates.state = state;
+          updates.is_default = state.isDefault;
         }
 
         const { data, error } = await context.supabase
@@ -165,7 +222,7 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           return { success: false as const, error: error.message };
         }
 
-        return { success: true as const, view: data };
+        return { success: true as const, view: normalizeCrmView(data) };
       }
 
       case "delete": {

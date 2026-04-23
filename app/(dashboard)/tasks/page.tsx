@@ -11,17 +11,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { AppIcon } from "@/components/icons/app-icons";
+import { applyViewColumns } from "@/components/crm/apply-view-columns";
+import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
 import { CrmTasksCalendar } from "@/components/crm/crm-tasks-calendar";
 import { KanbanBoard } from "@/components/crm/kanban-board";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { TaskKanbanCard } from "@/components/crm/task-kanban-card";
-import { ViewPicker } from "@/components/crm/view-picker";
 import { crmTaskStatusLabelMap } from "@/components/crm/task-status-badge";
-import { ViewToggle } from "@/components/crm/view-toggle";
-import { PageCanvas, PageSurface } from "@/components/layout/page-canvas";
-import { PageHeader } from "@/components/layout/page-header";
+import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
+import { useRecordOpenBehavior } from "@/components/crm/use-record-open-behavior";
+import { PageSurface } from "@/components/layout/page-canvas";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ListTable } from "@/components/ui/list-table";
 import { taskColumns } from "@/lib/crm/task-columns";
 import { crmTaskKeys } from "@/hooks/use-crm-tasks";
@@ -59,7 +59,23 @@ export default function TasksPage() {
   const updateTask = useUpdateCrmTaskMutation();
   const savedViewId = searchParams?.get("savedView") ?? null;
   const { data: views } = useCrmViews("tasks");
-  const activeSavedView = views?.find((viewItem) => viewItem.view_id === savedViewId) ?? null;
+  const {
+    activeSavedView,
+    activeState,
+    activeViewType,
+    isSavedViewActive,
+    openMode,
+  } = useActiveCrmViewState({
+    activeViewId: savedViewId,
+    adHocViewType: view,
+    supportedViewTypes: ["table", "kanban", "calendar"],
+    views,
+  });
+  const { openRecord } = useRecordOpenBehavior({
+    objectType: "task",
+    openDrawer: open,
+    openMode,
+  });
 
   const createTask = useMutation({
     mutationFn: async () => {
@@ -118,10 +134,10 @@ export default function TasksPage() {
   );
 
   const filters = useMemo(() => {
-    if (activeSavedView) {
+    if (isSavedViewActive) {
       return {
-        viewFilters: activeSavedView.filters as Record<string, unknown>,
-        viewSort: activeSavedView.sort as { column: string; ascending: boolean } | undefined,
+        viewFilters: activeState?.filters ?? {},
+        viewSort: activeState?.sort ?? undefined,
       };
     }
 
@@ -130,11 +146,15 @@ export default function TasksPage() {
     return {
       search: normalizedSearch.length > 0 ? normalizedSearch : undefined,
     };
-  }, [activeSavedView, search]);
+  }, [activeState?.filters, activeState?.sort, isSavedViewActive, search]);
 
   const { data: tasks = [], isLoading, isError, refetch } = useCrmTasks(filters);
   const hasLocalFilters = search.trim().length > 0;
-  const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
+  const hasActiveFiltering = isSavedViewActive || hasLocalFilters;
+  const visibleTableColumns = useMemo(
+    () => applyViewColumns(taskColumns, activeState),
+    [activeState],
+  );
 
   function handleViewChange(viewId: string | null) {
     const params = new URLSearchParams(searchParams?.toString());
@@ -149,44 +169,27 @@ export default function TasksPage() {
   }
 
   return (
-    <PageCanvas>
-      <PageHeader
-        title="Todos"
-        description="Review follow-ups in a table, board, or calendar without leaving the workspace."
-      />
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <ViewPicker
-          entityType="tasks"
-          activeViewId={activeSavedView?.view_id ?? null}
-          onViewChange={handleViewChange}
-        />
-
-        {!activeSavedView && (
-          <div className="relative flex-1">
-            <AppIcon
-              name="search"
-              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60"
-            />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search tasks by title or description..."
-              className="h-10 w-full border-app-border-subtle bg-app-surface pl-9 shadow-none focus-visible:ring-1"
-            />
-          </div>
-        )}
-
-        <ViewToggle current={view} views={["table", "kanban", "calendar"]} onChange={setView} />
-
+    <CrmWorkspaceShell
+      title="Todos"
+      description="Review follow-ups in a table, board, or calendar without leaving the workspace."
+      entityType="tasks"
+      activeViewId={activeSavedView?.view_id ?? null}
+      onViewChange={handleViewChange}
+      isSavedViewActive={isSavedViewActive}
+      searchValue={search}
+      searchPlaceholder="Search tasks by title or description..."
+      onSearchChange={setSearch}
+      primaryAction={(
         <Button size="sm" onClick={() => createTask.mutate()} disabled={!clientId || createTask.isPending}>
           <Plus className="h-4 w-4" />
           New
         </Button>
-      </div>
-
-      <div>
-        {isLoading ? (
+      )}
+      viewType={activeViewType}
+      views={["table", "kanban", "calendar"]}
+      onViewTypeChange={(nextView) => setView(nextView)}
+      bodyByView={{
+        table: isLoading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
           </div>
@@ -212,19 +215,73 @@ export default function TasksPage() {
               {hasActiveFiltering ? "No tasks match your filters" : "No tasks yet"}
             </p>
           </PageSurface>
-        ) : view === "table" ? (
+        ) : (
           <ListTable
-            columns={taskColumns}
+            columns={visibleTableColumns}
             data={tasks}
             initialSorting={[{ id: "due_date", desc: false }]}
-            onRowClick={(task) => open(task.task_id)}
+            onRowClick={(task) => openRecord(task.task_id)}
           />
-        ) : view === "calendar" ? (
+        ),
+        calendar: isLoading ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+          </div>
+        ) : isError ? (
+          <PageSurface className="border-destructive/20 bg-destructive/5 p-6">
+            <p className="type-control text-destructive">Unable to load tasks</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              Retry
+            </Button>
+          </PageSurface>
+        ) : tasks.length === 0 ? (
+          <PageSurface className="p-10 text-center md:p-20">
+            <AppIcon name="tasks" className="mx-auto h-12 w-12 text-muted-foreground/40" />
+            <p className="mt-6 type-empty-title text-muted-foreground">
+              {hasActiveFiltering ? "No tasks match your filters" : "No tasks yet"}
+            </p>
+          </PageSurface>
+        ) : (
           <CrmTasksCalendar
-            onTaskClick={open}
+            onTaskClick={openRecord}
             onTaskDateChange={handleCalendarTaskDateChange}
             tasks={tasks}
           />
+        ),
+        kanban: isLoading ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />
+          </div>
+        ) : isError ? (
+          <PageSurface className="border-destructive/20 bg-destructive/5 p-6">
+            <p className="type-control text-destructive">Unable to load tasks</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => {
+                void refetch();
+              }}
+            >
+              Retry
+            </Button>
+          </PageSurface>
+        ) : tasks.length === 0 ? (
+          <PageSurface className="p-10 text-center md:p-20">
+            <AppIcon name="tasks" className="mx-auto h-12 w-12 text-muted-foreground/40" />
+            <p className="mt-6 type-empty-title text-muted-foreground">
+              {hasActiveFiltering ? "No tasks match your filters" : "No tasks yet"}
+            </p>
+          </PageSurface>
         ) : (
           <KanbanBoard
             boardLabel="By Status"
@@ -233,13 +290,12 @@ export default function TasksPage() {
             groupBy={(task) => task.status}
             getItemId={(task) => task.task_id}
             renderCard={(task) => <TaskKanbanCard task={task} />}
-            onCardClick={open}
+            onCardClick={openRecord}
             onColumnChange={handleBoardColumnChange}
           />
-        )}
-      </div>
-
-      <RecordDrawer isOpen={isOpen} recordId={recordId} objectType="task" onClose={close} />
-    </PageCanvas>
+        ),
+      }}
+      drawer={<RecordDrawer isOpen={isOpen} recordId={recordId} objectType="task" onClose={close} />}
+    />
   );
 }

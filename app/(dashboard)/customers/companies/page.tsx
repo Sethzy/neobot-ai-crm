@@ -11,15 +11,15 @@ import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
+import { applyViewColumns } from "@/components/crm/apply-view-columns";
+import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
 import { OpenRecordHint } from "@/components/crm/open-record-hint";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
-import { ViewPicker } from "@/components/crm/view-picker";
-import { PageCanvas } from "@/components/layout/page-canvas";
-import { PageHeader } from "@/components/layout/page-header";
+import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
+import { useRecordOpenBehavior } from "@/components/crm/use-record-open-behavior";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FilterBar } from "@/components/ui/filter-bar";
 import { ListTable } from "@/components/ui/list-table";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 import { useClientId } from "@/hooks/use-client-id";
@@ -235,7 +235,23 @@ export default function CompaniesPage() {
   const [page, setPage] = useState(1);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
   const savedViewId = searchParams?.get("savedView") ?? null;
-  const activeSavedView = views?.find((view) => view.view_id === savedViewId) ?? null;
+  const {
+    activeSavedView,
+    activeState,
+    isSavedViewActive,
+    openMode,
+  } = useActiveCrmViewState({
+    activeViewId: savedViewId,
+    adHocViewType: "table",
+    allowPageOpen: true,
+    supportedViewTypes: ["table"],
+    views,
+  });
+  const { openRecord } = useRecordOpenBehavior({
+    objectType: "company",
+    openDrawer: open,
+    openMode,
+  });
 
   const industryOptions = crmConfigResult?.config.company_industries?.length
     ? crmConfigResult.config.company_industries
@@ -261,10 +277,10 @@ export default function CompaniesPage() {
 
   const queryFilters = useMemo(
     () => ({
-      ...(activeSavedView
+      ...(isSavedViewActive
         ? {
-            viewFilters: activeSavedView.filters as Record<string, unknown>,
-            viewSort: activeSavedView.sort as { column: string; ascending: boolean } | undefined,
+            viewFilters: activeState?.filters ?? {},
+            viewSort: activeState?.sort ?? undefined,
           }
         : {
             industry: typeof filterValues.industry === "string" ? filterValues.industry : undefined,
@@ -275,12 +291,12 @@ export default function CompaniesPage() {
       page,
       pageSize,
     }),
-    [activeSavedView, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.industry, page],
+    [activeState?.filters, activeState?.sort, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.industry, isSavedViewActive, page],
   );
 
   const { data, isLoading, isError } = usePaginatedCompanies(queryFilters);
   const hasLocalFilters = Object.keys(filterValues).length > 0;
-  const hasActiveFiltering = Boolean(activeSavedView) || hasLocalFilters;
+  const hasActiveFiltering = isSavedViewActive || hasLocalFilters;
 
   const createCompany = useMutation({
     mutationFn: async () => {
@@ -406,7 +422,7 @@ export default function CompaniesPage() {
                   className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
                   onClick={(event) => {
                     event.stopPropagation();
-                    open(row.original.company_id);
+                    openRecord(row.original.company_id);
                   }}
                 >
                   {row.original.name}
@@ -479,7 +495,11 @@ export default function CompaniesPage() {
     ];
 
     return [...configured, ...countColumns];
-  }, [crmConfig, industryOptions, open]);
+  }, [crmConfig, industryOptions, openRecord]);
+  const visibleColumns = useMemo(
+    () => applyViewColumns(columns, activeState),
+    [activeState, columns],
+  );
 
   const newCompanyButton = (
     <Button
@@ -493,84 +513,81 @@ export default function CompaniesPage() {
   );
 
   return (
-    <PageCanvas>
-      <PageHeader title="Companies" />
-      <FilterBar
-        leadingSlot={
-          <ViewPicker
-            entityType="companies"
-            activeViewId={activeSavedView?.view_id ?? null}
-            onViewChange={handleSavedViewChange}
-            count={data?.total}
-          />
-        }
-        trailingSlot={newCompanyButton}
-        {...(activeSavedView
-          ? {}
-          : {
-              filters,
-              values: filterValues,
-              onApply: (nextValues: FilterValues) => {
-                setPage(1);
-                setFilterValues(nextValues);
-              },
-              onClear: () => {
-                setPage(1);
-                setFilterValues({});
-              },
-            })}
-      />
-
-      <ListTable
-        columns={columns}
-        data={rows}
-        pinFirstColumn
-        isLoading={isLoading}
-        error={isError ? <span>Unable to load companies.</span> : null}
-        emptyState={
-          <EmptyState
-            iconName="building"
-            title={hasActiveFiltering ? "No results match your filters" : "No companies yet"}
-            description={
-              hasActiveFiltering
-                ? "Try adjusting or clearing your filters."
-                : "Your AI agent will create companies as it processes conversations."
+    <CrmWorkspaceShell
+      title="Companies"
+      entityType="companies"
+      activeViewId={activeSavedView?.view_id ?? null}
+      onViewChange={handleSavedViewChange}
+      count={data?.total}
+      filters={filters}
+      filterValues={filterValues}
+      isSavedViewActive={isSavedViewActive}
+      onFilterApply={(nextValues: FilterValues) => {
+        setPage(1);
+        setFilterValues(nextValues);
+      }}
+      onFilterClear={() => {
+        setPage(1);
+        setFilterValues({});
+      }}
+      primaryAction={newCompanyButton}
+      viewType="table"
+      bodyByView={{
+        table: (
+          <ListTable
+            columns={visibleColumns}
+            data={rows}
+            pinFirstColumn
+            isLoading={isLoading}
+            error={isError ? <span>Unable to load companies.</span> : null}
+            emptyState={
+              <EmptyState
+                iconName="building"
+                title={hasActiveFiltering ? "No results match your filters" : "No companies yet"}
+                description={
+                  hasActiveFiltering
+                    ? "Try adjusting or clearing your filters."
+                    : "Your AI agent will create companies as it processes conversations."
+                }
+              />
             }
+            pagination={
+              data
+                ? {
+                    page: data.page,
+                    pageSize: data.pageSize,
+                    total: data.total,
+                    totalPages: data.totalPages,
+                    onPageChange: setPage,
+                  }
+                : undefined
+            }
+            rowActions={(row) => [
+              { id: "view", label: "View", onSelect: () => openRecord(row.company_id) },
+              {
+                id: "delete",
+                label: "Delete",
+                destructive: true,
+                onSelect: () => {
+                  if (!window.confirm(`Delete ${row.name}? This cannot be undone.`)) return;
+                  deleteCompany.mutate({ companyId: row.company_id });
+                },
+              },
+            ]}
+            onRowClick={(row) => openRecord(row.company_id)}
+            selectedRowId={recordId ?? undefined}
+            getRowId={(row) => row.company_id}
           />
-        }
-        pagination={
-          data
-            ? {
-                page: data.page,
-                pageSize: data.pageSize,
-                total: data.total,
-                totalPages: data.totalPages,
-                onPageChange: setPage,
-              }
-            : undefined
-        }
-        rowActions={(row) => [
-          { id: "view", label: "View", onSelect: () => open(row.company_id) },
-          {
-            id: "delete",
-            label: "Delete",
-            destructive: true,
-            onSelect: () => {
-              if (!window.confirm(`Delete ${row.name}? This cannot be undone.`)) return;
-              deleteCompany.mutate({ companyId: row.company_id });
-            },
-          },
-        ]}
-        onRowClick={(row) => open(row.company_id)}
-        selectedRowId={recordId ?? undefined}
-        getRowId={(row) => row.company_id}
-      />
-      <RecordDrawer
-        isOpen={isDrawerOpen}
-        recordId={recordId}
-        objectType="company"
-        onClose={close}
-      />
-    </PageCanvas>
+        ),
+      }}
+      drawer={(
+        <RecordDrawer
+          isOpen={isDrawerOpen}
+          recordId={recordId}
+          objectType="company"
+          onClose={close}
+        />
+      )}
+    />
   );
 }
