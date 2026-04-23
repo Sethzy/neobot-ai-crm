@@ -6,8 +6,8 @@
  */
 "use client";
 
-import type { ReactNode } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, Loader2, Pencil } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -33,6 +33,12 @@ interface RecordDetailPanelShellProps<TId extends string = string> {
   meta?: ReactNode;
   /** Optional avatar element rendered before the title. */
   avatar?: ReactNode;
+  /**
+   * When set, the title becomes click-to-edit. Called with the trimmed new
+   * value on Enter or blur; throw from this callback to abort the save and
+   * revert to the previous value.
+   */
+  onTitleSave?: (nextTitle: string) => void | Promise<void>;
   /** Optional badge or status chip shown below the header row. */
   badge?: ReactNode;
   /** Available tabs for the side panel. */
@@ -57,6 +63,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
   title,
   meta,
   avatar,
+  onTitleSave,
   badge,
   tabs,
   activeTab,
@@ -68,6 +75,53 @@ export function RecordDetailPanelShell<TId extends string = string>({
   const visibleTabs = tabs.slice(0, maxVisibleTabs);
   const overflowTabs = tabs.slice(maxVisibleTabs);
   const isOverflowTabActive = overflowTabs.some((tab) => tab.id === activeTab);
+
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(title);
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Reset draft whenever the live title changes (e.g. another tab edited it).
+  useEffect(() => {
+    if (!isEditingTitle) setTitleDraft(title);
+  }, [isEditingTitle, title]);
+
+  // Focus + select on entering edit mode for immediate typing.
+  useEffect(() => {
+    if (isEditingTitle) {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    }
+  }, [isEditingTitle]);
+
+  async function commitTitle(nextValue: string) {
+    const trimmed = nextValue.trim();
+    if (!onTitleSave || trimmed.length === 0 || trimmed === title.trim()) {
+      setIsEditingTitle(false);
+      setTitleDraft(title);
+      return;
+    }
+    try {
+      setIsSavingTitle(true);
+      await onTitleSave(trimmed);
+      setIsEditingTitle(false);
+    } catch {
+      // Callback rejected — keep the editor open so the user can retry.
+    } finally {
+      setIsSavingTitle(false);
+    }
+  }
+
+  function handleTitleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void commitTitle(titleDraft);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setIsEditingTitle(false);
+      setTitleDraft(title);
+    }
+  }
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
@@ -81,9 +135,39 @@ export function RecordDetailPanelShell<TId extends string = string>({
               {avatar ? (
                 <div className="shrink-0">{avatar}</div>
               ) : null}
-              <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
-                {title}
-              </h2>
+              {isEditingTitle && onTitleSave ? (
+                <input
+                  ref={titleInputRef}
+                  value={titleDraft}
+                  disabled={isSavingTitle}
+                  onChange={(event) => setTitleDraft(event.target.value)}
+                  onBlur={() => void commitTitle(titleDraft)}
+                  onKeyDown={handleTitleKeyDown}
+                  className="min-w-0 flex-1 rounded-md border border-border/50 bg-transparent px-2 py-1 text-sm font-semibold text-foreground outline-none focus:border-ring"
+                  aria-label="Edit record title"
+                />
+              ) : (
+                <button
+                  type="button"
+                  disabled={!onTitleSave}
+                  onClick={() => {
+                    if (onTitleSave) setIsEditingTitle(true);
+                  }}
+                  className={cn(
+                    "group/title inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-md text-left text-sm font-semibold text-foreground",
+                    onTitleSave && "cursor-text px-1 -mx-1 transition-colors hover:bg-app-hover/60",
+                  )}
+                  title={onTitleSave ? "Click to rename" : undefined}
+                >
+                  <span className="min-w-0 flex-1 truncate">{title}</span>
+                  {onTitleSave ? (
+                    <Pencil className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/title:opacity-100" />
+                  ) : null}
+                </button>
+              )}
+              {isSavingTitle ? (
+                <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-hidden />
+              ) : null}
               {meta ? (
                 <p className="shrink-0 text-xs text-muted-foreground">{meta}</p>
               ) : null}

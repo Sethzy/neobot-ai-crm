@@ -70,10 +70,10 @@ export function formatDealStageLabel(stage: Deal["stage"]): string {
     ?? formatCrmEnumLabel(stage);
 }
 
-/** Formats an ISO timestamp as `2 Mar 2026`. */
+/** Formats an ISO timestamp as `2 Mar 2026`. Empty value renders as blank. */
 export function formatCrmDate(dateString: string | null): string {
   if (!dateString) {
-    return "—";
+    return "";
   }
 
   return new Date(dateString).toLocaleDateString("en-GB", {
@@ -100,10 +100,10 @@ const sgdFormatter = new Intl.NumberFormat("en-SG", {
   maximumFractionDigits: 0,
 });
 
-/** Formats a deal price as Singapore dollars with no decimals. */
+/** Formats a deal price as Singapore dollars with no decimals. Empty value renders as blank. */
 export function formatCrmPrice(price: number | null): string {
   if (price === null) {
-    return "—";
+    return "";
   }
 
   return sgdFormatter.format(price);

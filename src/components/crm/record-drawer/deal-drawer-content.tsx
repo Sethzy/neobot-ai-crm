@@ -122,6 +122,9 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
   return (
     <RecordDetailPanelShell
       title={deal.address}
+      onTitleSave={async (next) => {
+        await updateDeal.mutateAsync({ address: next });
+      }}
       meta={`Updated ${formatDistanceToNow(new Date(deal.updated_at), { addSuffix: true })}`}
       avatar={
         <Avatar size="sm">

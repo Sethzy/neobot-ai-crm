@@ -52,8 +52,14 @@ export interface ListTableProps<TData> {
   getRowId?: (row: TData) => string;
   /** Initial sort state when the table manages its own sorting. */
   initialSorting?: SortingState;
+  /** Freezes the first column to the left of the scroll container (Attio-style). */
+  pinFirstColumn?: boolean;
   className?: string;
 }
+
+/** Shared sticky-left classes for the pinned first column's header and cells. */
+const PINNED_FIRST_COL_CLASSES =
+  "sticky left-0 z-10 bg-background group-hover/row:bg-app-hover/70";
 
 function isDateColumn(columnId: string): boolean {
   const id = columnId.toLowerCase();
@@ -147,6 +153,7 @@ export function ListTable<TData>({
   selectedRowId,
   getRowId,
   initialSorting,
+  pinFirstColumn = false,
   className,
 }: ListTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>(initialSorting ?? []);
@@ -199,14 +206,14 @@ export function ListTable<TData>({
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header, headerIndex) => {
                   const isActionsColumn = header.column.id === "__row_actions";
-                  const isLastHeader = headerIndex === headerGroup.headers.length - 1;
+                  const isPinnedColumn = pinFirstColumn && headerIndex === 0;
                   return (
                     <th
                       key={header.id}
                       className={cn(
                         "px-4 py-2.5 text-left",
-                        !isLastHeader && "border-r border-app-border-subtle/80",
                         isActionsColumn && "w-[1%] text-right",
+                        isPinnedColumn && "sticky left-0 z-10 bg-background",
                       )}
                     >
                       {header.isPlaceholder ? null : header.column.getCanSort() ? (
@@ -238,11 +245,12 @@ export function ListTable<TData>({
           <tbody>
             {isLoading
               ? Array.from({ length: 6 }).map((_, rowIndex) => (
-                  <tr key={rowIndex} className="border-t border-app-border-subtle/40">
+                  <tr key={rowIndex} className="group/row border-t border-app-border-subtle/40">
                     {resolvedColumns.map((col, colIndex) => {
                       const colId = (col.id as string | undefined) ?? `col${colIndex}`;
                       const isActionsCol = colId === "__row_actions";
                       const isLastCol = colIndex === resolvedColumns.length - 1;
+                      const isPinnedCol = pinFirstColumn && colIndex === 0;
                       return (
                         <td
                           key={colIndex}
@@ -250,6 +258,7 @@ export function ListTable<TData>({
                             "px-4 py-2.5",
                             !isLastCol && "border-r border-app-border-subtle/80",
                             isActionsCol && "w-[1%] text-right",
+                            isPinnedCol && PINNED_FIRST_COL_CLASSES,
                           )}
                         >
                           <Skeleton
@@ -292,6 +301,7 @@ export function ListTable<TData>({
                             const columnId = cell.column.id;
                             const isActionsColumn = columnId === "__row_actions";
                             const isLastCell = cellIndex === cellsArray.length - 1;
+                            const isPinnedCell = pinFirstColumn && cellIndex === 0;
                             const rawValue = cell.getValue();
                             const renderedContent = cell.column.columnDef.cell
                               ? flexRender(cell.column.columnDef.cell, cell.getContext())
@@ -309,6 +319,8 @@ export function ListTable<TData>({
                                   "px-4 py-2.5 text-meta text-foreground",
                                   !isLastCell && "border-r border-app-border-subtle/80",
                                   isActionsColumn && "w-[1%] whitespace-nowrap text-right",
+                                  isPinnedCell && PINNED_FIRST_COL_CLASSES,
+                                  isPinnedCell && isSelected && "bg-app-hover/80",
                                 )}
                               >
                                 {resolvedContent}

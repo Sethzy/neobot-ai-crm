@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
 import { KanbanBoard } from "@/components/crm/kanban-board";
+import { OpenRecordHint } from "@/components/crm/open-record-hint";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { ViewPicker } from "@/components/crm/view-picker";
@@ -32,6 +33,7 @@ import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useCrmViews } from "@/hooks/use-crm-views";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
+import { useCompanies, type CompanyWithCounts } from "@/hooks/use-companies";
 import { dealKeys, type DealWithContact, useDeals, usePaginatedDeals } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
 import { useViewPreference, type ViewType } from "@/hooks/use-view-preference";
@@ -73,6 +75,48 @@ interface DealStageCellProps {
 interface DealAmountCellProps {
   dealId: string;
   amount: number | null;
+}
+
+interface DealAddressCellProps {
+  dealId: string;
+  address: string;
+}
+
+interface DealCompanyCellProps {
+  dealId: string;
+  company: DealWithContact["companies"];
+  companies: CompanyWithCounts[];
+}
+
+const noCompanyOptionValue = "__none__";
+
+/**
+ * Builds the company picker options list, preserving the currently linked
+ * company even when it's missing from the live company fetch.
+ */
+function buildDealCompanyOptions(
+  companies: CompanyWithCounts[],
+  currentCompany: DealWithContact["companies"],
+) {
+  const nextOptions = companies.map((company) => ({
+    value: company.company_id,
+    label: company.name,
+  }));
+
+  if (
+    currentCompany?.company_id
+    && !nextOptions.some((option) => option.value === currentCompany.company_id)
+  ) {
+    nextOptions.push({
+      value: currentCompany.company_id,
+      label: currentCompany.name,
+    });
+  }
+
+  return [
+    { value: noCompanyOptionValue, label: "No company" },
+    ...nextOptions.sort((left, right) => left.label.localeCompare(right.label)),
+  ];
 }
 
 
@@ -177,6 +221,55 @@ function DealAmountCell({ dealId, amount }: DealAmountCellProps) {
   );
 }
 
+/**
+ * Inline editor for the deal's secondary address field. The primary column
+ * (Name / address) opens the record drawer, so this sits alongside it for
+ * quick corrections without leaving the list.
+ */
+function DealAddressCell({ dealId, address }: DealAddressCellProps) {
+  const updateDeal = useUpdateDeal(dealId);
+
+  return (
+    <QuickEditCell
+      ariaLabel="Address"
+      value={address}
+      onSave={async (nextValue) => {
+        const next = typeof nextValue === "string" ? nextValue.trim() : "";
+        if (next.length === 0) return;
+        await updateDeal.mutateAsync({ address: next });
+      }}
+    />
+  );
+}
+
+/**
+ * Keeps the linked company visible as a link and allows reassignment via a
+ * select picker — mirrors ContactCompanyCell on the People list.
+ */
+function DealCompanyCell({ dealId, company, companies }: DealCompanyCellProps) {
+  const updateDeal = useUpdateDeal(dealId);
+  const options = useMemo(() => buildDealCompanyOptions(companies, company), [companies, company]);
+
+  return (
+    <QuickEditCell
+      ariaLabel="Company"
+      value={company?.company_id ?? noCompanyOptionValue}
+      type="select"
+      options={options}
+      onSave={async (nextValue) => {
+        const nextCompanyId = typeof nextValue === "string" && nextValue !== noCompanyOptionValue
+          ? nextValue
+          : null;
+        await updateDeal.mutateAsync({ company_id: nextCompanyId });
+      }}
+    >
+      {company?.company_id ? (
+        <span className="block max-w-[220px] truncate text-foreground/80">{company.name}</span>
+      ) : null}
+    </QuickEditCell>
+  );
+}
+
 export default function DealsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -184,6 +277,7 @@ export default function DealsPage() {
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const { data: crmConfigResult } = useCrmConfig();
+  const { data: companies = [] } = useCompanies({});
   const { view, setView } = useViewPreference("deals");
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<PipelineSortOption>("amount_desc");
@@ -433,16 +527,19 @@ export default function DealsPage() {
             ...col,
             accessorFn: (row: DealWithContact) => row.address,
             cell: ({ row }: { row: { original: DealWithContact } }) => (
-              <button
-                type="button"
-                className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  open(row.original.deal_id);
-                }}
-              >
-                {row.original.address}
-              </button>
+              <span className="inline-flex min-w-0 items-center">
+                <button
+                  type="button"
+                  className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    open(row.original.deal_id);
+                  }}
+                >
+                  {row.original.address}
+                </button>
+                <OpenRecordHint />
+              </span>
             ),
           };
         case "amount":
@@ -470,9 +567,20 @@ export default function DealsPage() {
             ...col,
             accessorFn: (row: DealWithContact) => row.companies?.name ?? "",
             enableSorting: false,
-            cell: undefined,
+            cell: ({ row }: { row: { original: DealWithContact } }) => (
+              <DealCompanyCell
+                dealId={row.original.deal_id}
+                company={row.original.companies}
+                companies={companies}
+              />
+            ),
           };
         case "point_of_contact":
+          /**
+           * Point of contact lives on the `deal_contacts` junction table and
+           * requires a separate mutation to reassign. Keep it read-only in
+           * the list for now; editing happens via the record drawer.
+           */
           return {
             ...col,
             accessorFn: (row: DealWithContact) => getPrimaryContactLabel(row),
@@ -480,8 +588,12 @@ export default function DealsPage() {
             cell: undefined,
           };
         case "address":
-          /** Secondary address field — plain text, no link override needed. */
-          return col;
+          return {
+            ...col,
+            cell: ({ row }: { row: { original: DealWithContact } }) => (
+              <DealAddressCell dealId={row.original.deal_id} address={row.original.address} />
+            ),
+          };
         case "updated_at":
           return {
             ...col,
@@ -495,7 +607,7 @@ export default function DealsPage() {
           return col;
       }
     });
-  }, [crmConfig, open, stages]);
+  }, [companies, crmConfig, open, stages]);
 
   const stageColumns = useMemo(
     () =>
@@ -664,6 +776,7 @@ export default function DealsPage() {
           <ListTable
             columns={columns}
             data={tableRows}
+            pinFirstColumn
             isLoading={isTableLoading}
             error={isTableError ? <span>Unable to load deals.</span> : null}
             emptyState={(

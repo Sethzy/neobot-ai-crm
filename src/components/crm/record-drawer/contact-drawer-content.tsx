@@ -124,6 +124,15 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
   return (
     <RecordDetailPanelShell
       title={fullName}
+      onTitleSave={async (next) => {
+        // Split on first whitespace: first token is first_name, rest is last_name.
+        // Mirrors Attio/Linear behavior on full-name edits.
+        const [firstToken, ...restTokens] = next.split(/\s+/);
+        await updateContact.mutateAsync({
+          first_name: firstToken ?? next,
+          last_name: restTokens.join(" "),
+        });
+      }}
       meta={`Updated ${formatDistanceToNow(new Date(contact.updated_at), { addSuffix: true })}`}
       avatar={
         <Avatar size="sm">

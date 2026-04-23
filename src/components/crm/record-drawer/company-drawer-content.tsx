@@ -115,6 +115,9 @@ export function CompanyDrawerContent({ companyId }: CompanyDrawerContentProps) {
   return (
     <RecordDetailPanelShell
       title={company.name}
+      onTitleSave={async (next) => {
+        await updateCompany.mutateAsync({ name: next });
+      }}
       meta={`Updated ${formatDistanceToNow(new Date(company.updated_at), { addSuffix: true })}`}
       avatar={
         <Avatar size="sm">

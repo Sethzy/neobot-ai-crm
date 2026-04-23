@@ -12,6 +12,7 @@ import { Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
+import { OpenRecordHint } from "@/components/crm/open-record-hint";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { ViewPicker } from "@/components/crm/view-picker";
@@ -432,16 +433,19 @@ export default function PeoplePage() {
             sortingFn: (rowA: { original: ContactWithCompany }, rowB: { original: ContactWithCompany }) =>
               formatContactFullName(rowA.original).localeCompare(formatContactFullName(rowB.original)),
             cell: ({ row }: { row: { original: ContactWithCompany } }) => (
-              <button
-                type="button"
-                className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  open(row.original.contact_id);
-                }}
-              >
-                {formatContactFullName(row.original)}
-              </button>
+              <span className="inline-flex min-w-0 items-center">
+                <button
+                  type="button"
+                  className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    open(row.original.contact_id);
+                  }}
+                >
+                  {formatContactFullName(row.original)}
+                </button>
+                <OpenRecordHint />
+              </span>
             ),
           };
         case "emails":
@@ -540,6 +544,7 @@ export default function PeoplePage() {
       <ListTable
         columns={columns}
         data={rows}
+        pinFirstColumn
         isLoading={isLoading}
         error={isError ? <span>Unable to load people.</span> : null}
         emptyState={

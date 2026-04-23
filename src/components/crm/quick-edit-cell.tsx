@@ -1,11 +1,12 @@
 /**
  * Compact inline editor for dense CRM list and board surfaces.
- * Hover reveals copy + edit icons; clicking edit transforms the cell in-place.
+ * Hover reveals an edit pencil; clicking it transforms the cell in-place
+ * into a text input / select / date picker depending on the configured type.
  * @module components/crm/quick-edit-cell
  */
 "use client";
 
-import { Check, Copy, Loader2, Pencil } from "@/components/icons/lucide-compat";
+import { Check, Loader2, Pencil } from "@/components/icons/lucide-compat";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,8 +37,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { toast } from "sonner";
-import { type KeyboardEvent, type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type QuickEditCellType = "text" | "number" | "select" | "date";
 
@@ -219,8 +219,6 @@ export function QuickEditCell({
     [displayValue, options, type, value],
   );
 
-  const hasCopyableValue = value != null && value !== "";
-
   useEffect(() => {
     if (!isEditing) {
       setDraft(toDraftValue(value, type));
@@ -254,21 +252,6 @@ export function QuickEditCell({
       savedTimerRef.current = null;
     }, savedIndicatorDurationMs);
   }, []);
-
-  const handleCopy = useCallback(
-    (event: MouseEvent) => {
-      event.stopPropagation();
-
-      if (!hasCopyableValue) {
-        return;
-      }
-
-      void navigator.clipboard.writeText(String(value)).then(() => {
-        toast(`${ariaLabel} copied to clipboard`);
-      });
-    },
-    [ariaLabel, hasCopyableValue, value],
-  );
 
   const startEditing = useCallback(() => {
     setDraft(toDraftValue(value, type));
@@ -541,29 +524,17 @@ export function QuickEditCell({
           ) : isSaved ? (
             <Check className="h-3.5 w-3.5 shrink-0 text-success" aria-label={`${ariaLabel} saved`} />
           ) : (
-            <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100">
-              {hasCopyableValue ? (
-                <button
-                  type="button"
-                  className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground/70"
-                  aria-label={`Copy ${ariaLabel}`}
-                  onClick={handleCopy}
-                >
-                  <Copy className="h-3 w-3" />
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground/60 transition-colors hover:text-foreground/70"
-                aria-label={`Edit ${ariaLabel}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  startEditing();
-                }}
-              >
-                <Pencil className="h-3 w-3" />
-              </button>
-            </span>
+            <button
+              type="button"
+              className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground/60 opacity-0 transition-all hover:text-foreground/70 group-hover/row:opacity-100"
+              aria-label={`Edit ${ariaLabel}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                startEditing();
+              }}
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
           )}
         </>
       )}
