@@ -396,7 +396,7 @@ export function QuickEditCell({
               ref={inputRef}
               aria-label={ariaLabel}
               type="date"
-              className="h-7 type-control focus-visible:border-primary focus-visible:ring-0"
+              className="h-7 type-control focus-visible:border-primary focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={handleInputKeyDown}
@@ -460,7 +460,7 @@ export function QuickEditCell({
           ref={inputRef}
           aria-label={ariaLabel}
           type={inputType ?? (type === "number" ? "number" : "text")}
-          className="h-7 type-control focus-visible:border-primary focus-visible:ring-0"
+          className="h-7 type-control focus-visible:border-primary focus-visible:ring-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleInputKeyDown}
