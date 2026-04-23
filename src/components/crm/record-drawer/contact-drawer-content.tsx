@@ -135,8 +135,8 @@ export function ContactDrawerContent({ contactId }: ContactDrawerContentProps) {
       }}
       meta={`Updated ${formatDistanceToNow(new Date(contact.updated_at), { addSuffix: true })}`}
       avatar={
-        <Avatar size="sm">
-          <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
+        <Avatar size="lg">
+          <AvatarFallback className="bg-primary/10 text-sm font-medium text-primary">
             {fullName.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>

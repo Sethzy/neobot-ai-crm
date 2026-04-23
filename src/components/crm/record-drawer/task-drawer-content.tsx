@@ -97,9 +97,9 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
       title={task.title}
       meta={`Updated ${formatDistanceToNow(new Date(task.updated_at), { addSuffix: true })}`}
       avatar={(
-        <Avatar size="sm">
-          <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
-            <CheckSquare2 className="h-4 w-4" />
+        <Avatar size="lg">
+          <AvatarFallback className="bg-primary/10 text-primary">
+            <CheckSquare2 className="h-5 w-5" />
           </AvatarFallback>
         </Avatar>
       )}

@@ -120,8 +120,8 @@ export function CompanyDrawerContent({ companyId }: CompanyDrawerContentProps) {
       }}
       meta={`Updated ${formatDistanceToNow(new Date(company.updated_at), { addSuffix: true })}`}
       avatar={
-        <Avatar size="sm">
-          <AvatarFallback className="bg-emerald-500/10 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+        <Avatar size="lg">
+          <AvatarFallback className="bg-emerald-500/10 text-sm font-medium text-emerald-700 dark:text-emerald-400">
             {company.name.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>

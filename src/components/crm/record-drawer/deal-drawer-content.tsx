@@ -127,8 +127,8 @@ export function DealDrawerContent({ dealId }: DealDrawerContentProps) {
       }}
       meta={`Updated ${formatDistanceToNow(new Date(deal.updated_at), { addSuffix: true })}`}
       avatar={
-        <Avatar size="sm">
-          <AvatarFallback className="bg-amber-500/10 text-xs font-medium text-amber-700 dark:text-amber-400">
+        <Avatar size="lg">
+          <AvatarFallback className="bg-amber-500/10 text-sm font-medium text-amber-700 dark:text-amber-400">
             {deal.address.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
