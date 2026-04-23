@@ -155,7 +155,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
                   }}
                   className={cn(
                     "group/title inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-md text-left text-sm font-semibold text-foreground",
-                    onTitleSave && "cursor-text px-1 -mx-1 transition-colors hover:bg-app-hover/60",
+                    onTitleSave && "cursor-text px-1 -mx-1 transition-colors duration-[var(--duration-hover)] hover:bg-app-hover/60",
                   )}
                   title={onTitleSave ? "Click to rename" : undefined}
                 >
@@ -189,7 +189,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
                   role="tab"
                   aria-selected={activeTab === tab.id}
                   className={cn(
-                    "inline-flex h-10 items-center gap-1.5 border-b-2 px-0 text-sm font-medium whitespace-nowrap transition-colors",
+                    "inline-flex h-10 items-center gap-1.5 border-b-2 px-0 text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-hover)]",
                     activeTab === tab.id
                       ? "border-foreground text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground",
@@ -207,7 +207,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
                     <button
                       type="button"
                       className={cn(
-                        "inline-flex h-10 items-center gap-1 border-b-2 px-0 text-sm font-medium whitespace-nowrap transition-colors",
+                        "inline-flex h-10 items-center gap-1 border-b-2 px-0 text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-hover)]",
                         isOverflowTabActive
                           ? "border-foreground text-foreground"
                           : "border-transparent text-muted-foreground hover:text-foreground",
