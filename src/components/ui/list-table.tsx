@@ -59,7 +59,7 @@ export interface ListTableProps<TData> {
 
 /** Shared sticky-left classes for the pinned first column's header and cells. */
 const PINNED_FIRST_COL_CLASSES =
-  "sticky left-0 z-10 bg-background group-hover/row:bg-app-hover/70";
+  "sticky left-0 z-10 bg-background transition-colors duration-[var(--duration-hover)] group-hover/row:bg-app-hover/70";
 
 function isDateColumn(columnId: string): boolean {
   const id = columnId.toLowerCase();
@@ -211,7 +211,7 @@ export function ListTable<TData>({
                     <th
                       key={header.id}
                       className={cn(
-                        "px-4 py-2.5 text-left",
+                        "h-8 px-2 text-left text-[13px] font-medium text-muted-foreground",
                         isActionsColumn && "w-[1%] text-right",
                         isPinnedColumn && "sticky left-0 z-10 bg-background",
                       )}
@@ -219,7 +219,7 @@ export function ListTable<TData>({
                       {header.isPlaceholder ? null : header.column.getCanSort() ? (
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+                          className="inline-flex items-center gap-1 transition-colors duration-[var(--duration-hover)] hover:text-foreground"
                           onClick={() =>
                             header.column.toggleSorting(header.column.getIsSorted() === "asc")
                           }
@@ -255,7 +255,7 @@ export function ListTable<TData>({
                         <td
                           key={colIndex}
                           className={cn(
-                            "px-4 py-2.5",
+                            "h-8 px-2",
                             !isLastCol && "border-r border-app-border-subtle/80",
                             isActionsCol && "w-[1%] text-right",
                             isPinnedCol && PINNED_FIRST_COL_CLASSES,
@@ -282,8 +282,8 @@ export function ListTable<TData>({
                           key={row.id}
                           className={cn(
                             "group/row border-t border-app-border-subtle/40",
-                            onRowClick && "cursor-pointer transition-colors hover:bg-app-hover/70",
-                            isSelected && "bg-app-hover/80",
+                            onRowClick && "cursor-pointer transition-colors duration-[var(--duration-hover)] hover:bg-app-hover/70",
+                            isSelected && "bg-[var(--selection)] transition-colors duration-[var(--duration-select)]",
                           )}
                           onClick={(event) => {
                             if (!onRowClick) return;
@@ -316,11 +316,11 @@ export function ListTable<TData>({
                               <td
                                 key={cell.id}
                                 className={cn(
-                                  "px-4 py-2.5 text-meta text-foreground",
+                                  "h-8 px-2 text-meta text-foreground",
                                   !isLastCell && "border-r border-app-border-subtle/80",
                                   isActionsColumn && "w-[1%] whitespace-nowrap text-right",
                                   isPinnedCell && PINNED_FIRST_COL_CLASSES,
-                                  isPinnedCell && isSelected && "bg-app-hover/80",
+                                  isPinnedCell && isSelected && "bg-[var(--selection)]",
                                 )}
                               >
                                 {resolvedContent}
