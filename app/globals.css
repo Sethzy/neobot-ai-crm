@@ -49,7 +49,7 @@
   --chart-3: oklch(0.6744 0.0427 136.0110);
   --chart-4: oklch(0.5510 0.0234 264.3637);
   --chart-5: oklch(0.9251 0.0071 88.6450);
-  --radius: 0.35rem;
+  --radius: 0.5rem;
   --sidebar: var(--app-sidebar);
   --sidebar-foreground: oklch(0.2417 0.0298 269.8827);
   --sidebar-primary: oklch(0.6333 0.0309 154.9039);
@@ -116,6 +116,16 @@
   --app-border-subtle: oklch(0.9050 0 0);
   --app-border-strong: oklch(0.8650 0 0);
   --app-hover: oklch(0.9600 0 0);
+
+  /* Twenty aesthetic clone — chip radius, selection tint, semantic shadow roles, motion budget */
+  --radius-chip: 0.25rem;
+  --selection: color-mix(in oklch, var(--primary) 10%, transparent);
+  --shadow-surface-light: var(--shadow-sm);
+  --shadow-surface-strong: var(--shadow-lg);
+  --shadow-surface-underline: 0 1px 0 0 hsl(225 27.7778% 14.1176% / 0.08);
+  --shadow-surface-menu: var(--shadow-xl);
+  --duration-hover: 100ms;
+  --duration-select: 300ms;
 }
 
 .dark {
@@ -192,6 +202,14 @@
   --app-border-subtle: oklch(0.2800 0 0);
   --app-border-strong: oklch(0.3350 0 0);
   --app-hover: oklch(0.2200 0 0);
+
+  /* Twenty aesthetic clone — dark-mode variants (durations inherit from :root) */
+  --radius-chip: 0.25rem;
+  --selection: color-mix(in oklch, var(--primary) 12%, transparent);
+  --shadow-surface-light: var(--shadow-sm);
+  --shadow-surface-strong: var(--shadow-lg);
+  --shadow-surface-underline: 0 1px 0 0 hsl(0 0% 0% / 0.20);
+  --shadow-surface-menu: var(--shadow-xl);
 }
 
 @theme inline {
@@ -337,6 +355,16 @@
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
   --shadow-2xl: var(--shadow-2xl);
+
+  /* Twenty aesthetic clone — theme re-exports for chip radius, selection tint,
+     semantic shadow roles, and motion budget. Enables arbitrary Tailwind values
+     like rounded-[var(--radius-chip)], bg-[var(--selection)], duration-[var(--duration-hover)]. */
+  --radius-chip: var(--radius-chip);
+  --color-selection: var(--selection);
+  --shadow-surface-light: var(--shadow-surface-light);
+  --shadow-surface-strong: var(--shadow-surface-strong);
+  --shadow-surface-underline: var(--shadow-surface-underline);
+  --shadow-surface-menu: var(--shadow-surface-menu);
 }
 
 ::selection {
