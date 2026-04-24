@@ -1,9 +1,13 @@
 /**
- * Builds cron expressions from UI schedule controls.
+ * Builds cron expressions from UI schedule controls and infers a UI
+ * preset back from a stored 5-field cron expression.
  * @module lib/triggers/cron-builder
  */
 
 export type Recurrence = "daily" | "weekdays" | "weekly" | "monthly" | "custom";
+
+const PLAIN_INT_RE = /^\d+$/;
+const WEEKLY_DOW_RE = /^[\d,-]+$/;
 
 /**
  * Converts UI schedule inputs to a 5-field cron expression.
@@ -38,4 +42,29 @@ export function buildCronExpression(
     default:
       return `${minute} ${hour} * * *`;
   }
+}
+
+/**
+ * Infers a UI recurrence preset from a stored 5-field cron expression.
+ *
+ * Parses the cron fields explicitly rather than substring-matching the raw
+ * string — substring checks would misclassify weekly crons whose hour
+ * happens to contain "1" (e.g. `0 1 * * 0-6`, `0 11 * * 0-6`) as monthly.
+ */
+export function inferRecurrence(cron: string | null | undefined): Recurrence {
+  if (!cron) return "daily";
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length !== 5) return "custom";
+
+  const [minute, hour, dom, month, dow] = parts;
+
+  if (!PLAIN_INT_RE.test(minute) || !PLAIN_INT_RE.test(hour)) return "custom";
+  if (month !== "*") return "custom";
+
+  if (dom === "*" && dow === "*") return "daily";
+  if (dom === "*" && dow === "1-5") return "weekdays";
+  if (dom === "1" && dow === "*") return "monthly";
+  if (dom === "*" && WEEKLY_DOW_RE.test(dow)) return "weekly";
+
+  return "custom";
 }

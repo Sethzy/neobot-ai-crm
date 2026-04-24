@@ -2,6 +2,7 @@
  * Shared client_id resolution logic usable from server or browser Supabase clients.
  * @module lib/chat/client-id
  */
+import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
@@ -32,7 +33,7 @@ async function loadClientIdByUserId(
  * @param supabase - Supabase client scoped to the current auth context.
  * @param userIdOverride - Optional auth user id to skip an extra auth lookup in caller flows.
  */
-export async function resolveClientId(
+export const resolveClientId = cache(async function resolveClientId(
   supabase: ChatSupabaseClient,
   userIdOverride?: string,
 ): Promise<string> {
@@ -59,4 +60,4 @@ export async function resolveClientId(
   }
 
   return loadClientIdByUserId(supabase, user.id);
-}
+});

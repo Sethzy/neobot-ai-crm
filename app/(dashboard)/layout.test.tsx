@@ -2,6 +2,7 @@
  * Tests for dashboard layout providers.
  * @module app/(dashboard)/layout.test
  */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -23,16 +24,26 @@ vi.mock("@/components/chat/data-stream-provider", () => ({
   ),
 }));
 
+vi.mock("@/components/layout/default-automation-bootstrap", () => ({
+  DefaultAutomationBootstrap: () => <div data-testid="default-automation-bootstrap" />,
+}));
+
 describe("dashboard layout", () => {
-  it("wraps children with thread and data stream providers", () => {
+  it("wraps children with thread and data stream providers", async () => {
+    const layout = await DashboardLayout({
+      children: <div>Dashboard Content</div>,
+    });
+    const queryClient = new QueryClient();
+
     render(
-      <DashboardLayout>
-        <div>Dashboard Content</div>
-      </DashboardLayout>,
+      <QueryClientProvider client={queryClient}>
+        {layout}
+      </QueryClientProvider>,
     );
 
     expect(screen.getByTestId("thread-provider")).toBeInTheDocument();
     expect(screen.getByTestId("data-stream-provider")).toBeInTheDocument();
+    expect(screen.getByTestId("default-automation-bootstrap")).toBeInTheDocument();
     expect(screen.getByText("Dashboard Content")).toBeInTheDocument();
   });
 });

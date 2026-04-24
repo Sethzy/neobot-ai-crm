@@ -11,8 +11,8 @@ type ThreadRow = Database["public"]["Tables"]["conversation_threads"]["Row"];
 
 /**
  * Prevents mutations against pinned system threads before issuing the write.
- * This keeps the UI and runner aligned with the autopilot-thread invariant even
- * if a caller bypasses the sidebar affordances.
+ * This keeps the UI and runner aligned with the pinned-system-thread invariant
+ * even if a caller bypasses the sidebar affordances.
  */
 async function ensureThreadIsMutable(
   supabase: ChatSupabaseClient,
@@ -115,6 +115,27 @@ export async function getPrimaryThread(
   }
 
   return data;
+}
+
+/**
+ * Repairs or creates the client's primary Main thread and returns the row.
+ *
+ * Uses the server-side bootstrap RPC so routes can recover from drifted state
+ * instead of surfacing a dead-end error to the user.
+ */
+export async function ensureMainThreadForClient(
+  supabase: ChatSupabaseClient,
+  clientId: string,
+): Promise<ThreadRow> {
+  const { data: threadId, error } = await supabase.rpc("ensure_main_thread_for_client", {
+    p_client_id: clientId,
+  });
+
+  if (error || !threadId) {
+    throw new Error(error?.message ?? "Failed to ensure primary thread");
+  }
+
+  return getThread(supabase, threadId);
 }
 
 /**

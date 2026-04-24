@@ -7,9 +7,11 @@
  * @module app/(dashboard)/layout
  */
 import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
+import * as Sentry from "@sentry/nextjs";
 
 import { AppLayout } from "@/components/layout/app-layout";
 import { DataStreamProvider } from "@/components/chat/data-stream-provider";
+import { DefaultAutomationBootstrap } from "@/components/layout/default-automation-bootstrap";
 import { ThreadProvider } from "@/contexts/thread-context";
 import { clientIdKeys } from "@/hooks/use-client-id";
 import { threadKeys } from "@/hooks/use-threads";
@@ -41,14 +43,18 @@ export default async function DashboardLayout({
       const threads = await listThreads(supabase, clientId);
       queryClient.setQueryData(threadKeys.list(clientId), threads);
     }
-  } catch {
-    // Prefetch failed — client hooks will fetch on their own as before
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { location: "dashboard-layout-prefetch" },
+    });
+    // Prefetch failed — client hooks will fetch on their own as before.
   }
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <ThreadProvider>
         <DataStreamProvider>
+          <DefaultAutomationBootstrap />
           <AppLayout>{children}</AppLayout>
         </DataStreamProvider>
       </ThreadProvider>

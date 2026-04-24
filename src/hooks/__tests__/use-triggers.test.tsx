@@ -70,7 +70,7 @@ describe("useTriggers", () => {
     vi.clearAllMocks();
   });
 
-  it("fetches non-pulse trigger rows and wires realtime invalidation", async () => {
+  it("fetches trigger rows and wires realtime invalidation", async () => {
     const triggersBuilder = createThenableBuilder([
       {
         id: "trigger-1",
@@ -111,7 +111,6 @@ describe("useTriggers", () => {
     expect(mockFrom).toHaveBeenCalledWith("agent_triggers");
     expect(mockFrom).toHaveBeenCalledWith("runs");
     expect(triggersBuilder.select).toHaveBeenCalledWith(TRIGGER_LIST_SELECT);
-    expect(triggersBuilder.neq).toHaveBeenCalledWith("trigger_type", "pulse");
     expect(triggersBuilder.order).toHaveBeenCalledWith("created_at", { ascending: false });
     expect(runningRunsBuilder.select).toHaveBeenCalledWith("trigger_id");
     expect(runningRunsBuilder.eq).toHaveBeenCalledWith("status", "running");

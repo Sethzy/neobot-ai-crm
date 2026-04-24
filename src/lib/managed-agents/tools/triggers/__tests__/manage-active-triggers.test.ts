@@ -35,7 +35,6 @@ function createMockSupabase() {
     update: vi.fn(() => chain),
     delete: vi.fn(() => chain),
     eq: vi.fn(() => chain),
-    neq: vi.fn(() => chain),
     order: vi.fn(() => chain),
     single: vi.fn(),
     then: undefined as unknown,
@@ -75,7 +74,7 @@ describe("manageActiveTriggersTool", () => {
     mockCreateMessage.mockResolvedValue({ message_id: "message-1" });
   });
 
-  it("lists non-pulse triggers with an explicit client_id filter", async () => {
+  it("lists triggers with an explicit client_id filter", async () => {
     const supabase = createMockSupabase();
     supabase.chain.then = (resolve: (value: unknown) => void) =>
       Promise.resolve({
@@ -100,7 +99,6 @@ describe("manageActiveTriggersTool", () => {
 
     expect(result.success).toBe(true);
     expect(supabase.chain.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
-    expect(supabase.chain.neq).toHaveBeenCalledWith("trigger_type", "pulse");
   });
 
   it("deletes a trigger for the current client", async () => {

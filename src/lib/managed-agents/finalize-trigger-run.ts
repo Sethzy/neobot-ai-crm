@@ -22,6 +22,9 @@ import type { Database, Json } from "@/types/database";
 import { computeTurnCost } from "./adapter-cost";
 import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
 import type { AnthropicEvent } from "./event-types";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 /** Trigger runs use Sonnet by default. Per-trigger model selection is future work. */
 const TRIGGER_DEFAULT_MODEL = "claude-sonnet-4-6";
@@ -173,7 +176,7 @@ export async function finalizeTriggerRun(
       );
     }
 
-    // Deliver to external channels (Telegram etc.) so autopilot output
+    // Deliver to external channels (Telegram etc.) so automation output
     // reaches the user on the same channel the trigger targets. Failures
     // are logged but do not block run completion.
     try {

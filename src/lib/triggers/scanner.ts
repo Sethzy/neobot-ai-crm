@@ -2,7 +2,6 @@
  * Cron scanner business logic for claiming due triggers and dispatching them.
  * @module lib/triggers/scanner
  */
-import { isInQuietHours } from "@/lib/autopilot/quiet-hours";
 
 import {
   computeNextFireAt,
@@ -24,8 +23,6 @@ const DISPATCH_FAILED_STATUS = "dispatch_failed";
 const INVALID_CRON_STATUS = "invalid_cron";
 const INVALID_RSS_CONFIG_STATUS = "invalid_rss_config";
 const FAILED_PERMANENT_STATUS = "failed_permanent";
-const MAX_SCHEDULE_CATCH_UP_STEPS = 64;
-const MAX_PULSE_RETRIES = 0;
 
 class InvalidRssConfigError extends Error {
   constructor(message: string) {
@@ -42,6 +39,11 @@ export interface ScanDependencies {
     error?: string;
   }>;
   now?: Date;
+}
+
+interface TriggerScanResult {
+  dispatched: number;
+  errors: string[];
 }
 
 async function releaseClaim(
@@ -94,27 +96,6 @@ async function claimDueTriggers(supabase: TriggerSupabaseClient): Promise<Trigge
   return triggerRowSchema.array().parse(data ?? []);
 }
 
-async function fetchAutopilotConfig(
-  supabase: TriggerSupabaseClient,
-  clientId: string,
-): Promise<{
-  quiet_hours_start: string | null;
-  quiet_hours_end: string | null;
-  timezone: string | null;
-} | null> {
-  const { data, error } = await supabase
-    .from("autopilot_config")
-    .select("quiet_hours_start, quiet_hours_end, timezone")
-    .eq("client_id", clientId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(`Failed to load autopilot config: ${error.message}`);
-  }
-
-  return data;
-}
-
 function buildDispatchPayload(trigger: TriggerRow): TriggerDispatchPayload {
   if (!trigger.current_run_id) {
     throw new Error("Claimed trigger is missing current_run_id");
@@ -161,19 +142,13 @@ function isInvalidRssConfigError(error: unknown): boolean {
 function resolveTriggerTimezone(trigger: TriggerRow): string {
   const rawTimezone = typeof trigger.payload.timezone === "string"
     ? trigger.payload.timezone
-    : trigger.trigger_type === "pulse"
-      ? "UTC"
-      : undefined;
+    : undefined;
 
   return normalizeTriggerTimezone(rawTimezone);
 }
 
-function getMaxRetryCount(trigger: TriggerRow): number {
-  return trigger.trigger_type === "pulse" ? MAX_PULSE_RETRIES : MAX_USER_CREATED_RETRIES;
-}
-
 function hasExhaustedRetries(trigger: TriggerRow): boolean {
-  return trigger.retry_count >= getMaxRetryCount(trigger);
+  return trigger.retry_count >= MAX_USER_CREATED_RETRIES;
 }
 
 function assertValidRssTrigger(trigger: TriggerRow): void {
@@ -186,28 +161,114 @@ function assertValidRssTrigger(trigger: TriggerRow): void {
   }
 }
 
-/**
- * Advances a stale scheduled trigger until the next fire time is strictly in
- * the future relative to the current scan tick. Quiet-hours skips can otherwise
- * get trapped repeatedly rescheduling already-expired pulse windows.
- */
-function advanceNextFireAtPastNow(
-  cronExpression: string,
-  nextFireAt: Date,
+async function processClaimedTrigger(
+  supabase: TriggerSupabaseClient,
+  trigger: TriggerRow,
+  dispatch: ScanDependencies["dispatch"],
   now: Date,
-  timezone: string,
-): Date {
-  let candidate = nextFireAt;
+): Promise<TriggerScanResult> {
+  const errors: string[] = [];
+  let dispatched = 0;
+  void now;
 
-  for (let step = 0; candidate <= now; step += 1) {
-    if (step >= MAX_SCHEDULE_CATCH_UP_STEPS) {
-      throw new Error(`Failed to advance next_fire_at past now for cron expression: ${cronExpression}`);
+  try {
+    let scheduledNextFireAt: string | null = null;
+
+    if (
+      trigger.trigger_type === "schedule"
+      || trigger.trigger_type === "rss"
+    ) {
+      if (trigger.trigger_type === "rss") {
+        assertValidRssTrigger(trigger);
+      }
+
+      if (!trigger.cron_expression || !trigger.current_run_id || !trigger.next_fire_at) {
+        throw new InvalidCronExpressionError("Trigger is missing cron scheduling fields.");
+      }
+
+      const timezone = resolveTriggerTimezone(trigger);
+      const nextFireAt = computeNextFireAt(
+        trigger.cron_expression,
+        new Date(trigger.next_fire_at),
+        timezone,
+      );
+      scheduledNextFireAt = nextFireAt.toISOString();
+
+      const dispatchResult = await dispatch({
+        ...buildDispatchPayload(trigger),
+        nextFireAt: scheduledNextFireAt,
+      });
+      if (!dispatchResult.ok) {
+        await releaseClaim(
+          supabase,
+          trigger,
+          hasExhaustedRetries(trigger) ? FAILED_PERMANENT_STATUS : DISPATCH_FAILED_STATUS,
+          {
+            advanceNextFireAt: false,
+          },
+        );
+        errors.push(`${trigger.id}: ${formatDispatchFailure(dispatchResult)}`);
+        return { dispatched, errors };
+      }
+
+      dispatched += 1;
+      return { dispatched, errors };
     }
 
-    candidate = computeNextFireAt(cronExpression, candidate, timezone);
+    const dispatchResult = await dispatch(buildDispatchPayload(trigger));
+    if (!dispatchResult.ok) {
+      await releaseClaim(
+        supabase,
+        trigger,
+        hasExhaustedRetries(trigger) ? FAILED_PERMANENT_STATUS : DISPATCH_FAILED_STATUS,
+        {
+          advanceNextFireAt: false,
+        },
+      );
+      errors.push(`${trigger.id}: ${formatDispatchFailure(dispatchResult)}`);
+      return { dispatched, errors };
+    }
+
+    dispatched += 1;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown scanner error";
+
+    if (isInvalidCronError(error)) {
+      await Promise.all([
+        updateTrigger(supabase, trigger.id, {
+          enabled: false,
+          last_status: INVALID_CRON_STATUS,
+        }),
+        releaseClaim(supabase, trigger, INVALID_CRON_STATUS, {
+          advanceNextFireAt: false,
+        }),
+      ]);
+      errors.push(`${trigger.id}: invalid cron`);
+    } else if (isInvalidRssConfigError(error)) {
+      await Promise.all([
+        updateTrigger(supabase, trigger.id, {
+          enabled: false,
+          last_status: INVALID_RSS_CONFIG_STATUS,
+        }),
+        releaseClaim(supabase, trigger, INVALID_RSS_CONFIG_STATUS, {
+          advanceNextFireAt: false,
+        }),
+      ]);
+      errors.push(`${trigger.id}: invalid rss config`);
+    } else if (trigger.current_run_id) {
+      await releaseClaim(
+        supabase,
+        trigger,
+        hasExhaustedRetries(trigger) ? FAILED_PERMANENT_STATUS : DISPATCH_FAILED_STATUS,
+        {
+          advanceNextFireAt: false,
+        },
+      );
+      errors.push(`${trigger.id}: ${message}`);
+    }
   }
 
-  return candidate;
+  return { dispatched, errors };
 }
 
 /**
@@ -222,158 +283,24 @@ export async function runScan({
     reapStaleClaims(supabase),
     claimDueTriggers(supabase),
   ]);
+  const settledResults = await Promise.allSettled(
+    claimedTriggers.map((trigger) => processClaimedTrigger(supabase, trigger, dispatch, now)),
+  );
   const errors: string[] = [];
   let dispatched = 0;
 
-  for (const trigger of claimedTriggers) {
-    try {
-      let scheduledNextFireAt: string | null = null;
-
-      if (
-        trigger.trigger_type === "schedule"
-        || trigger.trigger_type === "pulse"
-        || trigger.trigger_type === "rss"
-      ) {
-        if (trigger.trigger_type === "rss") {
-          assertValidRssTrigger(trigger);
-        }
-
-        if (!trigger.cron_expression || !trigger.current_run_id || !trigger.next_fire_at) {
-          throw new InvalidCronExpressionError("Trigger is missing cron scheduling fields.");
-        }
-
-        const timezone = resolveTriggerTimezone(trigger);
-        const nextFireAt = computeNextFireAt(
-          trigger.cron_expression,
-          new Date(trigger.next_fire_at),
-          timezone,
-        );
-        scheduledNextFireAt = nextFireAt.toISOString();
-
-        if (trigger.trigger_type === "pulse") {
-          const autopilotConfig = await fetchAutopilotConfig(supabase, trigger.client_id);
-
-          if (
-            autopilotConfig &&
-            isInQuietHours({
-              quietHoursStart: autopilotConfig.quiet_hours_start,
-              quietHoursEnd: autopilotConfig.quiet_hours_end,
-              now,
-              timezone: autopilotConfig.timezone ?? undefined,
-            })
-          ) {
-            const nextFireAtAfterNow = advanceNextFireAtPastNow(
-              trigger.cron_expression,
-              nextFireAt,
-              now,
-              timezone,
-            );
-            await releaseClaim(
-              supabase,
-              trigger,
-              "skipped_quiet_hours",
-              {
-                nextFireAt: nextFireAtAfterNow.toISOString(),
-                advanceNextFireAt: true,
-              },
-            );
-            continue;
-          }
-        }
-
-        const dispatchResult = await dispatch({
-          ...buildDispatchPayload(trigger),
-          nextFireAt: scheduledNextFireAt,
-        });
-        if (!dispatchResult.ok) {
-          if (trigger.trigger_type === "pulse") {
-            await releaseClaim(supabase, trigger, DISPATCH_FAILED_STATUS, {
-              nextFireAt: scheduledNextFireAt,
-              advanceNextFireAt: true,
-            });
-          } else {
-            await releaseClaim(
-              supabase,
-              trigger,
-              hasExhaustedRetries(trigger) ? FAILED_PERMANENT_STATUS : DISPATCH_FAILED_STATUS,
-              {
-                advanceNextFireAt: false,
-              },
-            );
-          }
-          errors.push(`${trigger.id}: ${formatDispatchFailure(dispatchResult)}`);
-          continue;
-        }
-
-        dispatched += 1;
-        continue;
-      }
-
-      const dispatchResult = await dispatch(buildDispatchPayload(trigger));
-      if (!dispatchResult.ok) {
-        await releaseClaim(
-          supabase,
-          trigger,
-          hasExhaustedRetries(trigger) ? FAILED_PERMANENT_STATUS : DISPATCH_FAILED_STATUS,
-          {
-            advanceNextFireAt: false,
-          },
-        );
-        errors.push(`${trigger.id}: ${formatDispatchFailure(dispatchResult)}`);
-        continue;
-      }
-
-      dispatched += 1;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown scanner error";
-
-      if (isInvalidCronError(error)) {
-        await Promise.all([
-          updateTrigger(supabase, trigger.id, {
-            enabled: false,
-            last_status: INVALID_CRON_STATUS,
-          }),
-          releaseClaim(supabase, trigger, INVALID_CRON_STATUS, {
-            advanceNextFireAt: false,
-          }),
-        ]);
-        errors.push(`${trigger.id}: invalid cron`);
-      } else if (isInvalidRssConfigError(error)) {
-        await Promise.all([
-          updateTrigger(supabase, trigger.id, {
-            enabled: false,
-            last_status: INVALID_RSS_CONFIG_STATUS,
-          }),
-          releaseClaim(supabase, trigger, INVALID_RSS_CONFIG_STATUS, {
-            advanceNextFireAt: false,
-          }),
-        ]);
-        errors.push(`${trigger.id}: invalid rss config`);
-      } else if (trigger.current_run_id) {
-        if (trigger.trigger_type === "pulse" && trigger.cron_expression && trigger.next_fire_at) {
-          const timezone = resolveTriggerTimezone(trigger);
-          const nextFireAt = computeNextFireAt(
-            trigger.cron_expression,
-            new Date(trigger.next_fire_at),
-            timezone,
-          );
-          await releaseClaim(supabase, trigger, DISPATCH_FAILED_STATUS, {
-            nextFireAt: nextFireAt.toISOString(),
-            advanceNextFireAt: true,
-          });
-        } else {
-          await releaseClaim(
-            supabase,
-            trigger,
-            hasExhaustedRetries(trigger) ? FAILED_PERMANENT_STATUS : DISPATCH_FAILED_STATUS,
-            {
-              advanceNextFireAt: false,
-            },
-          );
-        }
-        errors.push(`${trigger.id}: ${message}`);
-      }
+  for (const [index, settledResult] of settledResults.entries()) {
+    if (settledResult.status === "fulfilled") {
+      dispatched += settledResult.value.dispatched;
+      errors.push(...settledResult.value.errors);
+      continue;
     }
+
+    const triggerId = claimedTriggers[index]?.id ?? "unknown";
+    const reason = settledResult.reason instanceof Error
+      ? settledResult.reason.message
+      : String(settledResult.reason);
+    errors.push(`${triggerId}: ${reason}`);
   }
 
   const result: ScanResult = {

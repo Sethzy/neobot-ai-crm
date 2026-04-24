@@ -16,6 +16,9 @@ import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
 import { resolveAgentRef } from "@/lib/managed-agents/agent-config";
 import { runTriggerAgent } from "@/trigger/run-trigger-agent";
 import type { Database } from "@/types/database";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 type TriggerRunSupabase = SupabaseClient<Database>;
 
@@ -30,7 +33,7 @@ export interface SpawnTriggerRunInput {
   runId?: string;
   clientId: string;
   threadId: string;
-  triggerType: "cron" | "webhook" | "autopilot";
+  triggerType: "cron" | "webhook";
   invocationMessage: string;
   /** ID of the parent automation (agent_triggers row). */
   triggerId: string;

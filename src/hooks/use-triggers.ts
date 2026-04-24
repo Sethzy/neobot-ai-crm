@@ -77,7 +77,6 @@ export function useTriggerByThreadId(threadId: string | null | undefined) {
         .from("agent_triggers")
         .select(TRIGGER_LIST_SELECT)
         .eq("id", thread.source_trigger_id)
-        .neq("trigger_type", "pulse")
         .maybeSingle();
       if (error) throw error;
       return (data as unknown as Omit<AutomationTrigger, "isRunning"> | null) ?? null;

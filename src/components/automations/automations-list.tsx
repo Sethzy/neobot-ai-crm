@@ -34,8 +34,6 @@ function getStatusLabel(
     case "failed_permanent":
     case "dispatch_failed":
       return "Failed";
-    case "skipped_quiet_hours":
-      return "Waiting";
     default:
       return "Ready";
   }
@@ -57,8 +55,6 @@ function getStatusVariant(
     case "failed_permanent":
     case "dispatch_failed":
       return "destructive";
-    case "skipped_quiet_hours":
-      return "warning";
     default:
       return "default";
   }

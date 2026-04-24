@@ -12,8 +12,8 @@ import {
 } from "../schemas";
 
 describe("triggerTypeValues", () => {
-  it("includes schedule, webhook, rss, and pulse", () => {
-    expect(triggerTypeValues).toEqual(["schedule", "webhook", "rss", "pulse"]);
+  it("includes only schedule, webhook, and rss", () => {
+    expect(triggerTypeValues).toEqual(["schedule", "webhook", "rss"]);
   });
 });
 
@@ -112,12 +112,12 @@ describe("triggerDispatchPayloadSchema", () => {
     ).toBe(false);
   });
 
-  it("accepts pulse dispatch payloads", () => {
+  it("accepts rss dispatch payloads", () => {
     expect(
       triggerDispatchPayloadSchema.safeParse({
         ...validPayload,
-        triggerType: "pulse",
-        instructionPath: "autopilot/pulse",
+        triggerType: "rss",
+        triggerPayload: { feed_url: "https://example.com/feed.xml" },
         invocationMessage: null,
       }).success,
     ).toBe(true);

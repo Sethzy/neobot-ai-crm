@@ -165,7 +165,6 @@ export const manageActiveTriggersTool: ManagedAgentTool<ManageActiveTriggersInpu
           .from("agent_triggers")
           .select("id, name, trigger_type, instruction_path, invocation_message, cron_expression, payload")
           .eq("client_id", context.clientId)
-          .neq("trigger_type", "pulse")
           .order("created_at", { ascending: false });
 
         if (error) {

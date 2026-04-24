@@ -18,12 +18,18 @@ interface AutomationsTableProps {
   onToggleEnabled: (triggerId: string, enabled: boolean) => void;
 }
 
-const triggerTypeLabelMap: Record<AutomationTrigger["trigger_type"], string> = {
-  schedule: "Schedule",
-  webhook: "Webhook",
-  rss: "RSS",
-  pulse: "Pulse",
-};
+function getTriggerTypeLabel(triggerType: AutomationTrigger["trigger_type"]): string {
+  switch (triggerType) {
+    case "schedule":
+      return "Schedule";
+    case "webhook":
+      return "Webhook";
+    case "rss":
+      return "RSS";
+    default:
+      return triggerType;
+  }
+}
 
 function getStatusVariant(
   trigger: Pick<AutomationTrigger, "enabled" | "last_status">,
@@ -44,7 +50,6 @@ function getStatusVariant(
       return "warning";
     case "queued":
     case "skipped_thread_busy":
-    case "skipped_quiet_hours":
       return "secondary";
     default:
       return "secondary";
@@ -124,7 +129,7 @@ export function AutomationsTable({
                   ) : null}
                 </td>
                 <td className="px-4 py-4 align-top text-sm text-foreground/80">
-                  {triggerTypeLabelMap[trigger.trigger_type]}
+                  {getTriggerTypeLabel(trigger.trigger_type)}
                 </td>
                 <td className="px-4 py-4 align-top text-sm text-muted-foreground">
                   {formatConfig(trigger)}

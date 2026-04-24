@@ -8,6 +8,33 @@ import { describe, expect, it, vi } from "vitest";
 import { AutomationsList } from "../automations-list";
 
 describe("AutomationsList", () => {
+  it("renders Daily Orchestrator like any other automation row", () => {
+    render(
+      <AutomationsList
+        triggers={[
+          {
+            id: "trigger-orchestrator",
+            thread_id: "thread-main",
+            name: "Daily Orchestrator",
+            trigger_type: "schedule",
+            cron_expression: "0 8 * * *",
+            payload: { cron: "0 8 * * *", timezone: "Asia/Singapore" },
+            enabled: true,
+            next_fire_at: "2026-04-25T00:00:00.000Z",
+            last_fired_at: null,
+            last_status: null,
+            isRunning: false,
+            invocation_message: "Run the Daily Orchestrator morning pass.",
+            instruction_path: "state/triggers/daily-orchestrator.md",
+          },
+        ]}
+        onToggleEnabled={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Daily Orchestrator")).toBeInTheDocument();
+  });
+
   it("renders a live running automation as Busy", () => {
     render(
       <AutomationsList

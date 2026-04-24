@@ -17,7 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUpdateTriggerSchedule } from "@/hooks/use-triggers";
-import { buildCronExpression, type Recurrence } from "@/lib/triggers/cron-builder";
+import {
+  buildCronExpression,
+  inferRecurrence,
+  type Recurrence,
+} from "@/lib/triggers/cron-builder";
 import { computeNextFireAt } from "@/lib/triggers/cron-utils";
 import type { Database } from "@/types/database";
 
@@ -37,20 +41,10 @@ const DAY_LABELS = [
   { value: 0, label: "S" },
 ];
 
-/** Infers a recurrence preset from an existing cron expression. */
-function inferRecurrence(cron: string | null): Recurrence {
-  if (!cron) return "daily";
-  if (cron.endsWith("* * 1-5")) return "weekdays";
-  if (cron.startsWith("0 ") && cron.includes("1 * *")) return "monthly";
-  if (/\d+ \d+ \* \* \d/.test(cron) && !cron.endsWith("*")) return "weekly";
-  if (cron.match(/^\d+ \d+ \* \* \*$/)) return "daily";
-  return "custom";
-}
-
 /** Extracts HH:mm from a cron expression (minutes and hours fields). */
 function inferTime(cron: string | null): string {
   if (!cron) return "08:00";
-  const parts = cron.split(" ");
+  const parts = cron.trim().split(/\s+/);
   if (parts.length < 2) return "08:00";
   const minute = parseInt(parts[0], 10);
   const hour = parseInt(parts[1], 10);
@@ -61,10 +55,10 @@ function inferTime(cron: string | null): string {
 /** Extracts day-of-week numbers from the 5th cron field. */
 function inferDays(cron: string | null): number[] {
   if (!cron) return [];
-  const parts = cron.split(" ");
+  const parts = cron.trim().split(/\s+/);
   if (parts.length < 5) return [];
   const dow = parts[4];
-  if (dow === "*" || dow === "1-5") return [];
+  if (dow === "*" || dow === "1-5" || dow === "0-6") return [];
   return dow.split(",").map(Number).filter((n) => !isNaN(n));
 }
 
@@ -202,6 +196,9 @@ function AutomationScheduleSidebarContent({ trigger }: AutomationScheduleSidebar
             placeholder="0 8 * * 1-5"
             className="h-9 font-mono text-control"
           />
+          <p className="type-control-muted text-muted-foreground">
+            5-field cron format: min hr dom mon dow
+          </p>
         </SidebarSection>
       )}
 

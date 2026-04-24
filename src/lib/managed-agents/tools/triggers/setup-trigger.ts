@@ -27,13 +27,12 @@ const inputSchema = z.object({
 type SetupTriggerInput = z.infer<typeof inputSchema>;
 type AgentTriggerInsert = Database["public"]["Tables"]["agent_triggers"]["Insert"];
 
-function toAnalyticsTriggerType(triggerId: string): "cron" | "webhook" | "rss" | "pulse" {
+function toAnalyticsTriggerType(triggerId: string): "cron" | "webhook" | "rss" {
   switch (triggerId) {
     case "schedule":
       return "cron";
     case "webhook":
     case "rss":
-    case "pulse":
       return triggerId;
     default:
       return "cron";

@@ -10,33 +10,22 @@ import { MenuIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { resolveSettingsCurrentTitle } from "@/components/settings/settings-nav-meta";
 import { SettingsNav, SETTINGS_NAV_SECTIONS } from "@/components/settings/settings-nav";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
-function resolveCurrentTitle(pathname: string): string {
-  for (const section of SETTINGS_NAV_SECTIONS) {
-    for (const item of section.items) {
-      if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
-        return item.label;
-      }
-    }
-  }
-  return "Settings";
-}
-
 export function SettingsMobileNav() {
   const pathname = usePathname() ?? "";
   const [open, setOpen] = useState(false);
+  const [lastPathname, setLastPathname] = useState(pathname);
 
-  // Close the sheet whenever the user navigates to a new route. Adjusting state
-  // during render (rather than in a useEffect) avoids `react-hooks/set-state-in-effect`.
-  const [prevPathname, setPrevPathname] = useState(pathname);
-  if (pathname !== prevPathname) {
-    setPrevPathname(pathname);
-    if (open) {
-      setOpen(false);
-    }
+  // Reset the sheet on route change during render instead of in an effect —
+  // avoids an extra commit and the react-hooks/set-state-in-effect lint rule.
+  // See https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  if (lastPathname !== pathname) {
+    setLastPathname(pathname);
+    setOpen(false);
   }
 
   return (
@@ -61,7 +50,9 @@ export function SettingsMobileNav() {
           </div>
         </SheetContent>
       </Sheet>
-      <span className="type-control">{resolveCurrentTitle(pathname)}</span>
+      <span className="type-control">
+        {resolveSettingsCurrentTitle(pathname, SETTINGS_NAV_SECTIONS)}
+      </span>
     </div>
   );
 }

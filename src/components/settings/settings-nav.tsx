@@ -10,17 +10,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ChevronLeftIcon } from "lucide-react";
+import {
+  isSettingsNavItemActive,
+  type SettingsNavSection as NavSection,
+} from "@/components/settings/settings-nav-meta";
 import { cn } from "@/lib/utils";
-
-interface NavItem {
-  label: string;
-  href: string;
-}
-
-interface NavSection {
-  label: string;
-  items: readonly NavItem[];
-}
 
 export const SETTINGS_NAV_SECTIONS: readonly NavSection[] = [
   {
@@ -34,7 +28,7 @@ export const SETTINGS_NAV_SECTIONS: readonly NavSection[] = [
     label: "Agent",
     items: [
       { label: "General", href: "/settings/agent/general" },
-      { label: "Memory", href: "/settings/agent/memory" },
+      { label: "Personality", href: "/settings/agent/memory" },
       { label: "Connections", href: "/settings/agent/connections" },
     ],
   },
@@ -65,7 +59,7 @@ export function SettingsNav() {
           <div className="type-table-heading text-muted-foreground/60">{section.label}</div>
           <ul className="flex flex-col gap-0.5">
             {section.items.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const isActive = isSettingsNavItemActive(pathname, item.href);
               return (
                 <li key={item.href}>
                   <Link

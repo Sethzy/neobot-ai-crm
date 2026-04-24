@@ -4,7 +4,6 @@
  */
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { toAutomationInstructionRuntimePath } from "@/lib/automations/instruction-paths";
-import { AUTOPILOT_INSTRUCTION_PROMPT } from "@/lib/autopilot/constants";
 import {
   AutomationAlreadyRunningError,
   spawnTriggerRun,
@@ -15,6 +14,9 @@ import { toModelPath } from "@/lib/storage/agent-paths";
 import { collectNewRssItems } from "./rss";
 import { CRON_RUN_NUDGE, MAX_USER_CREATED_RETRIES, releaseTriggerClaim, type TriggerDispatchPayload, type TriggerSupabaseClient } from "./schemas";
 import { buildTriggerEventMessage } from "./trigger-event";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 export interface ExecuteTriggerInput {
   supabase: TriggerSupabaseClient;
@@ -27,7 +29,7 @@ export interface ExecuteTriggerResult {
 
 function toAnalyticsTriggerType(
   triggerType: TriggerDispatchPayload["triggerType"],
-): "cron" | "webhook" | "rss" | "pulse" {
+): "cron" | "webhook" | "rss" {
   return triggerType === "schedule" ? "cron" : triggerType;
 }
 
@@ -133,34 +135,7 @@ export async function executeTrigger({
     return { status: "claim_mismatch" };
   }
 
-  const hasExhaustedRetries =
-    payload.triggerType !== "pulse" && trigger.retry_count >= MAX_USER_CREATED_RETRIES;
-
-  if (payload.triggerType === "pulse") {
-    try {
-      await spawnTriggerRun(supabase, {
-        runId: payload.currentRunId,
-        clientId: payload.clientId,
-        threadId: payload.threadId,
-        triggerType: "autopilot",
-        invocationMessage: AUTOPILOT_INSTRUCTION_PROMPT,
-        triggerId: payload.triggerId,
-        triggerName: payload.triggerName,
-      });
-      return finish("queued", { advanceNextFireAt: true });
-    } catch (error) {
-      if (error instanceof AutomationAlreadyRunningError) {
-        console.info("[executor] Pulse trigger skipped because automation is busy", {
-          triggerId: payload.triggerId,
-          currentRunId: payload.currentRunId,
-        });
-        return finish("skipped_thread_busy", { advanceNextFireAt: true });
-      }
-
-      console.error("[executor] pulse trigger failed:", error);
-      return finish("failed", { advanceNextFireAt: true });
-    }
-  }
+  const hasExhaustedRetries = trigger.retry_count >= MAX_USER_CREATED_RETRIES;
 
   let triggerEventPayload = payload.triggerPayload;
 

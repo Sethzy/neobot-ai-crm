@@ -9,6 +9,7 @@ import { createMockSupabaseClient } from "@/test/mocks/supabase";
 import {
   archiveThread,
   createThread,
+  ensureMainThreadForClient,
   getPrimaryThread,
   getThread,
   listThreads,
@@ -197,6 +198,33 @@ describe("getPrimaryThread", () => {
     });
 
     await expect(getPrimaryThread(client as never, "client-1")).rejects.toThrow("DB error");
+  });
+});
+
+describe("ensureMainThreadForClient", () => {
+  test("repairs or creates the main thread through the bootstrap rpc and returns the row", async () => {
+    const row = {
+      thread_id: "thread-primary",
+      client_id: "client-1",
+      title: "Main",
+      is_primary: true,
+      is_pinned: true,
+      is_archived: false,
+      created_at: "2026-03-01T00:00:00Z",
+      updated_at: "2026-03-01T01:00:00Z",
+    };
+    const client = createMockSupabaseClient({
+      rpcResults: {
+        ensure_main_thread_for_client: { data: "thread-primary", error: null },
+      },
+      selectResult: { data: [row], error: null },
+    });
+
+    await expect(ensureMainThreadForClient(client as never, "client-1")).resolves.toEqual(row);
+    expect(client.calls.rpc).toContainEqual({
+      fn: "ensure_main_thread_for_client",
+      args: { p_client_id: "client-1" },
+    });
   });
 });
 

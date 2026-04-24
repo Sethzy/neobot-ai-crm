@@ -13,7 +13,7 @@ export type TriggerSupabaseClient = SupabaseClient<Database>;
 const jsonObjectSchema = z.record(z.string(), z.unknown());
 
 /** Supported trigger types for the `agent_triggers` table. */
-export const triggerTypeValues = ["schedule", "webhook", "rss", "pulse"] as const;
+export const triggerTypeValues = ["schedule", "webhook", "rss"] as const;
 
 /** Validates one `agent_triggers` row returned from Supabase. */
 export const triggerRowSchema = z.object({
@@ -63,7 +63,7 @@ export type TriggerRow = z.infer<typeof triggerRowSchema>;
 export type TriggerDispatchPayload = z.infer<typeof triggerDispatchPayloadSchema>;
 export type ScanResult = z.infer<typeof scanResultSchema>;
 
-/** Maximum retries for user-created (non-pulse) triggers before permanent failure. */
+/** Maximum retries for user-created triggers before permanent failure. */
 export const MAX_USER_CREATED_RETRIES = 2;
 
 /**

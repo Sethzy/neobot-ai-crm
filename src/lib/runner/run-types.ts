@@ -8,7 +8,6 @@ export const runTypeValues = [
   "chat",
   "webhook",
   "cron",
-  "autopilot",
 ] as const;
 
 /** String literal union for persisted run-type values. */

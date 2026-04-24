@@ -27,6 +27,16 @@ vi.mock("../cron-utils", () => ({
 
 import { runScan } from "../scanner";
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    void rejectPromise;
+  });
+
+  return { promise, resolve };
+}
+
 function makeTriggerRow(overrides: Partial<TriggerRow> = {}): TriggerRow {
   return {
     id: "550e8400-e29b-41d4-a716-446655440000",
@@ -56,10 +66,6 @@ function makeTriggerRow(overrides: Partial<TriggerRow> = {}): TriggerRow {
 function createMockSupabase() {
   const mockUpdateEq = vi.fn().mockResolvedValue({ data: null, error: null });
   const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }));
-  const autopilotConfigSelect = {
-    eq: vi.fn(() => autopilotConfigSelect),
-    maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-  };
 
   return {
     rpc: vi.fn(),
@@ -70,17 +76,10 @@ function createMockSupabase() {
         };
       }
 
-      if (table === "autopilot_config") {
-        return {
-          select: vi.fn(() => autopilotConfigSelect),
-        };
-      }
-
       throw new Error(`Unexpected table access: ${table}`);
     }),
     mockUpdate,
     mockUpdateEq,
-    autopilotConfigSelect,
   };
 }
 
@@ -326,6 +325,52 @@ describe("runScan", () => {
     expect(result.errors).toEqual([`${firstTrigger.id}: network error`]);
   });
 
+  it("dispatches claimed triggers in parallel", async () => {
+    const slowTrigger = makeTriggerRow();
+    const fastTrigger = makeTriggerRow({
+      id: "650e8400-e29b-41d4-a716-446655440000",
+      current_run_id: "980e8400-e29b-41d4-a716-446655440000",
+    });
+    const slowGate = createDeferred<{ ok: boolean; status: number }>();
+    const fastDispatchIds: string[] = [];
+
+    mockSupabase.rpc.mockImplementation((name: string) => {
+      if (name === "claim_due_triggers") {
+        return Promise.resolve({ data: [slowTrigger, fastTrigger], error: null });
+      }
+
+      if (name === "release_stale_trigger_claims") {
+        return Promise.resolve({ data: 0, error: null });
+      }
+
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    mockDispatch.mockImplementation((payload: { triggerId: string }) => {
+      if (payload.triggerId === slowTrigger.id) {
+        return slowGate.promise;
+      }
+
+      fastDispatchIds.push(payload.triggerId);
+      return Promise.resolve({ ok: true, status: 200 });
+    });
+
+    const scanPromise = runScan({
+      supabase: mockSupabase as never,
+      dispatch: mockDispatch,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fastDispatchIds).toContain(fastTrigger.id);
+
+    slowGate.resolve({ ok: true, status: 200 });
+
+    const result = await scanPromise;
+    expect(result.dispatched).toBe(2);
+    expect(result.errors).toEqual([]);
+  });
+
   it("throws when claim RPC fails", async () => {
     mockSupabase.rpc.mockImplementation((name: string) => {
       if (name === "claim_due_triggers") {
@@ -341,200 +386,6 @@ describe("runScan", () => {
         dispatch: mockDispatch,
       }),
     ).rejects.toThrow("Failed to claim due triggers: DB error");
-  });
-
-  it("dispatches pulse triggers outside quiet hours and advances the schedule", async () => {
-    const trigger = makeTriggerRow({
-      trigger_type: "pulse",
-      cron_expression: "0 */6 * * *",
-    });
-
-    mockSupabase.autopilotConfigSelect.maybeSingle.mockResolvedValueOnce({
-      data: {
-        quiet_hours_start: "22:00:00",
-        quiet_hours_end: "07:00:00",
-      },
-      error: null,
-    });
-    mockSupabase.rpc.mockImplementation((name: string) => {
-      if (name === "claim_due_triggers") {
-        return Promise.resolve({ data: [trigger], error: null });
-      }
-
-      if (name === "release_stale_trigger_claims") {
-        return Promise.resolve({ data: 0, error: null });
-      }
-
-      return Promise.resolve({ data: null, error: null });
-    });
-    mockComputeNextFireAt.mockReturnValueOnce(new Date("2026-03-06T12:00:00.000Z"));
-
-    const result = await runScan({
-      supabase: mockSupabase as never,
-      dispatch: mockDispatch,
-      now: new Date("2026-03-06T14:00:00+08:00"),
-    });
-
-    expect(mockDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        triggerType: "pulse",
-        nextFireAt: "2026-03-06T12:00:00.000Z",
-      }),
-    );
-    expect(mockSupabase.rpc).not.toHaveBeenCalledWith(
-      "release_trigger_claim",
-      expect.anything(),
-    );
-    expect(result.dispatched).toBe(1);
-  });
-
-  it("skips pulse triggers during quiet hours and advances to the next scheduled slot", async () => {
-    const trigger = makeTriggerRow({
-      trigger_type: "pulse",
-      cron_expression: "0 */6 * * *",
-      next_fire_at: "2026-03-06T06:00:00.000Z",
-    });
-
-    mockSupabase.autopilotConfigSelect.maybeSingle.mockResolvedValueOnce({
-      data: {
-        quiet_hours_start: "22:00:00",
-        quiet_hours_end: "07:00:00",
-      },
-      error: null,
-    });
-    mockSupabase.rpc.mockImplementation((name: string) => {
-      if (name === "claim_due_triggers") {
-        return Promise.resolve({ data: [trigger], error: null });
-      }
-
-      if (name === "release_trigger_claim") {
-        return Promise.resolve({ data: true, error: null });
-      }
-
-      if (name === "release_stale_trigger_claims") {
-        return Promise.resolve({ data: 0, error: null });
-      }
-
-      return Promise.resolve({ data: null, error: null });
-    });
-    mockComputeNextFireAt.mockReturnValueOnce(new Date("2026-03-06T12:00:00.000Z"));
-
-    const result = await runScan({
-      supabase: mockSupabase as never,
-      dispatch: mockDispatch,
-      now: new Date("2026-03-05T22:30:00+08:00"),
-    });
-
-    expect(mockDispatch).not.toHaveBeenCalled();
-    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: "2026-03-06T12:00:00.000Z",
-      p_advance_next_fire_at: true,
-      p_trigger_id: trigger.id,
-      p_run_id: trigger.current_run_id,
-      p_status: "skipped_quiet_hours",
-    });
-    expect(result.dispatched).toBe(0);
-    expect(result.errors).toEqual([]);
-  });
-
-  it("advances quiet-hours-skipped pulses until the next fire is after now", async () => {
-    const trigger = makeTriggerRow({
-      trigger_type: "pulse",
-      cron_expression: "0 */6 * * *",
-      next_fire_at: "2026-03-06T00:00:00.000Z",
-    });
-
-    mockSupabase.autopilotConfigSelect.maybeSingle.mockResolvedValueOnce({
-      data: {
-        quiet_hours_start: "22:00:00",
-        quiet_hours_end: "07:00:00",
-      },
-      error: null,
-    });
-    mockSupabase.rpc.mockImplementation((name: string) => {
-      if (name === "claim_due_triggers") {
-        return Promise.resolve({ data: [trigger], error: null });
-      }
-
-      if (name === "release_trigger_claim") {
-        return Promise.resolve({ data: true, error: null });
-      }
-
-      if (name === "release_stale_trigger_claims") {
-        return Promise.resolve({ data: 0, error: null });
-      }
-
-      return Promise.resolve({ data: null, error: null });
-    });
-    mockComputeNextFireAt
-      .mockReturnValueOnce(new Date("2026-03-06T06:00:00.000Z"))
-      .mockReturnValueOnce(new Date("2026-03-06T12:00:00.000Z"))
-      .mockReturnValueOnce(new Date("2026-03-06T18:00:00.000Z"));
-
-    const result = await runScan({
-      supabase: mockSupabase as never,
-      dispatch: mockDispatch,
-      now: new Date("2026-03-06T23:30:00+08:00"),
-    });
-
-    expect(mockDispatch).not.toHaveBeenCalled();
-    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: "2026-03-06T18:00:00.000Z",
-      p_advance_next_fire_at: true,
-      p_trigger_id: trigger.id,
-      p_run_id: trigger.current_run_id,
-      p_status: "skipped_quiet_hours",
-    });
-    expect(result.dispatched).toBe(0);
-    expect(result.errors).toEqual([]);
-  });
-
-  it("does not retry pulse dispatch failures and advances to the next scheduled slot", async () => {
-    const trigger = makeTriggerRow({
-      trigger_type: "pulse",
-      cron_expression: "0 */6 * * *",
-      payload: {},
-    });
-
-    mockSupabase.rpc.mockImplementation((name: string) => {
-      if (name === "claim_due_triggers") {
-        return Promise.resolve({ data: [trigger], error: null });
-      }
-
-      if (name === "release_trigger_claim") {
-        return Promise.resolve({ data: true, error: null });
-      }
-
-      if (name === "release_stale_trigger_claims") {
-        return Promise.resolve({ data: 0, error: null });
-      }
-
-      return Promise.resolve({ data: null, error: null });
-    });
-    mockComputeNextFireAt.mockReturnValueOnce(new Date("2026-03-06T12:00:00.000Z"));
-    mockDispatch.mockResolvedValueOnce({
-      ok: false,
-      status: 503,
-      error: "Autopilot worker unavailable",
-    });
-
-    const result = await runScan({
-      supabase: mockSupabase as never,
-      dispatch: mockDispatch,
-      now: new Date("2026-03-06T14:00:00+08:00"),
-    });
-
-    expect(mockSupabase.rpc).toHaveBeenCalledWith("release_trigger_claim", {
-      p_next_fire_at: "2026-03-06T12:00:00.000Z",
-      p_advance_next_fire_at: true,
-      p_trigger_id: trigger.id,
-      p_run_id: trigger.current_run_id,
-      p_status: "dispatch_failed",
-    });
-    expect(result.dispatched).toBe(0);
-    expect(result.errors).toEqual([
-      `${trigger.id}: dispatch returned 503 (Autopilot worker unavailable)`,
-    ]);
   });
 
   it("marks exhausted user-created trigger retries as failed_permanent", async () => {
