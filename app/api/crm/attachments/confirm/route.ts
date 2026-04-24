@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { getFileCategory } from "@/lib/crm/file-categories";
 import { recordAttachmentTypeValues } from "@/lib/crm/schemas";
@@ -26,33 +26,30 @@ function isValidAttachmentPath(storagePath: string): boolean {
 }
 
 export async function POST(request: Request) {
-  const authResult = await authenticateRequest();
-  if (authResult.kind === "error") {
-    return authResult.response;
+  const requestResult = await authenticateAndParseBody(request, confirmSchema, {
+    invalidBodyMessage: (error) => error.issues.map((issue) => issue.message).join(", "),
+  });
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
 
-  const { supabase, userId } = authResult;
-
   try {
-    const body = await request.json();
-    const parsed = confirmSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return jsonError(
-        parsed.error.issues.map((issue) => issue.message).join(", "),
-        400,
-      );
-    }
-
-    const { storagePath, filename, contentType, size, record_type, record_id } = parsed.data;
+    const {
+      storagePath,
+      filename,
+      contentType,
+      size,
+      record_type,
+      record_id,
+    } = requestResult.body;
 
     if (!isValidAttachmentPath(storagePath)) {
       return jsonError("Invalid storage path", 400);
     }
 
-    const clientId = await resolveClientId(supabase, userId);
+    const clientId = await resolveClientId(requestResult.supabase, requestResult.userId);
     const fullStoragePath = `${clientId}/${storagePath}`;
-    const signedUrlResponse = await supabase.storage
+    const signedUrlResponse = await requestResult.supabase.storage
       .from(AGENT_FILES_BUCKET)
       .createSignedUrl(fullStoragePath, SIGNED_URL_EXPIRY_SECONDS, {
         download: filename,
@@ -62,7 +59,7 @@ export async function POST(request: Request) {
       return jsonError("Failed to confirm upload", 500);
     }
 
-    const { data: attachment, error: insertError } = await supabase
+    const { data: attachment, error: insertError } = await requestResult.supabase
       .from("record_attachments")
       .insert({
         client_id: clientId,
@@ -78,7 +75,7 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError || !attachment) {
-      await supabase.storage.from(AGENT_FILES_BUCKET).remove([fullStoragePath]);
+      await requestResult.supabase.storage.from(AGENT_FILES_BUCKET).remove([fullStoragePath]);
       return jsonError("Failed to create attachment record", 500);
     }
 

@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
 import { interruptSession } from "@/lib/managed-agents/interrupt-session";
@@ -20,23 +20,16 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request): Promise<Response> {
-  let body: z.infer<typeof requestSchema>;
-  try {
-    body = requestSchema.parse(await request.json());
-  } catch {
-    return jsonError("Invalid request body.", 400);
+  const requestResult = await authenticateAndParseBody(request, requestSchema);
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
 
-  const auth = await authenticateRequest();
-  if (auth.kind === "error") {
-    return auth.response;
-  }
-
-  const clientId = await resolveClientId(auth.supabase, auth.userId);
-  const { data: thread, error } = await auth.supabase
+  const clientId = await resolveClientId(requestResult.supabase, requestResult.userId);
+  const { data: thread, error } = await requestResult.supabase
     .from("conversation_threads")
     .select("session_id")
-    .eq("thread_id", body.threadId)
+    .eq("thread_id", requestResult.body.threadId)
     .eq("client_id", clientId)
     .maybeSingle();
 

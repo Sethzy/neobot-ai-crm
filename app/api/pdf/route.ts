@@ -8,18 +8,62 @@ import { renderToBuffer } from "@json-render/react-pdf/render";
 import type { Spec } from "@json-render/core";
 import { z } from "zod";
 
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import {
+  authenticateAndParseBody,
+  jsonError,
+} from "@/lib/api/route-helpers";
 
 export const maxDuration = 30;
+const maxPdfRouteBodyBytes = 256 * 1024;
+const maxPdfSpecElements = 500;
+
+const pdfElementSchema = z.object({
+  type: z.string().min(1).max(100),
+  props: z.record(z.string().max(200), z.unknown()).default({}),
+  children: z.array(z.string().min(1).max(200)).max(100).optional(),
+  visible: z.unknown().optional(),
+  on: z.record(z.string().max(100), z.unknown()).optional(),
+  repeat: z.object({
+    statePath: z.string().min(1).max(200),
+    key: z.string().min(1).max(200).optional(),
+  }).optional(),
+  watch: z.record(z.string().max(200), z.unknown()).optional(),
+});
+
+const pdfSpecSchema = z.object({
+  root: z.string().min(1).max(200),
+  elements: z.record(z.string().min(1).max(200), pdfElementSchema).superRefine(
+    (elements, context) => {
+      if (Object.keys(elements).length <= maxPdfSpecElements) {
+        return;
+      }
+
+      context.addIssue({
+        code: "custom",
+        message: `spec.elements must contain at most ${maxPdfSpecElements} elements.`,
+      });
+    },
+  ),
+  state: z.record(z.string().max(200), z.unknown()).optional(),
+}).superRefine((spec, context) => {
+  if (spec.root in spec.elements) {
+    return;
+  }
+
+  context.addIssue({
+    code: "custom",
+    message: "spec.root must reference an existing element.",
+    path: ["root"],
+  });
+});
 
 /**
- * Request body schema. The `spec` field carries a vendor type from
- * @json-render/core — we pass it through as unknown and let renderToBuffer
- * fail on malformed input, but we still gate the top-level shape and the
- * filename length so the wrapper is safe.
+ * Request body schema. The spec remains intentionally permissive at the prop
+ * level because json-render owns the detailed component contract, but the
+ * wrapper now bounds the overall shape and element count.
  */
 const requestSchema = z.object({
-  spec: z.unknown(),
+  spec: pdfSpecSchema,
   download: z.boolean().optional(),
   filename: z.string().max(200).optional(),
 });
@@ -37,20 +81,18 @@ function sanitizeFilename(input: string): string {
 }
 
 export async function POST(req: Request) {
-  const auth = await authenticateRequest();
-  if (auth.kind === "error") return auth.response;
-
-  const parsed = requestSchema.safeParse(await req.json());
-  if (!parsed.success) {
-    return jsonError("Invalid request body", 400);
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (Number.isFinite(contentLength) && contentLength > maxPdfRouteBodyBytes) {
+    return jsonError("Payload too large", 413);
   }
 
-  const { spec, download, filename } = parsed.data;
+  const parsed = await authenticateAndParseBody(req, requestSchema);
+  if (parsed.kind === "error") {
+    return parsed.response;
+  }
+
+  const { spec, download, filename } = parsed.body;
   const typedSpec = spec as Spec;
-
-  if (!typedSpec || !typedSpec.root || !typedSpec.elements) {
-    return jsonError("Invalid spec: must include root and elements", 400);
-  }
 
   const safeName = filename ? sanitizeFilename(filename) : "document";
 

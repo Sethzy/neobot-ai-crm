@@ -39,10 +39,18 @@ const {
   mockMeetingRecordsFrom: vi.fn(),
 }));
 
-vi.mock("@/lib/api/route-helpers", () => ({
-  authenticateRequest: (...args: unknown[]) => mockAuthenticateRequest(...args),
-  jsonError: (...args: unknown[]) => mockJsonError(...args),
-}));
+vi.mock("@/lib/api/route-helpers", async () => {
+  const { buildAuthenticateAndParseBody } = await import("@/test/mocks/route-helpers");
+
+  return {
+    authenticateRequest: (...args: unknown[]) => mockAuthenticateRequest(...args),
+    authenticateAndParseBody: buildAuthenticateAndParseBody(
+      () => mockAuthenticateRequest(),
+      (message: string, status: number) => mockJsonError(message, status),
+    ),
+    jsonError: (...args: unknown[]) => mockJsonError(...args),
+  };
+});
 
 vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
@@ -164,6 +172,10 @@ describe("POST /api/meetings/ingest", () => {
   });
 
   it("returns deduplicated success when the idempotency key already finished processing", async () => {
+    mockMeetingRecordInsertSingle.mockResolvedValue({
+      data: null,
+      error: { code: "23505", message: "duplicate key value violates unique constraint" },
+    });
     mockMeetingRecordMaybeSingle.mockResolvedValue({
       data: {
         meeting_record_id: "existing-meeting-id",
@@ -198,6 +210,70 @@ describe("POST /api/meetings/ingest", () => {
     });
     expect(mockTranscribeAudio).not.toHaveBeenCalled();
     expect(mockGenerateObject).not.toHaveBeenCalled();
+  });
+
+  it("is idempotent when two requests race on the same key", async () => {
+    mockMeetingRecordInsertSingle
+      .mockResolvedValueOnce({
+        data: {
+          meeting_record_id: "770e8400-e29b-41d4-a716-446655440000",
+          status: "uploaded",
+          transcript_path: null,
+          title: null,
+          summary: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: "23505", message: "duplicate key value violates unique constraint" },
+      });
+    mockMeetingRecordMaybeSingle.mockResolvedValue({
+      data: {
+        meeting_record_id: "770e8400-e29b-41d4-a716-446655440000",
+        status: "transcribing",
+        transcript_path: null,
+        title: null,
+        summary: null,
+      },
+      error: null,
+    });
+
+    const request = () =>
+      POST(
+        new Request("http://localhost/api/meetings/ingest", {
+          method: "POST",
+          body: JSON.stringify({
+            storagePath: "client-1/meetings/raw/uploaded.webm",
+            durationSeconds: 180,
+            notes: "Call back Thursday\nSend pricing",
+            idempotencyKey: "880e8400-e29b-41d4-a716-446655440000",
+          }),
+        }),
+      );
+
+    const [a, b] = await Promise.all([request(), request()]);
+
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+
+    const responses = await Promise.all([a.json(), b.json()]);
+    expect(responses).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          success: true,
+          meetingRecordId: "770e8400-e29b-41d4-a716-446655440000",
+        }),
+        expect.objectContaining({
+          success: true,
+          meetingRecordId: "770e8400-e29b-41d4-a716-446655440000",
+          deduplicated: true,
+        }),
+      ]),
+    );
+    expect(mockMeetingRecordInsert).toHaveBeenCalledTimes(2);
+    expect(mockTranscribeAudio).toHaveBeenCalledTimes(1);
+    expect(mockGenerateObject).toHaveBeenCalledTimes(1);
   });
 
   it("creates the meeting record, transcribes, auto-summarizes, and returns the result", async () => {

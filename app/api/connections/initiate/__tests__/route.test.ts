@@ -11,17 +11,29 @@ const {
   mockInitiateOAuthFlow,
   mockInsertConnection,
   mockResolveClientId,
+  mockCaptureServerEvent,
+  mockAfter,
 } = vi.hoisted(() => ({
   mockAuthenticateRequest: vi.fn(),
   mockInitiateOAuthFlow: vi.fn(),
   mockInsertConnection: vi.fn(),
   mockResolveClientId: vi.fn(),
+  mockCaptureServerEvent: vi.fn(),
+  mockAfter: vi.fn(),
 }));
 
-vi.mock("@/lib/api/route-helpers", () => ({
-  authenticateRequest: (...args: unknown[]) => mockAuthenticateRequest(...args),
-  jsonError: (message: string, status: number) => Response.json({ error: message }, { status }),
-}));
+vi.mock("@/lib/api/route-helpers", async () => {
+  const { buildAuthenticateAndParseBody } = await import("@/test/mocks/route-helpers");
+
+  return {
+    authenticateRequest: (...args: unknown[]) => mockAuthenticateRequest(...args),
+    authenticateAndParseBody: buildAuthenticateAndParseBody(
+      () => mockAuthenticateRequest(),
+      (message: string, status: number) => Response.json({ error: message }, { status }),
+    ),
+    jsonError: (message: string, status: number) => Response.json({ error: message }, { status }),
+  };
+});
 
 vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),
@@ -35,6 +47,14 @@ vi.mock("@/lib/connections/queries", () => ({
   insertConnection: (...args: unknown[]) => mockInsertConnection(...args),
 }));
 
+vi.mock("@/lib/analytics/posthog-server", () => ({
+  captureServerEvent: (...args: unknown[]) => mockCaptureServerEvent(...args),
+}));
+
+vi.mock("next/server", () => ({
+  after: (fn: () => unknown) => mockAfter(fn),
+}));
+
 import { POST } from "../route";
 
 describe("POST /api/connections/initiate", () => {
@@ -42,6 +62,10 @@ describe("POST /api/connections/initiate", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAfter.mockImplementation((fn: () => unknown) => {
+      void fn();
+    });
+    mockCaptureServerEvent.mockResolvedValue(undefined);
     mockSupabase = createMockSupabaseClient({
       selectResult: { data: [], error: null },
     });

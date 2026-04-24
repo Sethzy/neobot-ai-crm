@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { createBrowserAuthToken } from "@/lib/browser-use/auth-state";
 import { getBrowserUseClient } from "@/lib/browser-use/client";
 import { getProfileForPlatform } from "@/lib/browser-use/profiles";
@@ -17,24 +17,19 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request): Promise<Response> {
-  const authResult = await authenticateRequest();
-  if (authResult.kind === "error") {
-    return authResult.response;
-  }
-
-  const { supabase, userId } = authResult;
-
-  let body: z.infer<typeof requestSchema>;
-  try {
-    body = requestSchema.parse(await request.json());
-  } catch {
-    return jsonError("Invalid request body.", 400);
+  const requestResult = await authenticateAndParseBody(request, requestSchema);
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
 
   try {
-    const clientId = await resolveClientId(supabase, userId);
-    const platformConfig = getBrowserPlatformConfig(body.platform);
-    const existingProfile = await getProfileForPlatform(supabase, clientId, platformConfig.slug);
+    const clientId = await resolveClientId(requestResult.supabase, requestResult.userId);
+    const platformConfig = getBrowserPlatformConfig(requestResult.body.platform);
+    const existingProfile = await getProfileForPlatform(
+      requestResult.supabase,
+      clientId,
+      platformConfig.slug,
+    );
     const client = getBrowserUseClient();
 
     const browserUseProfileId = existingProfile
@@ -45,8 +40,8 @@ export async function POST(request: Request): Promise<Response> {
 
     const session = await client.sessions.create({
       profileId: browserUseProfileId,
-      ...(body.startUrl ?? platformConfig.startUrl
-        ? { startUrl: body.startUrl ?? platformConfig.startUrl }
+      ...(requestResult.body.startUrl ?? platformConfig.startUrl
+        ? { startUrl: requestResult.body.startUrl ?? platformConfig.startUrl }
         : {}),
     });
 

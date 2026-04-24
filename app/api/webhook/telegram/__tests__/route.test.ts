@@ -130,6 +130,8 @@ interface MockWebhookSupabaseConfig {
   approvalEventResults?: MockSupabaseResult[];
   pairingTokenResults?: MockSupabaseResult[];
   receiptInsertResults?: MockSupabaseResult[];
+  inboundUpdateUpsertResults?: MockSupabaseResult[];
+  inboundUpdateUpdateResults?: MockSupabaseResult[];
   clientContextResults?: MockSupabaseResult[];
   threadSelectResults?: MockSupabaseResult[];
   threadInsertResults?: MockSupabaseResult[];
@@ -145,6 +147,16 @@ function takeResult(queue: MockSupabaseResult[] | undefined, fallback: MockSupab
 function createWebhookSupabase(config: MockWebhookSupabaseConfig = {}) {
   const records = {
     inserts: [] as Array<{ table: string; value: unknown }>,
+    updates: [] as Array<{
+      table: string;
+      value: unknown;
+      filters: Array<[string, unknown]>;
+    }>,
+    upserts: [] as Array<{
+      table: string;
+      value: unknown;
+      options: unknown;
+    }>,
     deletes: [] as Array<{ table: string; filters: Array<[string, unknown]> }>,
   };
 
@@ -199,6 +211,29 @@ function createWebhookSupabase(config: MockWebhookSupabaseConfig = {}) {
         insert: vi.fn().mockImplementation(async (value: unknown) => {
           records.inserts.push({ table, value });
           return takeResult(config.receiptInsertResults, { data: null, error: null });
+        }),
+      };
+    }
+
+    if (table === "telegram_inbound_updates") {
+      return {
+        upsert: vi.fn().mockImplementation(async (value: unknown, options: unknown) => {
+          records.upserts.push({ table, value, options });
+          return takeResult(config.inboundUpdateUpsertResults, { data: null, error: null });
+        }),
+        update: vi.fn().mockImplementation((value: unknown) => {
+          const filters: Array<[string, unknown]> = [];
+
+          return {
+            eq: vi.fn().mockImplementation(async (field: string, filterValue: unknown) => {
+              filters.push([field, filterValue]);
+              records.updates.push({ table, value, filters });
+              return takeResult(config.inboundUpdateUpdateResults, {
+                data: null,
+                error: null,
+              });
+            }),
+          };
         }),
       };
     }
@@ -366,6 +401,42 @@ describe("POST /api/webhook/telegram", () => {
     expect(response.status).toBe(400);
   });
 
+  it("persists the raw update before scheduling background processing", async () => {
+    const supabase = createWebhookSupabase();
+    const api = createTelegramBotApi();
+    const scheduledCallbacks: Array<() => Promise<void> | void> = [];
+    mockAfter.mockImplementation((callback: () => Promise<void> | void) => {
+      scheduledCallbacks.push(callback);
+    });
+    mockCreateAdminClient.mockResolvedValue(supabase);
+    mockCreateTelegramBot.mockReturnValue({ api });
+
+    const update = {
+      update_id: 42,
+      message: {
+        message_id: 7,
+        text: "Hello from Telegram",
+        chat: { id: 12345, type: "private" },
+        from: { id: 9, is_bot: false, first_name: "Seth" },
+      },
+    };
+
+    const response = await POST(createRequest(update));
+
+    expect(response.status).toBe(200);
+    expect(supabase.records.upserts).toEqual([
+      {
+        table: "telegram_inbound_updates",
+        value: {
+          update_id: 42,
+          payload: update,
+        },
+        options: { onConflict: "update_id" },
+      },
+    ]);
+    expect(scheduledCallbacks).toHaveLength(1);
+  });
+
   it("acknowledges a mapped regular message and continues the agent in after()", async () => {
     const supabase = createWebhookSupabase({
       mappingResults: [
@@ -419,6 +490,18 @@ describe("POST /api/webhook/telegram", () => {
       userPreferences: "User preferences",
       threadTitle: null,
     });
+    expect(supabase.records.updates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          table: "telegram_inbound_updates",
+          filters: [["update_id", 42]],
+          value: expect.objectContaining({
+            processed_at: expect.any(String),
+            error: null,
+          }),
+        }),
+      ]),
+    );
   });
 
   it("pairs a chat from /start <token> by claiming the chat for the pairing session user", async () => {

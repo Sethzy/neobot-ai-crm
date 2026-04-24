@@ -5,12 +5,14 @@ const {
   mockAuthenticateRequest,
   mockResolveClientId,
   mockGetAnthropicClient,
+  mockCaptureServerEvent,
   mockAfter,
 } = vi.hoisted(() => ({
   mockResumeManagedAgentFromApproval: vi.fn(),
   mockAuthenticateRequest: vi.fn(),
   mockResolveClientId: vi.fn(),
   mockGetAnthropicClient: vi.fn(),
+  mockCaptureServerEvent: vi.fn(),
   mockAfter: vi.fn(),
 }));
 
@@ -22,18 +24,27 @@ vi.mock("@/lib/managed-agents/anthropic-client", () => ({
   getAnthropicClient: mockGetAnthropicClient,
 }));
 
-vi.mock("@/lib/api/route-helpers", () => ({
-  authenticateRequest: mockAuthenticateRequest,
-  jsonError: (message: string, status: number) =>
-    new Response(JSON.stringify({ error: message }), { status }),
-}));
+vi.mock("@/lib/api/route-helpers", async () => {
+  const { buildAuthenticateAndParseBody } = await import("@/test/mocks/route-helpers");
+
+  return {
+    authenticateRequest: mockAuthenticateRequest,
+    authenticateAndParseBody: buildAuthenticateAndParseBody(
+      () => mockAuthenticateRequest(),
+      (message: string, status: number) =>
+        new Response(JSON.stringify({ error: message }), { status }),
+    ),
+    jsonError: (message: string, status: number) =>
+      new Response(JSON.stringify({ error: message }), { status }),
+  };
+});
 
 vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: mockResolveClientId,
 }));
 
 vi.mock("@/lib/analytics/posthog-server", () => ({
-  captureServerEvent: vi.fn(),
+  captureServerEvent: (...args: unknown[]) => mockCaptureServerEvent(...args),
 }));
 
 vi.mock("next/server", () => ({
@@ -61,10 +72,12 @@ function createClosedStream(): ReadableStream<unknown> {
 describe("POST /api/tool-confirm", () => {
   beforeEach(() => {
     mockResumeManagedAgentFromApproval.mockReset();
+    mockCaptureServerEvent.mockReset();
     mockAfter.mockReset();
     mockAfter.mockImplementation((fn: () => unknown) => {
       void fn();
     });
+    mockCaptureServerEvent.mockResolvedValue(undefined);
     mockAuthenticateRequest.mockResolvedValue({
       kind: "ok",
       supabase: {},
@@ -103,7 +116,7 @@ describe("POST /api/tool-confirm", () => {
         denyMessage: undefined,
       }),
     );
-    expect(mockAfter).toHaveBeenCalledTimes(1);
+    expect(mockAfter).toHaveBeenCalledTimes(2);
   });
 
   it("returns 404 for an unknown approvalId", async () => {
@@ -192,7 +205,7 @@ describe("POST /api/tool-confirm", () => {
       status: "already_resolved",
       approved: false,
     });
-    expect(mockAfter).not.toHaveBeenCalled();
+    expect(mockAfter).toHaveBeenCalledTimes(1);
   });
 
   it("returns 500 when the resume fails with an internal error", async () => {

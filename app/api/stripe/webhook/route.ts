@@ -11,6 +11,7 @@ import {
   syncBillingStateFromDeletedSubscription,
   syncBillingStateFromSubscriptionId,
 } from "@/lib/stripe/stripe";
+import { runAfter } from "@/lib/server/run-after";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -23,6 +24,22 @@ function getWebhookSecret(): string {
   }
 
   return webhookSecret;
+}
+
+function captureBillingEvent(
+  distinctId: string,
+  event: string,
+  properties: Record<string, string | boolean | null | undefined>,
+) {
+  runAfter(() =>
+    Promise.resolve(captureServerEvent({
+      distinctId,
+      event,
+      properties,
+    })).catch((error) => {
+      console.error("[stripe/webhook] Failed to capture billing telemetry.", error);
+    }),
+  );
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -57,14 +74,10 @@ export async function POST(request: Request): Promise<Response> {
 
         if (subscriptionId) {
           const syncedBillingState = await syncBillingStateFromSubscriptionId(subscriptionId);
-          await captureServerEvent({
-            distinctId: syncedBillingState.clientId,
-            event: "subscription_created",
-            properties: {
-              plan_name: syncedBillingState.planName,
-              trial: syncedBillingState.trial,
-              stripe_customer_id: syncedBillingState.stripeCustomerId,
-            },
+          captureBillingEvent(syncedBillingState.clientId, "subscription_created", {
+            plan_name: syncedBillingState.planName,
+            trial: syncedBillingState.trial,
+            stripe_customer_id: syncedBillingState.stripeCustomerId,
           });
         }
         break;
@@ -84,12 +97,8 @@ export async function POST(request: Request): Promise<Response> {
           const syncedBillingState = await syncBillingStateFromSubscriptionId(subscriptionId);
 
           if (event.type === "invoice.payment_failed") {
-            await captureServerEvent({
-              distinctId: syncedBillingState.clientId,
-              event: "payment_failed",
-              properties: {
-                plan_name: syncedBillingState.planName,
-              },
+            captureBillingEvent(syncedBillingState.clientId, "payment_failed", {
+              plan_name: syncedBillingState.planName,
             });
           }
         }
@@ -103,12 +112,8 @@ export async function POST(request: Request): Promise<Response> {
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         const syncedBillingState = await syncBillingStateFromDeletedSubscription(subscription);
-        await captureServerEvent({
-          distinctId: syncedBillingState.clientId,
-          event: "subscription_canceled",
-          properties: {
-            plan_name: syncedBillingState.planName,
-          },
+        captureBillingEvent(syncedBillingState.clientId, "subscription_canceled", {
+          plan_name: syncedBillingState.planName,
         });
         break;
       }

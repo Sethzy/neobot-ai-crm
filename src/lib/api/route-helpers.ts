@@ -2,6 +2,8 @@
  * Shared helpers for Next.js API route handlers.
  * @module lib/api/route-helpers
  */
+import { z, type ZodTypeAny } from "zod";
+
 import { createClient } from "@/lib/supabase/server";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -33,4 +35,63 @@ export async function authenticateRequest(): Promise<AuthResult> {
   }
 
   return { kind: "ok", supabase, userId: user.id };
+}
+
+interface AuthenticateAndParseBodyOptions<TSchema extends ZodTypeAny> {
+  invalidJsonMessage?: string;
+  invalidBodyMessage?: string | ((error: z.ZodError<z.output<TSchema>>) => string);
+}
+
+export type AuthenticatedBodyResult<TSchema extends ZodTypeAny> =
+  | { kind: "error"; response: Response }
+  | {
+      kind: "ok";
+      supabase: SupabaseServerClient;
+      userId: string;
+      body: z.infer<TSchema>;
+    };
+
+/**
+ * Parses JSON in parallel with auth so routes do not serialize two
+ * independent hot-path operations.
+ */
+export async function authenticateAndParseBody<TSchema extends ZodTypeAny>(
+  request: Request,
+  schema: TSchema,
+  options: AuthenticateAndParseBodyOptions<TSchema> = {},
+): Promise<AuthenticatedBodyResult<TSchema>> {
+  const [authResult, rawBody] = await Promise.all([
+    authenticateRequest(),
+    request.json().catch(() => null),
+  ]);
+
+  if (authResult.kind === "error") {
+    return authResult;
+  }
+
+  if (rawBody === null) {
+    return {
+      kind: "error",
+      response: jsonError(options.invalidJsonMessage ?? "Invalid request body.", 400),
+    };
+  }
+
+  const parsedBody = schema.safeParse(rawBody);
+  if (!parsedBody.success) {
+    const invalidBodyMessage = typeof options.invalidBodyMessage === "function"
+      ? options.invalidBodyMessage(parsedBody.error)
+      : (options.invalidBodyMessage ?? "Invalid request body.");
+
+    return {
+      kind: "error",
+      response: jsonError(invalidBodyMessage, 400),
+    };
+  }
+
+  return {
+    kind: "ok",
+    supabase: authResult.supabase,
+    userId: authResult.userId,
+    body: parsedBody.data,
+  };
 }

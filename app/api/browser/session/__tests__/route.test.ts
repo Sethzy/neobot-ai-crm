@@ -20,10 +20,18 @@ const {
   mockSessionsCreate: vi.fn(),
 }));
 
-vi.mock("@/lib/api/route-helpers", () => ({
-  authenticateRequest: (...args: unknown[]) => mockAuthenticateRequest(...args),
-  jsonError: (message: string, status: number) => Response.json({ error: message }, { status }),
-}));
+vi.mock("@/lib/api/route-helpers", async () => {
+  const { buildAuthenticateAndParseBody } = await import("@/test/mocks/route-helpers");
+
+  return {
+    authenticateRequest: (...args: unknown[]) => mockAuthenticateRequest(...args),
+    authenticateAndParseBody: buildAuthenticateAndParseBody(
+      () => mockAuthenticateRequest(),
+      (message: string, status: number) => Response.json({ error: message }, { status }),
+    ),
+    jsonError: (message: string, status: number) => Response.json({ error: message }, { status }),
+  };
+});
 
 vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),

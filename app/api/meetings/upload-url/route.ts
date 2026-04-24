@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 
 const AGENT_FILES_BUCKET = "agent-files";
@@ -46,33 +46,22 @@ function resolveAudioExtension(filename: string, contentType: string): string {
 }
 
 export async function POST(request: Request) {
-  const authResult = await authenticateRequest();
-
-  if (authResult.kind === "error") {
-    return authResult.response;
+  const requestResult = await authenticateAndParseBody(request, requestSchema, {
+    invalidBodyMessage: (error) => error.issues.map((issue) => issue.message).join(", "),
+  });
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
 
-  const { supabase, userId } = authResult;
-
   try {
-    const requestBody = await request.json();
-    const parsedBody = requestSchema.safeParse(requestBody);
-
-    if (!parsedBody.success) {
-      return jsonError(
-        parsedBody.error.issues.map((issue) => issue.message).join(", "),
-        400,
-      );
-    }
-
-    const clientId = await resolveClientId(supabase, userId);
+    const clientId = await resolveClientId(requestResult.supabase, requestResult.userId);
     const extension = resolveAudioExtension(
-      parsedBody.data.filename,
-      parsedBody.data.contentType,
+      requestResult.body.filename,
+      requestResult.body.contentType,
     );
     const storagePath = `${clientId}/meetings/raw/${crypto.randomUUID()}.${extension}`;
 
-    const { data, error } = await supabase.storage
+    const { data, error } = await requestResult.supabase.storage
       .from(AGENT_FILES_BUCKET)
       .createSignedUploadUrl(storagePath);
 

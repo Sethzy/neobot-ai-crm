@@ -28,11 +28,20 @@ const insertFn = vi.fn();
 const threadAbortSignal = vi.fn();
 const clientAbortSignal = vi.fn();
 
-vi.mock("@/lib/api/route-helpers", () => ({
-  authenticateRequest,
-  jsonError: (message: string, status: number) =>
-    new Response(JSON.stringify({ error: message }), { status }),
-}));
+vi.mock("@/lib/api/route-helpers", async () => {
+  const { buildAuthenticateAndParseBody } = await import("@/test/mocks/route-helpers");
+
+  return {
+    authenticateRequest,
+    authenticateAndParseBody: buildAuthenticateAndParseBody(
+      authenticateRequest,
+      (message: string, status: number) =>
+        new Response(JSON.stringify({ error: message }), { status }),
+    ),
+    jsonError: (message: string, status: number) =>
+      new Response(JSON.stringify({ error: message }), { status }),
+  };
+});
 vi.mock("@/lib/ai/title", () => ({ generateTitleFromUserMessage }));
 vi.mock("@/lib/chat/client-id", () => ({ resolveClientId }));
 vi.mock("@/lib/rate-limit", () => ({ checkRateLimit }));

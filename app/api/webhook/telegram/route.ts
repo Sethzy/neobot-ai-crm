@@ -52,6 +52,7 @@ import {
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
 import type { ManagedFilePart } from "@/lib/managed-agents/types";
 import { createAdminClient } from "@/lib/supabase/server";
+import type { Json } from "@/types/database";
 
 const telegramUpdateSchema = z.object({
   update_id: z.number().int(),
@@ -566,17 +567,57 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const [supabase, bot] = await Promise.all([
+  const [adminClient, bot] = await Promise.all([
     createAdminClient(),
     Promise.resolve(createTelegramBot(getTelegramBotToken())),
   ]);
+  const { error: persistError } = await adminClient
+    .from("telegram_inbound_updates")
+    .upsert(
+      {
+        update_id: parsedUpdate.update_id,
+        payload: parsedUpdate as Json,
+      },
+      { onConflict: "update_id" },
+    );
 
-  const ctx: TelegramWebhookContext = { supabase, bot };
+  if (persistError) {
+    return Response.json(
+      { error: "Failed to persist Telegram update." },
+      { status: 500 },
+    );
+  }
+
+  const ctx: TelegramWebhookContext = { supabase: adminClient, bot };
 
   after(async () => {
     try {
       await processUpdate(ctx, parsedUpdate);
+      const { error: processedUpdateError } = await adminClient
+        .from("telegram_inbound_updates")
+        .update({
+          processed_at: new Date().toISOString(),
+          error: null,
+        })
+        .eq("update_id", parsedUpdate.update_id);
+
+      if (processedUpdateError) {
+        throw processedUpdateError;
+      }
     } catch (error) {
+      const { error: persistProcessingError } = await adminClient
+        .from("telegram_inbound_updates")
+        .update({
+          error: error instanceof Error ? error.message : String(error),
+        })
+        .eq("update_id", parsedUpdate.update_id);
+
+      if (persistProcessingError) {
+        console.error(
+          "[telegram/webhook] failed to persist processing error:",
+          persistProcessingError,
+        );
+      }
       console.error("[telegram/webhook] processing failed:", error);
     }
   });

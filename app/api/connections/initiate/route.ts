@@ -5,11 +5,12 @@
 import { z } from "zod";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { initiateOAuthFlow } from "@/lib/composio/connection-flow";
 import { hasLiveAuthRedirect } from "@/lib/connections/auth-link";
 import { insertConnection } from "@/lib/connections/queries";
+import { runAfter } from "@/lib/server/run-after";
 
 const initiateConnectionBodySchema = z.object({
   toolkit: z.string().trim().min(1).transform((toolkit) => toolkit.toLowerCase()),
@@ -19,32 +20,17 @@ const initiateConnectionBodySchema = z.object({
  * Returns a hosted Composio OAuth redirect URL for the requested toolkit.
  */
 export async function POST(request: Request): Promise<Response> {
-  const authResult = await authenticateRequest();
-
-  if (authResult.kind === "error") {
-    return authResult.response;
+  const requestResult = await authenticateAndParseBody(request, initiateConnectionBodySchema, {
+    invalidJsonMessage: "Invalid JSON body.",
+  });
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
-
-  let parsedJson: unknown;
 
   try {
-    parsedJson = await request.json();
-  } catch {
-    return jsonError("Invalid JSON body.", 400);
-  }
-
-  const bodyResult = initiateConnectionBodySchema.safeParse(parsedJson);
-
-  if (!bodyResult.success) {
-    return jsonError("Invalid request body.", 400);
-  }
-
-  const { supabase, userId } = authResult;
-
-  try {
-    const clientId = await resolveClientId(supabase, userId);
-    const { toolkit } = bodyResult.data;
-    const { data: pendingConnection, error: pendingConnectionError } = await supabase
+    const clientId = await resolveClientId(requestResult.supabase, requestResult.userId);
+    const { toolkit } = requestResult.body;
+    const { data: pendingConnection, error: pendingConnectionError } = await requestResult.supabase
       .from("connections")
       .select("id, auth_redirect_url, auth_redirect_expires_at")
       .eq("client_id", clientId)
@@ -69,7 +55,7 @@ export async function POST(request: Request): Promise<Response> {
         });
       }
 
-      const { error: stalePendingDeleteError } = await supabase
+      const { error: stalePendingDeleteError } = await requestResult.supabase
         .from("connections")
         .delete()
         .eq("client_id", clientId)
@@ -90,7 +76,7 @@ export async function POST(request: Request): Promise<Response> {
       callbackUrl: callbackUrl.toString(),
     });
 
-    await insertConnection(supabase, {
+    await insertConnection(requestResult.supabase, {
       client_id: clientId,
       composio_connected_account_id: `pending:${crypto.randomUUID()}`,
       toolkit_slug: toolkit,
@@ -103,13 +89,17 @@ export async function POST(request: Request): Promise<Response> {
       tool_count: 0,
     });
 
-    await captureServerEvent({
-      distinctId: clientId,
-      event: "connection_initiated",
-      properties: {
-        toolkit_slug: toolkit,
-      },
-    });
+    runAfter(() =>
+      Promise.resolve(captureServerEvent({
+        distinctId: clientId,
+        event: "connection_initiated",
+        properties: {
+          toolkit_slug: toolkit,
+        },
+      })).catch((error) => {
+        console.error("[connections/initiate] Failed to capture telemetry.", error);
+      }),
+    );
 
     return Response.json({ redirectUrl, expiresAt: authRedirectExpiresAt });
   } catch (error) {

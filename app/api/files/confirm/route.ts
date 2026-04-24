@@ -5,8 +5,9 @@
 import { z } from "zod";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
+import { runAfter } from "@/lib/server/run-after";
 
 const BUCKET_ID = "agent-files";
 const SIGNED_URL_EXPIRY_SECONDS = 60 * 60;
@@ -23,33 +24,23 @@ function isValidUploadPath(storagePath: string): boolean {
 }
 
 export async function POST(request: Request) {
-  const authResult = await authenticateRequest();
-  if (authResult.kind === "error") {
-    return authResult.response;
+  const requestResult = await authenticateAndParseBody(request, confirmSchema, {
+    invalidBodyMessage: (error) => error.issues.map((issue) => issue.message).join(", "),
+  });
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
 
-  const { supabase, userId } = authResult;
-
   try {
-    const body = await request.json();
-    const parsed = confirmSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return jsonError(
-        parsed.error.issues.map((issue) => issue.message).join(", "),
-        400,
-      );
-    }
-
-    const { storagePath, filename, contentType, size } = parsed.data;
+    const { storagePath, filename, contentType, size } = requestResult.body;
 
     if (!isValidUploadPath(storagePath)) {
       return jsonError("Invalid storage path", 400);
     }
 
-    const clientId = await resolveClientId(supabase, userId);
+    const clientId = await resolveClientId(requestResult.supabase, requestResult.userId);
     const fullStoragePath = `${clientId}/${storagePath}`;
-    const { data, error } = await supabase.storage
+    const { data, error } = await requestResult.supabase.storage
       .from(BUCKET_ID)
       .createSignedUrl(fullStoragePath, SIGNED_URL_EXPIRY_SECONDS);
 
@@ -57,14 +48,18 @@ export async function POST(request: Request) {
       return jsonError("Upload confirmation failed", 500);
     }
 
-    await captureServerEvent({
-      distinctId: clientId,
-      event: "file_uploaded",
-      properties: {
-        file_type: contentType,
-        size_bytes: size,
-      },
-    });
+    runAfter(() =>
+      Promise.resolve(captureServerEvent({
+        distinctId: clientId,
+        event: "file_uploaded",
+        properties: {
+          file_type: contentType,
+          size_bytes: size,
+        },
+      })).catch((error) => {
+        console.error("[files/confirm] Failed to capture upload telemetry.", error);
+      }),
+    );
 
     return Response.json({
       url: data.signedUrl,

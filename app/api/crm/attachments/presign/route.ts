@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import {
   ALLOWED_UPLOAD_TYPES,
@@ -23,25 +23,15 @@ const presignSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const authResult = await authenticateRequest();
-  if (authResult.kind === "error") {
-    return authResult.response;
+  const requestResult = await authenticateAndParseBody(request, presignSchema, {
+    invalidBodyMessage: (error) => error.issues.map((issue) => issue.message).join(", "),
+  });
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
 
-  const { supabase, userId } = authResult;
-
   try {
-    const body = await request.json();
-    const parsed = presignSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return jsonError(
-        parsed.error.issues.map((issue) => issue.message).join(", "),
-        400,
-      );
-    }
-
-    const { contentType, size, record_type, record_id } = parsed.data;
+    const { contentType, size, record_type, record_id } = requestResult.body;
 
     if (!ALLOWED_UPLOAD_TYPES.has(contentType)) {
       return jsonError("File type not supported", 400);
@@ -51,11 +41,11 @@ export async function POST(request: Request) {
       return jsonError("File size must be under 10 MB", 400);
     }
 
-    const clientId = await resolveClientId(supabase, userId);
+    const clientId = await resolveClientId(requestResult.supabase, requestResult.userId);
     const relativeStoragePath = `attachments/${record_type}/${record_id}/${crypto.randomUUID()}`;
     const fullStoragePath = `${clientId}/${relativeStoragePath}`;
 
-    const { data, error } = await supabase.storage
+    const { data, error } = await requestResult.supabase.storage
       .from(BUCKET_ID)
       .createSignedUploadUrl(fullStoragePath);
 

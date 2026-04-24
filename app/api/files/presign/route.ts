@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import {
   ALLOWED_UPLOAD_TYPES,
@@ -25,25 +25,15 @@ const presignSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const authResult = await authenticateRequest();
-  if (authResult.kind === "error") {
-    return authResult.response;
+  const requestResult = await authenticateAndParseBody(request, presignSchema, {
+    invalidBodyMessage: (error) => error.issues.map((issue) => issue.message).join(", "),
+  });
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
 
-  const { supabase, userId } = authResult;
-
   try {
-    const body = await request.json();
-    const parsed = presignSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return jsonError(
-        parsed.error.issues.map((issue) => issue.message).join(", "),
-        400,
-      );
-    }
-
-    const { filename, contentType, size } = parsed.data;
+    const { filename, contentType, size } = requestResult.body;
 
     if (!ALLOWED_UPLOAD_TYPES.has(contentType)) {
       return jsonError("File type is not supported for chat uploads", 400);
@@ -53,13 +43,13 @@ export async function POST(request: Request) {
       return jsonError("File size should be less than 10MB", 400);
     }
 
-    const clientId = await resolveClientId(supabase, userId);
+    const clientId = await resolveClientId(requestResult.supabase, requestResult.userId);
     const sanitizedFilename = sanitizeUploadFilename(filename);
     const storageFilename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${sanitizedFilename}`;
     const relativeStoragePath = `uploads/${storageFilename}`;
     const fullStoragePath = `${clientId}/${relativeStoragePath}`;
 
-    const { data, error } = await supabase.storage
+    const { data, error } = await requestResult.supabase.storage
       .from(BUCKET_ID)
       .createSignedUploadUrl(fullStoragePath);
 

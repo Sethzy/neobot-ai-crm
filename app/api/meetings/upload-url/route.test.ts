@@ -19,10 +19,18 @@ const {
   mockFrom: vi.fn(),
 }));
 
-vi.mock("@/lib/api/route-helpers", () => ({
-  authenticateRequest: (...args: unknown[]) => mockAuthenticateRequest(...args),
-  jsonError: (...args: unknown[]) => mockJsonError(...args),
-}));
+vi.mock("@/lib/api/route-helpers", async () => {
+  const { buildAuthenticateAndParseBody } = await import("@/test/mocks/route-helpers");
+
+  return {
+    authenticateRequest: (...args: unknown[]) => mockAuthenticateRequest(...args),
+    authenticateAndParseBody: buildAuthenticateAndParseBody(
+      () => mockAuthenticateRequest(),
+      (message: string, status: number) => mockJsonError(message, status),
+    ),
+    jsonError: (...args: unknown[]) => mockJsonError(...args),
+  };
+});
 
 vi.mock("@/lib/chat/client-id", () => ({
   resolveClientId: (...args: unknown[]) => mockResolveClientId(...args),

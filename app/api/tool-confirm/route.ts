@@ -7,14 +7,14 @@
  *
  * @module app/api/tool-confirm/route
  */
-import { after } from "next/server";
 import { z } from "zod";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { resumeManagedAgentFromApproval } from "@/lib/managed-agents/adapter";
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
+import { runAfter } from "@/lib/server/run-after";
 
 // Approval IDs are Anthropic `tool_use` ids (`tu_*` / `toolu_*` shapes), not
 // UUIDs — the session runner stores the tool_use_id directly in
@@ -43,57 +43,56 @@ async function drainStream(stream: ReadableStream<unknown>): Promise<void> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const parsedBody = requestSchema.safeParse(await request.json().catch(() => null));
-  if (!parsedBody.success) {
-    return jsonError("Invalid request body.", 400);
+  const requestResult = await authenticateAndParseBody(request, requestSchema);
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
 
-  const auth = await authenticateRequest();
-  if (auth.kind === "error") {
-    return auth.response;
-  }
-
-  const clientId = await resolveClientId(auth.supabase, auth.userId);
+  const clientId = await resolveClientId(requestResult.supabase, requestResult.userId);
   const anthropic = getAnthropicClient();
 
-  const result = await resumeManagedAgentFromApproval({
+  const approvalResult = await resumeManagedAgentFromApproval({
     anthropic,
-    supabase: auth.supabase,
+    supabase: requestResult.supabase,
     clientId,
-    approvalId: parsedBody.data.approvalId,
-    approved: parsedBody.data.approved,
-    denyMessage: parsedBody.data.denyMessage,
+    approvalId: requestResult.body.approvalId,
+    approved: requestResult.body.approved,
+    denyMessage: requestResult.body.denyMessage,
   });
 
-  if (result.status === "missing") {
+  if (approvalResult.status === "missing") {
     return jsonError("Approval not found.", 404);
   }
 
-  if (result.status === "error") {
-    return jsonError(result.error, 500);
+  if (approvalResult.status === "error") {
+    return jsonError(approvalResult.error, 500);
   }
 
-  const resolvedApproved = result.status === "already_resolved"
-    ? result.approved
-    : parsedBody.data.approved;
-  const responseStatus = result.status === "streaming"
+  const resolvedApproved = approvalResult.status === "already_resolved"
+    ? approvalResult.approved
+    : requestResult.body.approved;
+  const responseStatus = approvalResult.status === "streaming"
     ? "updated"
-    : result.status;
+    : approvalResult.status;
 
-  if (result.status === "streaming") {
-    after(() => drainStream(result.stream));
+  if (approvalResult.status === "streaming") {
+    runAfter(() => drainStream(approvalResult.stream));
   }
 
-  await captureServerEvent({
-    distinctId: clientId,
-    event: "approval_resolved",
-    properties: {
-      approval_id: parsedBody.data.approvalId,
-      outcome: resolvedApproved ? "approved" : "denied",
-      source: "web",
-      status: responseStatus,
-    },
-  });
+  runAfter(() =>
+    Promise.resolve(captureServerEvent({
+      distinctId: clientId,
+      event: "approval_resolved",
+      properties: {
+        approval_id: requestResult.body.approvalId,
+        outcome: resolvedApproved ? "approved" : "denied",
+        source: "web",
+        status: responseStatus,
+      },
+    })).catch((error) => {
+      console.error("[tool-confirm] Failed to capture approval telemetry.", error);
+    }),
+  );
 
   return Response.json({
     success: true,

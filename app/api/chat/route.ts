@@ -7,7 +7,7 @@
 import { createUIMessageStreamResponse } from "ai";
 import { z } from "zod";
 
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { allowedModelIds, DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import { generateTitleFromUserMessage } from "@/lib/ai/title";
 import { resolveClientId } from "@/lib/chat/client-id";
@@ -112,53 +112,48 @@ function extractApprovalContinuation(
 export async function POST(request: Request): Promise<Response> {
   const t0 = performance.now();
 
-  const parsedBody = requestSchema.safeParse(await request.json().catch(() => null));
-  if (!parsedBody.success) {
-    return jsonError("Invalid request body.", 400);
+  const requestResult = await authenticateAndParseBody(request, requestSchema);
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
   const tParse = performance.now();
-
-  const auth = await authenticateRequest();
-  if (auth.kind === "error") {
-    return auth.response;
-  }
   const tAuth = performance.now();
 
-  const selectedChatModel = parsedBody.data.selectedChatModel ?? DEFAULT_CHAT_MODEL;
+  const selectedChatModel = requestResult.body.selectedChatModel ?? DEFAULT_CHAT_MODEL;
   if (!allowedModelIds.has(selectedChatModel)) {
     return jsonError("Invalid selected chat model.", 400);
   }
 
-  const approval = extractApprovalContinuation(parsedBody.data.messages);
+  const approval = extractApprovalContinuation(requestResult.body.messages);
   if (approval) {
-    const result = await resumeManagedAgentFromApproval({
+    const approvalResult = await resumeManagedAgentFromApproval({
       anthropic: getAnthropicClient(),
-      supabase: auth.supabase,
-      clientId: await resolveClientId(auth.supabase, auth.userId),
+      supabase: requestResult.supabase,
+      clientId: await resolveClientId(requestResult.supabase, requestResult.userId),
       approvalId: approval.approvalId,
       approved: approval.approved,
       denyMessage: approval.denyMessage,
     });
 
-    if (result.status === "missing") {
+    if (approvalResult.status === "missing") {
       return jsonError("Approval not found.", 404);
     }
 
-    if (result.status === "already_resolved") {
+    if (approvalResult.status === "already_resolved") {
       return jsonError("Approval already resolved.", 409);
     }
 
-    if (result.status === "error") {
-      return jsonError(result.error, 500);
+    if (approvalResult.status === "error") {
+      return jsonError(approvalResult.error, 500);
     }
 
-    return createUIMessageStreamResponse({ stream: result.stream as never });
+    return createUIMessageStreamResponse({ stream: approvalResult.stream as never });
   }
 
   // Rate limit + client ID resolve in parallel — both depend only on auth.userId.
   const [rateLimitResult, clientId] = await Promise.all([
-    checkRateLimit(`chat:${auth.userId}`, 30, 60),
-    resolveClientId(auth.supabase, auth.userId),
+    checkRateLimit(`chat:${requestResult.userId}`, 30, 60),
+    resolveClientId(requestResult.supabase, requestResult.userId),
   ]);
   if (!rateLimitResult.allowed) {
     return new Response(
@@ -176,14 +171,14 @@ export async function POST(request: Request): Promise<Response> {
   }
   const tClientId = performance.now();
 
-  const lastMessage = parsedBody.data.messages[parsedBody.data.messages.length - 1];
+  const lastMessage = requestResult.body.messages[requestResult.body.messages.length - 1];
   const { text, fileParts } = extractUserInput({
     parts: lastMessage.parts ?? [],
   });
 
   if (fileParts.length > 0) {
     console.info("[api/chat] extracted file parts", {
-      threadId: parsedBody.data.id,
+      threadId: requestResult.body.id,
       messageId: lastMessage.id ?? null,
       textLength: text?.length ?? 0,
       fileParts: fileParts.map((filePart) => ({
@@ -199,10 +194,10 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Message must contain text or files.", 400);
   }
 
-  const threadResult = await auth.supabase
+  const threadResult = await requestResult.supabase
     .from("conversation_threads")
     .select("thread_id, title, session_id")
-    .eq("thread_id", parsedBody.data.id)
+    .eq("thread_id", requestResult.body.id)
     .eq("client_id", clientId)
     .eq("is_archived", false)
     .abortSignal(AbortSignal.timeout(CHAT_SUPABASE_HOT_PATH_TIMEOUT_MS))
@@ -217,7 +212,7 @@ export async function POST(request: Request): Promise<Response> {
   let userPreferences: string | null = null;
 
   if (!existingSessionId) {
-    const clientContextResult = await auth.supabase
+    const clientContextResult = await requestResult.supabase
       .from("clients")
       .select("client_profile, user_preferences")
       .eq("client_id", clientId)
@@ -236,10 +231,10 @@ export async function POST(request: Request): Promise<Response> {
   let threadTitle: string | null = null;
   let titlePromise: Promise<string> | null = null;
   if (!existingThread) {
-    const { error: insertError } = await auth.supabase
+    const { error: insertError } = await requestResult.supabase
       .from("conversation_threads")
       .insert({
-        thread_id: parsedBody.data.id,
+        thread_id: requestResult.body.id,
         client_id: clientId,
         title: NEW_THREAD_TITLE,
       });
@@ -265,9 +260,9 @@ export async function POST(request: Request): Promise<Response> {
   const tPreAdapter = performance.now();
   const stream = await runManagedAgent({
     anthropic: getAnthropicClient(),
-    supabase: auth.supabase,
+    supabase: requestResult.supabase,
     clientId,
-    threadId: parsedBody.data.id,
+    threadId: requestResult.body.id,
     input: text ?? "",
     fileParts,
     userMessageSourceId: lastMessage.id,

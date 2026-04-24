@@ -12,8 +12,8 @@ const routeMocks = vi.hoisted(() => ({
   single: vi.fn(),
   eq: vi.fn(),
   select: vi.fn(),
-  update: vi.fn(),
   from: vi.fn(),
+  rpc: vi.fn(),
 }));
 
 vi.mock("@/lib/api/route-helpers", () => ({
@@ -29,21 +29,17 @@ vi.mock("@/lib/chat/client-id", () => ({
 function createSupabase() {
   routeMocks.eq.mockReturnValue({ select: routeMocks.select, single: routeMocks.single });
   routeMocks.select.mockReturnValue({ eq: routeMocks.eq, single: routeMocks.single });
-  routeMocks.update.mockReturnValue({
-    eq: routeMocks.eq,
-    select: routeMocks.select,
-    single: routeMocks.single,
-  });
   routeMocks.from.mockImplementation((table: string) => {
     if (table !== "clients") {
       throw new Error(`Unexpected table: ${table}`);
     }
 
-    return { select: routeMocks.select, update: routeMocks.update };
+    return { select: routeMocks.select };
   });
 
   return {
     from: routeMocks.from,
+    rpc: routeMocks.rpc,
   };
 }
 
@@ -80,8 +76,8 @@ describe("/api/settings/agent-context", () => {
     expect(routeMocks.eq).toHaveBeenCalledWith("client_id", "client-1");
   });
 
-  it("updates the current client row", async () => {
-    routeMocks.single.mockResolvedValue({
+  it("updates the current client row via the update_my_agent_context RPC", async () => {
+    routeMocks.rpc.mockResolvedValue({
       data: {
         client_profile: "Updated profile",
         user_preferences: "Updated preferences",
@@ -105,11 +101,56 @@ describe("/api/settings/agent-context", () => {
       client_profile: "Updated profile",
       user_preferences: "Updated preferences",
     });
-    expect(routeMocks.update).toHaveBeenCalledWith({
-      client_profile: "Updated profile",
-      user_preferences: "Updated preferences",
+    expect(routeMocks.rpc).toHaveBeenCalledWith("update_my_agent_context", {
+      p_client_profile: "Updated profile",
+      p_user_preferences: "Updated preferences",
     });
-    expect(routeMocks.eq).toHaveBeenCalledWith("client_id", "client-1");
+  });
+
+  it("forwards omitted fields as null so the RPC preserves existing values", async () => {
+    routeMocks.rpc.mockResolvedValue({
+      data: {
+        client_profile: "Existing profile",
+        user_preferences: "Only this was updated",
+      },
+      error: null,
+    });
+
+    const response = await PUT(
+      new Request("http://localhost/api/settings/agent-context", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_preferences: "Only this was updated",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(routeMocks.rpc).toHaveBeenCalledWith("update_my_agent_context", {
+      p_client_profile: null,
+      p_user_preferences: "Only this was updated",
+    });
+  });
+
+  it("returns 500 when the RPC reports an error", async () => {
+    routeMocks.rpc.mockResolvedValue({
+      data: null,
+      error: { message: "No clients row for the current auth user." },
+    });
+
+    const response = await PUT(
+      new Request("http://localhost/api/settings/agent-context", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client_profile: "x" }),
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "Failed to update agent context.",
+    });
   });
 
   it("returns 401 when the request is unauthorized", async () => {

@@ -56,18 +56,17 @@ export async function PUT(request: Request): Promise<Response> {
 
   const authResult = await authenticateRequest();
   if (authResult.kind === "error") return authResult.response;
-  const { supabase, userId } = authResult;
+  const { supabase } = authResult;
 
+  // The clients table is read-only via RLS (see 20260301000006_harden_clients_rls).
+  // update_my_agent_context is the one whitelisted, auth.uid()-scoped write path.
   try {
-    const clientId = await resolveClientId(supabase, userId);
-    const { data, error } = await supabase
-      .from("clients")
-      .update(body)
-      .eq("client_id", clientId)
-      .select(AGENT_CONTEXT_SELECT)
-      .single();
+    const { data, error } = await supabase.rpc("update_my_agent_context", {
+      p_client_profile: body.client_profile ?? null,
+      p_user_preferences: body.user_preferences ?? null,
+    });
 
-    if (error) return jsonError("Failed to update agent context.", 500);
+    if (error || !data) return jsonError("Failed to update agent context.", 500);
     return Response.json(data);
   } catch {
     return jsonError("Failed to update agent context.", 500);

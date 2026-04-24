@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import { verifyBrowserAuthToken } from "@/lib/browser-use/auth-state";
 import { getBrowserUseClient } from "@/lib/browser-use/client";
 import { getProfileForPlatform } from "@/lib/browser-use/profiles";
@@ -15,33 +15,28 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request): Promise<Response> {
-  const authResult = await authenticateRequest();
-  if (authResult.kind === "error") {
-    return authResult.response;
+  const requestResult = await authenticateAndParseBody(request, requestSchema);
+  if (requestResult.kind === "error") {
+    return requestResult.response;
   }
 
-  const { supabase, userId } = authResult;
-
-  let body: z.infer<typeof requestSchema>;
-  try {
-    body = requestSchema.parse(await request.json());
-  } catch {
-    return jsonError("Invalid request body.", 400);
-  }
-
-  const token = verifyBrowserAuthToken(body.authToken);
+  const token = verifyBrowserAuthToken(requestResult.body.authToken);
   if (!token) {
     return jsonError("Invalid browser auth state.", 400);
   }
 
   try {
-    const clientId = await resolveClientId(supabase, userId);
+    const clientId = await resolveClientId(requestResult.supabase, requestResult.userId);
     if (clientId !== token.clientId) {
       return jsonError("Invalid browser auth state.", 400);
     }
 
     const client = getBrowserUseClient();
-    const persistedProfile = await getProfileForPlatform(supabase, clientId, token.platform);
+    const persistedProfile = await getProfileForPlatform(
+      requestResult.supabase,
+      clientId,
+      token.platform,
+    );
 
     await Promise.all([
       client.sessions.stop(token.sessionId).catch(() => {

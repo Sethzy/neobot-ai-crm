@@ -15,6 +15,7 @@ import {
   insertConnection,
   updateConnection,
 } from "@/lib/connections/queries";
+import { runAfter } from "@/lib/server/run-after";
 
 function buildRedirect(
   request: Request,
@@ -252,13 +253,17 @@ export async function GET(request: Request): Promise<Response> {
       }
     }
 
-    await captureServerEvent({
-      distinctId: clientId,
-      event: "connection_completed",
-      properties: {
-        toolkit_slug: connectedAccount.toolkit.slug,
-      },
-    });
+    runAfter(() =>
+      Promise.resolve(captureServerEvent({
+        distinctId: clientId,
+        event: "connection_completed",
+        properties: {
+          toolkit_slug: connectedAccount.toolkit.slug,
+        },
+      })).catch((error) => {
+        console.error("[connections/callback] Failed to capture telemetry.", error);
+      }),
+    );
 
     return buildRedirect(request, {
       connection: "success",

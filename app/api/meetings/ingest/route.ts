@@ -6,7 +6,7 @@ import { generateObject } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { authenticateRequest, jsonError } from "@/lib/api/route-helpers";
+import { authenticateAndParseBody, jsonError } from "@/lib/api/route-helpers";
 import {
   COMPACTION_MODEL,
   gateway,
@@ -27,6 +27,10 @@ export const maxDuration = 300;
 const AGENT_FILES_BUCKET = "agent-files";
 const AUDIO_SIGNED_URL_EXPIRY_SECONDS = 60 * 60;
 type ChatSupabaseClient = SupabaseClient<Database>;
+type MeetingRecordSummary = Pick<
+  Database["public"]["Tables"]["meeting_records"]["Row"],
+  "meeting_record_id" | "status" | "transcript_path" | "title" | "summary"
+>;
 
 function buildTranscriptBody(transcription: Awaited<ReturnType<typeof transcribeAudio>>) {
   if (transcription.segments.length === 0) {
@@ -69,28 +73,38 @@ async function updateMeetingRecordStatus(
   }
 }
 
-export async function POST(request: Request) {
-  const authResult = await authenticateRequest();
+async function getExistingMeetingRecord(
+  supabase: ChatSupabaseClient,
+  clientId: string,
+  idempotencyKey: string,
+): Promise<MeetingRecordSummary | null> {
+  const { data, error } = await supabase
+    .from("meeting_records")
+    .select("meeting_record_id, status, transcript_path, title, summary")
+    .eq("idempotency_key", idempotencyKey)
+    .eq("client_id", clientId)
+    .maybeSingle();
 
-  if (authResult.kind === "error") {
-    return authResult.response;
+  if (error) {
+    throw new Error(`Failed to load existing meeting record: ${error.message}`);
   }
 
-  const { supabase, userId } = authResult;
+  return data;
+}
+
+export async function POST(request: Request) {
+  const requestResult = await authenticateAndParseBody(request, ingestSchema, {
+    invalidBodyMessage: (error) => error.issues.map((issue) => issue.message).join(", "),
+  });
+  if (requestResult.kind === "error") {
+    return requestResult.response;
+  }
+
+  const { supabase, userId, body } = requestResult;
   let meetingRecordId: string | null = null;
 
   try {
-    const requestBody = await request.json();
-    const parsedBody = ingestSchema.safeParse(requestBody);
-
-    if (!parsedBody.success) {
-      return jsonError(
-        parsedBody.error.issues.map((issue) => issue.message).join(", "),
-        400,
-      );
-    }
-
-    const { storagePath, durationSeconds, notes, idempotencyKey, language } = parsedBody.data;
+    const { storagePath, durationSeconds, notes, idempotencyKey, language } = body;
     const clientId = await resolveClientId(supabase, userId);
     const expectedPrefix = `${clientId}/meetings/raw/`;
 
@@ -98,14 +112,36 @@ export async function POST(request: Request) {
       return jsonError("Invalid meeting audio path", 403);
     }
 
-    const { data: existingRecord } = await supabase
+    const { data: insertedRecord, error: insertError } = await supabase
       .from("meeting_records")
+      .insert({
+        client_id: clientId,
+        thread_id: null,
+        idempotency_key: idempotencyKey,
+        audio_path: storagePath,
+        duration_seconds: durationSeconds,
+        notes: notes || null,
+        status: "uploaded",
+      })
       .select("meeting_record_id, status, transcript_path, title, summary")
-      .eq("idempotency_key", idempotencyKey)
-      .eq("client_id", clientId)
-      .maybeSingle();
+      .single();
 
-    if (existingRecord && existingRecord.status !== "uploaded" && existingRecord.status !== "failed") {
+    if (insertError) {
+      if (insertError.code !== "23505") {
+        console.error("[meeting-ingest] Failed to insert meeting record:", insertError);
+        return jsonError("Failed to create meeting record", 500);
+      }
+
+      const existingRecord = await getExistingMeetingRecord(
+        supabase,
+        clientId,
+        idempotencyKey,
+      );
+
+      if (!existingRecord) {
+        return jsonError("Failed to load deduplicated meeting record", 500);
+      }
+
       return Response.json({
         success: true,
         meetingRecordId: existingRecord.meeting_record_id,
@@ -116,30 +152,11 @@ export async function POST(request: Request) {
       });
     }
 
-    if (existingRecord) {
-      meetingRecordId = existingRecord.meeting_record_id;
-    } else {
-      const { data: insertedRecord, error: insertError } = await supabase
-        .from("meeting_records")
-        .insert({
-          client_id: clientId,
-          thread_id: null,
-          idempotency_key: idempotencyKey,
-          audio_path: storagePath,
-          duration_seconds: durationSeconds,
-          notes: notes || null,
-          status: "uploaded",
-        })
-        .select("meeting_record_id")
-        .single();
-
-      if (insertError || !insertedRecord) {
-        console.error("[meeting-ingest] Failed to insert meeting record:", insertError);
-        return jsonError("Failed to create meeting record", 500);
-      }
-
-      meetingRecordId = insertedRecord.meeting_record_id;
+    if (!insertedRecord) {
+      return jsonError("Failed to create meeting record", 500);
     }
+
+    meetingRecordId = insertedRecord.meeting_record_id;
 
     const t0 = Date.now();
     console.log(`[meeting-ingest] ▶ start | meeting=${meetingRecordId} duration=${durationSeconds}s`);
