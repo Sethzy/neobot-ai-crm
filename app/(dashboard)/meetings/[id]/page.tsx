@@ -56,6 +56,36 @@ function countNotes(notes: string | null): number {
     .length;
 }
 
+function parseTranscriptContent(content: string): {
+  segments?: TranscriptSegment[];
+  text?: string;
+} {
+  const [, transcriptBody = ""] = content.split("\n## Transcript\n");
+  const rawTranscript = transcriptBody.trim();
+  const segmentLines = rawTranscript.length > 0 ? rawTranscript.split("\n") : [];
+  const parsedSegments = segmentLines
+    .map((line) => {
+      const parsed = parseTranscriptLine(line);
+
+      if (!parsed) {
+        return null;
+      }
+
+      return {
+        start: parsed.start,
+        end: parsed.start,
+        text: parsed.text,
+        speaker: parsed.speaker,
+      };
+    })
+    .filter((segment): segment is TranscriptSegment => segment !== null);
+
+  return {
+    segments: parsedSegments.length > 0 ? parsedSegments : undefined,
+    text: parsedSegments.length > 0 ? undefined : rawTranscript,
+  };
+}
+
 export default function MeetingDetailPage() {
   const params = useParams<{ id: string }>();
   const meetingId = params?.id ?? "";
@@ -63,6 +93,9 @@ export default function MeetingDetailPage() {
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const { data: meeting, isLoading } = useMeeting(meetingId);
+  const [isTranscriptOpen, setIsTranscriptOpen] = useState(false);
+  const [isTranscriptLoading, setIsTranscriptLoading] = useState(false);
+  const [resolvedTranscriptKey, setResolvedTranscriptKey] = useState<string | null>(null);
   const [transcriptData, setTranscriptData] = useState<{
     key: string;
     text?: string;
@@ -78,9 +111,26 @@ export default function MeetingDetailPage() {
   const transcriptSegments = transcriptData?.key === transcriptKey
     ? transcriptData.segments
     : undefined;
+  const hasTranscript = Boolean(transcriptKey);
+  const hasResolvedTranscript = resolvedTranscriptKey === transcriptKey;
+
+  function handleTranscriptOpenChange(nextIsOpen: boolean) {
+    const shouldLoadTranscript = nextIsOpen
+      && Boolean(transcriptKey)
+      && transcriptData?.key !== transcriptKey;
+
+    setIsTranscriptLoading(shouldLoadTranscript);
+    setIsTranscriptOpen(nextIsOpen);
+  }
 
   useEffect(() => {
-    if (!transcriptKey || !clientId || !transcriptPath) {
+    if (!isTranscriptOpen || !transcriptKey || !clientId || !transcriptPath) {
+      setIsTranscriptLoading(false);
+      return;
+    }
+
+    if (transcriptData?.key === transcriptKey) {
+      setIsTranscriptLoading(false);
       return;
     }
 
@@ -88,44 +138,33 @@ export default function MeetingDetailPage() {
     let isCancelled = false;
 
     async function loadTranscript() {
-      const { data, error } = await supabase.storage
-        .from(AGENT_FILES_BUCKET)
-        .download(`${clientId}/${transcriptPath}`);
+      setIsTranscriptLoading(true);
+      setResolvedTranscriptKey(null);
 
-      if (error || !data || isCancelled) {
-        return;
+      try {
+        const { data, error } = await supabase.storage
+          .from(AGENT_FILES_BUCKET)
+          .download(`${clientId}/${transcriptPath}`);
+
+        if (error || !data || isCancelled) {
+          return;
+        }
+
+        const content = await data.text();
+        if (isCancelled) {
+          return;
+        }
+
+        setTranscriptData({
+          key: currentTranscriptKey,
+          ...parseTranscriptContent(content),
+        });
+      } finally {
+        if (!isCancelled) {
+          setResolvedTranscriptKey(currentTranscriptKey);
+          setIsTranscriptLoading(false);
+        }
       }
-
-      const content = await data.text();
-      if (isCancelled) {
-        return;
-      }
-
-      const [, transcriptBody = ""] = content.split("\n## Transcript\n");
-      const rawTranscript = transcriptBody.trim();
-      const segmentLines = rawTranscript.length > 0 ? rawTranscript.split("\n") : [];
-      const parsedSegments = segmentLines
-        .map((line) => {
-          const parsed = parseTranscriptLine(line);
-
-          if (!parsed) {
-            return null;
-          }
-
-          return {
-            start: parsed.start,
-            end: parsed.start,
-            text: parsed.text,
-            speaker: parsed.speaker,
-          };
-        })
-        .filter((segment): segment is TranscriptSegment => segment !== null);
-
-      setTranscriptData({
-        key: currentTranscriptKey,
-        segments: parsedSegments.length > 0 ? parsedSegments : undefined,
-        text: parsedSegments.length > 0 ? undefined : rawTranscript,
-      });
     }
 
     void loadTranscript();
@@ -133,7 +172,7 @@ export default function MeetingDetailPage() {
     return () => {
       isCancelled = true;
     };
-  }, [clientId, transcriptKey, transcriptPath]);
+  }, [clientId, isTranscriptOpen, transcriptData?.key, transcriptKey, transcriptPath]);
 
   if (isLoading) {
     return (
@@ -233,29 +272,33 @@ export default function MeetingDetailPage() {
       </div>
 
       <PageSurface className="space-y-6">
-        <div className="border-b border-app-border-subtle pb-4">
-          <PageHeader
-            title={meeting.title || "Untitled meeting"}
-            titleClassName="leading-snug"
-            meta={[
-              formatDetailDate(meeting.created_at),
-              meeting.duration_seconds
-                ? formatDetailDuration(meeting.duration_seconds)
-                : null,
-              noteCount > 0 ? `${noteCount} note${noteCount !== 1 ? "s" : ""}` : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          />
-        </div>
+        <PageHeader
+          title={meeting.title || "Untitled meeting"}
+          titleClassName="leading-snug"
+          meta={[
+            formatDetailDate(meeting.created_at),
+            meeting.duration_seconds
+              ? formatDetailDuration(meeting.duration_seconds)
+              : null,
+            noteCount > 0 ? `${noteCount} note${noteCount !== 1 ? "s" : ""}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        />
 
         <section>
           <SummaryView summary={meeting.summary} status={meeting.status} />
         </section>
 
-        <PageSurface variant="muted">
-          <TranscriptSection transcriptText={transcriptText} segments={transcriptSegments} />
-        </PageSurface>
+        <TranscriptSection
+          transcriptText={transcriptText}
+          segments={transcriptSegments}
+          hasTranscript={hasTranscript}
+          hasResolvedTranscript={hasResolvedTranscript}
+          isLoading={isTranscriptLoading}
+          isOpen={isTranscriptOpen}
+          onOpenChange={handleTranscriptOpenChange}
+        />
 
         {meeting.notes && meeting.notes.trim().length > 0 ? (
           <section className="border-t border-app-border-subtle pt-3">
@@ -265,7 +308,7 @@ export default function MeetingDetailPage() {
         ) : null}
       </PageSurface>
 
-      <div className="border-t border-app-border-subtle pt-3">
+      <div className="pt-3">
         {sendError ? (
           <p className="mb-2 type-control text-destructive">{sendError}</p>
         ) : null}

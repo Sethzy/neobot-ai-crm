@@ -1,8 +1,6 @@
 /**
- * Logo component — NeoBot branding.
- * 3D isometric "N" - Geometrically Perfect V3.
- * Corrected projection vector (+5, -3) for standard 31° isometric angle.
- * B&W Attio-inspired theme.
+ * Logo component — Sunder branding.
+ * 3D isometric mark with a simple wordmark lockup.
  */
 export function Logo({
   className,
@@ -15,7 +13,7 @@ export function Logo({
 
   return (
     <div className={`flex items-center gap-2.5 ${className ?? ''}`} {...props}>
-      {/* NeoBot 3D Isometric Icon Mark - V3 Perfect Geometry */}
+      {/* Sunder isometric icon mark */}
       <svg
         aria-hidden="true"
         viewBox="0 0 80 80"
@@ -42,7 +40,7 @@ export function Logo({
       </svg>
       {/* Wordmark */}
       <span className="font-sans text-lg font-semibold tracking-tight text-foreground">
-        neobot
+        Sunder
       </span>
     </div>
   )

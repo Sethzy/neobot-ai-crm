@@ -14,6 +14,7 @@ interface SmoothScrollProps {
 
 export function SmoothScroll({ children }: SmoothScrollProps) {
   const lenisRef = useRef<Lenis | null>(null)
+  const animationFrameIdRef = useRef<number | null>(null)
 
   useEffect(() => {
     /** Desktop only — mobile already has native inertia. */
@@ -30,11 +31,15 @@ export function SmoothScroll({ children }: SmoothScrollProps) {
 
     function raf(time: number) {
       lenis.raf(time)
-      requestAnimationFrame(raf)
+      animationFrameIdRef.current = requestAnimationFrame(raf)
     }
-    requestAnimationFrame(raf)
+    animationFrameIdRef.current = requestAnimationFrame(raf)
 
     return () => {
+      if (animationFrameIdRef.current !== null) {
+        cancelAnimationFrame(animationFrameIdRef.current)
+        animationFrameIdRef.current = null
+      }
       lenis.destroy()
       lenisRef.current = null
     }

@@ -5,7 +5,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import RegisterPage from "./page";
+import RegisterPageClient from "./page-client";
 
 const mockSignInWithOAuth = vi.fn();
 const mockSignUp = vi.fn();
@@ -43,7 +43,7 @@ describe("/register page", () => {
   });
 
   it("submits a simplified full-name signup form with display metadata", async () => {
-    render(<RegisterPage />);
+    render(<RegisterPageClient />);
 
     expect(screen.getByRole("heading", { name: /get started for free/i })).toBeInTheDocument();
 
@@ -85,7 +85,7 @@ describe("/register page", () => {
   });
 
   it("starts Google OAuth from the signup screen", async () => {
-    render(<RegisterPage />);
+    render(<RegisterPageClient />);
 
     fireEvent.click(screen.getByRole("button", { name: /sign up with google/i }));
 

@@ -443,6 +443,11 @@
       contain-intrinsic-size: auto 1000px;
     }
   }
+
+  .chat-message-deferred {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 160px;
+  }
 }
 
 /* Integration marquee — infinite horizontal scroll */

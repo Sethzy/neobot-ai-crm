@@ -3,7 +3,7 @@
  */
 import Link from "next/link";
 import { Container } from '@/components/landing/Container'
-import { HeroIdentityAnimation } from '@/components/landing/HeroIdentityAnimation'
+import { HeroIdentityAnimationShell } from '@/components/landing/HeroIdentityAnimationShell'
 import { PromoVideo } from '@/components/landing/PromoVideo'
 
 export function Hero() {
@@ -13,7 +13,7 @@ export function Hero() {
     >
       <Container className="relative">
         <div className="flex flex-col items-center text-center">
-          <HeroIdentityAnimation className="mb-8 sm:mb-10" />
+          <HeroIdentityAnimationShell className="mb-8 sm:mb-10" />
 
           <h1 className="font-serif text-title font-normal leading-[1.05] text-lp-dark sm:text-display">
             <span className="sm:hidden">Acts before you ask.<br /></span>

@@ -87,21 +87,23 @@ export default async function PricingPage({
 }: {
   searchParams: Promise<{ billing?: string | string[] }>;
 }) {
-  const { billing } = await searchParams;
-  const billingSummary = await getBillingSummary();
-  const messageQuota = await loadCurrentMessageQuota();
+  const [{ billing }, billingSummary, messageQuota, stripePlansResult] = await Promise.all([
+    searchParams,
+    getBillingSummary(),
+    loadCurrentMessageQuota(),
+    listStripePlans()
+      .then((plans) => ({
+        paidPlans: plans,
+        pricingError: null,
+      }))
+      .catch((error: unknown) => ({
+        paidPlans: [],
+        pricingError:
+          error instanceof Error ? error.message : "Failed to load Stripe plans.",
+      })),
+  ]);
   const billingNotice = getBillingNotice(normalizeSearchParam(billing));
-
-  const { paidPlans, pricingError } = await listStripePlans()
-    .then((plans) => ({
-      paidPlans: plans,
-      pricingError: null,
-    }))
-    .catch((error: unknown) => ({
-      paidPlans: [],
-      pricingError:
-        error instanceof Error ? error.message : "Failed to load Stripe plans.",
-    }));
+  const { paidPlans, pricingError } = stripePlansResult;
 
   const paidPlanMap = new Map(paidPlans.map((plan) => [plan.name, plan]));
 

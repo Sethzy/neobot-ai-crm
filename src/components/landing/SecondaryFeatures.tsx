@@ -51,7 +51,7 @@ const features: Array<Feature> = [
     value: 'integrations',
     summary: 'Gmail, Calendar, Notion, and more.',
     description:
-      'Neo plugs into your existing apps. One message can check your calendar, draft an email, and update your CRM.',
+      'Sunder plugs into your existing apps. One message can check your calendar, draft an email, and update your CRM.',
     icon: PlugIcon,
   },
 ]

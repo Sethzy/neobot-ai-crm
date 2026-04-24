@@ -2,7 +2,7 @@
 
 /**
  * Tabbed workflow showcase — displays concrete use-case cards across business
- * categories to communicate the breadth of what Neo can do for B2C salespeople.
+ * categories to communicate the breadth of what Sunder can do for B2C salespeople.
  */
 import { useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
@@ -70,7 +70,7 @@ const categories: Category[] = [
       {
         title: 'Ad lead capture',
         description:
-          'Someone clicks my ad and lands on the page — Neo qualifies them, tags the source, and books a call.',
+          'Someone clicks my ad and lands on the page — Sunder qualifies them, tags the source, and books a call.',
         logos: ['/logos/instagram-icon.svg', '/logos/meta.svg', '/logos/whatsapp-icon.svg'],
       },
     ],
@@ -136,13 +136,13 @@ const categories: Category[] = [
       {
         title: 'Deal comparison',
         description:
-          'Upload competing offers or quotes. Neo extracts key terms — price, conditions, timeline — into a side-by-side table.',
+          'Upload competing offers or quotes. Sunder extracts key terms — price, conditions, timeline — into a side-by-side table.',
         logos: ['/logos/google-sheets.svg', '/logos/drive.svg'],
       },
       {
         title: 'Form filling',
         description:
-          'Neo opens the submission portal, fills the application from your deal file, and screenshots each step for your review.',
+          'Sunder opens the submission portal, fills the application from your deal file, and screenshots each step for your review.',
         logos: ['/logos/desktop.svg', '/logos/chrome.svg'],
       },
       {
@@ -220,25 +220,25 @@ const categories: Category[] = [
       {
         title: 'Financial docs',
         description:
-          'Upload bank statements, invoices, or commission slips. Neo extracts amounts, dates, and parties into a spreadsheet.',
+          'Upload bank statements, invoices, or commission slips. Sunder extracts amounts, dates, and parties into a spreadsheet.',
         logos: ['/logos/google-sheets.svg', '/logos/drive.svg'],
       },
       {
         title: 'Expense receipts',
         description:
-          'Forward receipts from email or photos — client dinners, mileage, subscriptions — Neo categorizes everything for tax time.',
+          'Forward receipts from email or photos — client dinners, mileage, subscriptions — Sunder categorizes everything for tax time.',
         logos: ['/logos/gmail.svg', '/logos/google-sheets.svg'],
       },
       {
         title: 'Compliance check',
         description:
-          'Run a compliance check on the transaction file before submission. Neo flags missing items and inconsistencies.',
+          'Run a compliance check on the transaction file before submission. Sunder flags missing items and inconsistencies.',
         logos: ['/logos/google-docs.svg', '/logos/desktop.svg'],
       },
       {
         title: 'Receipt scanning',
         description:
-          'Snap a photo of any receipt. Neo reads it, categorizes the expense, and logs it to your tracker.',
+          'Snap a photo of any receipt. Sunder reads it, categorizes the expense, and logs it to your tracker.',
         logos: ['/logos/phone.svg', '/logos/google-sheets.svg'],
       },
     ],

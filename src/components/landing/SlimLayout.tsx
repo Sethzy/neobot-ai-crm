@@ -74,9 +74,9 @@ function DarkDashboard() {
         <div className="flex w-[200px] shrink-0 flex-col border-r border-white/[0.06] px-4 py-5">
           <div className="mb-8 flex items-center gap-2.5 px-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[12px] font-bold text-black">
-              N
+              S
             </div>
-            <span className="text-[14px] font-semibold text-white">NeoBot</span>
+            <span className="text-[14px] font-semibold text-white">Sunder</span>
           </div>
 
           <nav className="space-y-1">
@@ -206,10 +206,10 @@ function DarkMobileChat() {
       {/* Chat header */}
       <div className="flex items-center gap-2 border-b border-white/[0.06] px-3 pb-2.5 pt-1">
         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#024F46] text-[9px] font-bold text-white">
-          N
+          S
         </div>
         <div>
-          <p className="text-[11px] font-semibold leading-none text-white">Neo</p>
+          <p className="text-[11px] font-semibold leading-none text-white">Sunder</p>
           <p className="mt-0.5 text-[8px] text-white/30">AI Assistant</p>
         </div>
       </div>

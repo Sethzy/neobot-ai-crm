@@ -3,6 +3,7 @@ import { Container } from '@/components/landing/Container'
 import { AppIcon } from '@/components/icons/app-icons'
 import { Logo } from '@/components/landing/Logo'
 import { NavLink } from '@/components/landing/NavLink'
+import { siteBrand } from '@/lib/branding/site'
 
 export function Footer() {
   return (
@@ -15,7 +16,7 @@ export function Footer() {
               <Logo className="text-white" iconClassName="text-white" />
             </Link>
             <p className="text-sm text-[#999]">
-              Your entire work life, one message away.
+              The advisory sales autopilot, one message away.
             </p>
             <div className="space-y-3 text-sm text-[#999]">
               <a
@@ -28,11 +29,11 @@ export function Footer() {
                 <span>109 North Bridge Road, Funan,<br />Singapore 179097</span>
               </a>
               <a
-                href="mailto:seth@neobot.com"
+                href={`mailto:${siteBrand.supportEmail}`}
                 className="flex items-center gap-3 hover:text-white transition-colors"
               >
                 <AppIcon name="email" className="h-4 w-4 shrink-0" />
-                <span>seth@neobot.com</span>
+                <span>{siteBrand.supportEmail}</span>
               </a>
               <a
                 href="https://wa.me/6597990493"
@@ -86,7 +87,7 @@ export function Footer() {
 
         <div className="mt-16 pt-8 border-t border-white/10 text-center text-sm text-[#666]">
           <p>
-            &copy; {new Date().getFullYear()} NeoBot. All rights reserved.
+            &copy; {new Date().getFullYear()} {siteBrand.name}. All rights reserved.
           </p>
           <p className="mt-2 text-xs text-[#444]">
             Built by University of Cambridge &amp; Airwallex alumni

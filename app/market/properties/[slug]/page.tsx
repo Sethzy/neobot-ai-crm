@@ -7,7 +7,6 @@ import { Container } from "@/components/landing/Container";
 import { ConfigNotice } from "@/components/property/config-notice";
 import { MarketCta } from "@/components/property/market-cta";
 import { StatBar } from "@/components/property/stat-bar";
-import { PropertyProfileCharts } from "./charts";
 import { PropertyTransactionsTableClient } from "./transactions-table";
 import {
   formatCount,
@@ -22,6 +21,9 @@ import {
 } from "@/lib/property/utils";
 import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 import { createPropertyServerClient } from "@/lib/supabase/property-server";
+import { PropertyProfileChartsClient } from "./charts-client";
+
+export const revalidate = 21_600;
 
 type PropertyContext = {
   project: string;
@@ -321,7 +323,7 @@ export default async function PropertyProfilePage({
           </div>
 
           {/* Charts */}
-          <PropertyProfileCharts
+          <PropertyProfileChartsClient
             dates={profile.recentTransactions.map((t) => t.contract_date)}
             saleTypeBreakdown={profile.saleTypeBreakdown}
             psfPoints={profile.recentTransactions.map((t) => ({

@@ -6,7 +6,7 @@ import { TypeBreakdownChart } from "@/components/property/charts/type-breakdown-
 import { PriceTrendChart } from "@/components/property/charts/price-trend-chart";
 import { FloorPremiumChart } from "@/components/property/charts/floor-premium-chart";
 
-type PropertyProfileChartsProps = {
+export type PropertyProfileChartsProps = {
   dates: (string | null)[];
   saleTypeBreakdown: Array<{ label: string; count: number }>;
   psfPoints: Array<{ date: string | null; value: number | null }>;

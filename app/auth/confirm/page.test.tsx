@@ -5,7 +5,7 @@
 import { act, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import ConfirmPage from "./page";
+import ConfirmPageClient from "./page-client";
 
 const mockPush = vi.fn();
 const mockGetSession = vi.fn();
@@ -37,7 +37,7 @@ describe("/auth/confirm page", () => {
     });
 
     await act(async () => {
-      render(<ConfirmPage />);
+      render(<ConfirmPageClient />);
       await Promise.resolve();
     });
 

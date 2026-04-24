@@ -13,7 +13,6 @@ import {
   computeSalesRepBreakdown,
   computeTransactionTypeBreakdown,
 } from "@/lib/property/agent-breakdowns";
-import { AgentProfileCharts } from "./charts";
 import {
   formatActiveRange,
   formatCount,
@@ -23,7 +22,10 @@ import {
 } from "@/lib/property/utils";
 import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 import { createPropertyServerClient } from "@/lib/supabase/property-server";
+import { AgentProfileChartsClient } from "./charts-client";
 import { AgentTransactionsTableClient } from "./transactions-table";
+
+export const revalidate = 21_600;
 
 type AgentRow = {
   registration_no: string;
@@ -106,7 +108,8 @@ async function fetchAgentProfile(
         "transaction_date, property_type, transaction_type, represented, town, district, general_location"
       )
       .eq("salesperson_reg_num", registrationNo)
-      .order("transaction_date", { ascending: false }),
+      .order("transaction_date", { ascending: false })
+      .limit(500),
   ]);
 
   for (const result of [
@@ -312,16 +315,12 @@ export default async function AgentProfilePage({
           </div>
 
           {/* Charts */}
-          <AgentProfileCharts
-            dates={profile.recentTransactions.map((t) => t.transaction_date)}
+          <AgentProfileChartsClient
+            recentTransactions={profile.recentTransactions}
             propertyTypeBreakdown={profile.propertyTypeBreakdown}
             transactionTypeBreakdown={transactionTypeBreakdown}
             salesRepBreakdown={salesRepBreakdown}
             rentalRepBreakdown={rentalRepBreakdown}
-            transactions={profile.recentTransactions.map((row) => ({
-              town: row.town,
-              district: row.district,
-            }))}
           />
         </Container>
       </section>

@@ -1,47 +1,33 @@
 /**
- * Meetings list page.
+ * Meetings list route with server-side query hydration for first paint.
  * @module app/(dashboard)/meetings/page
  */
-"use client";
+import { dehydrate, HydrationBoundary, QueryClient } from "@tanstack/react-query";
 
-import { useState } from "react";
+import { resolveClientId } from "@/lib/chat/client-id";
+import { fetchMeetings, meetingKeys } from "@/lib/meetings/queries";
+import { createClient } from "@/lib/supabase/server";
 
-import { AppIcon } from "@/components/icons/app-icons";
-import { PageCanvas } from "@/components/layout/page-canvas";
-import { PageHeader } from "@/components/layout/page-header";
-import { MeetingRecordingView } from "@/components/meetings/meeting-recording-view";
-import { MeetingsList } from "@/components/meetings/meetings-list";
-import { Button } from "@/components/ui/button";
-import { useMeetings } from "@/hooks/use-meetings";
+import { MeetingsPageClient } from "./meetings-page-client";
 
-export default function MeetingsPage() {
-  const { data: meetings, isLoading } = useMeetings();
-  const [isRecording, setIsRecording] = useState(false);
+export default async function MeetingsPage() {
+  const queryClient = new QueryClient();
 
-  if (isLoading) {
-    return (
-      <PageCanvas className="items-center justify-center">
-        <p className="type-control-muted">Loading meetings...</p>
-      </PageCanvas>
-    );
-  }
+  try {
+    const supabase = await createClient();
+    const clientId = await resolveClientId(supabase);
 
-  if (isRecording) {
-    return <MeetingRecordingView onDone={() => setIsRecording(false)} />;
+    await queryClient.prefetchQuery({
+      queryKey: meetingKeys.list(clientId),
+      queryFn: () => fetchMeetings(supabase, clientId),
+    });
+  } catch {
+    // If prefetch fails, the client hook falls back to its existing fetch path.
   }
 
   return (
-    <PageCanvas>
-      <PageHeader
-        title="Meetings"
-        actions={
-          <Button size="sm" onClick={() => setIsRecording(true)}>
-            <AppIcon name="meeting" className="mr-1.5 h-4 w-4" />
-            New Meeting
-          </Button>
-        }
-      />
-      <MeetingsList meetings={meetings ?? []} />
-    </PageCanvas>
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <MeetingsPageClient />
+    </HydrationBoundary>
   );
 }

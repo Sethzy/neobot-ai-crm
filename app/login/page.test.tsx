@@ -2,11 +2,10 @@
  * Tests for the login page.
  * @module app/login/page
  */
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Suspense } from "react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import LoginPage from "./page";
+import LoginPageClient from "./page-client";
 
 const mockReplace = vi.fn();
 const mockSignInWithOAuth = vi.fn();
@@ -50,14 +49,7 @@ describe("/login page", () => {
   });
 
   it("starts Google OAuth from the dedicated sign-in screen", async () => {
-    await act(async () => {
-      render(
-        <Suspense fallback={<div>Loading...</div>}>
-          <LoginPage searchParams={Promise.resolve({})} />
-        </Suspense>,
-      );
-      await Promise.resolve();
-    });
+    render(<LoginPageClient />);
 
     expect(await screen.findByRole("heading", { name: /sign in to your account/i })).toBeInTheDocument();
 
@@ -75,14 +67,7 @@ describe("/login page", () => {
   });
 
   it("redirects password sign-in to chat by default", async () => {
-    await act(async () => {
-      render(
-        <Suspense fallback={<div>Loading...</div>}>
-          <LoginPage searchParams={Promise.resolve({})} />
-        </Suspense>,
-      );
-      await Promise.resolve();
-    });
+    render(<LoginPageClient />);
 
     fireEvent.change(await screen.findByLabelText(/email address/i), {
       target: { value: "seth@example.com" },

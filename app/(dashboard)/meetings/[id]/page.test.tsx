@@ -12,6 +12,7 @@ import { threadKeys } from "@/hooks/use-threads";
 const mockPush = vi.fn();
 const mockUseMeeting = vi.fn();
 const mockUseClientId = vi.fn();
+const mockDownloadTranscript = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "meeting-1" }),
@@ -32,10 +33,7 @@ vi.mock("@/lib/supabase", () => ({
   supabase: {
     storage: {
       from: () => ({
-        download: vi.fn().mockResolvedValue({
-          data: null,
-          error: { message: "not-found" },
-        }),
+        download: (...args: unknown[]) => mockDownloadTranscript(...args),
       }),
     },
   },
@@ -74,6 +72,10 @@ describe("MeetingDetailPage", () => {
         created_at: "2026-04-19T10:00:00.000Z",
       },
       isLoading: false,
+    });
+    mockDownloadTranscript.mockResolvedValue({
+      data: null,
+      error: { message: "not-found" },
     });
     vi.stubGlobal(
       "fetch",
@@ -156,5 +158,48 @@ describe("MeetingDetailPage", () => {
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith("/chat/thread-new");
     });
+  });
+
+  it("does not load transcript storage until the transcript is opened", async () => {
+    const user = userEvent.setup();
+    mockUseMeeting.mockReturnValue({
+      data: {
+        meeting_record_id: "meeting-1",
+        title: "Portfolio Review",
+        summary: JSON.stringify({
+          key_discussion_points: ["Discussed portfolio review"],
+          action_items: [],
+          client_concerns: [],
+          personal_details: [],
+          next_steps: ["Follow up next week"],
+        }),
+        notes: null,
+        duration_seconds: 60,
+        transcript_path: "meetings/transcript-1.md",
+        thread_id: null,
+        status: "completed",
+        created_at: "2026-04-19T10:00:00.000Z",
+      },
+      isLoading: false,
+    });
+    mockDownloadTranscript.mockImplementationOnce(
+      () =>
+        new Promise<{ data: { text: () => Promise<string> }; error: null }>(() => {}),
+    );
+
+    const queryClient = new QueryClient();
+
+    renderWithQueryClient(queryClient);
+
+    expect(mockDownloadTranscript).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /transcript/i }));
+
+    await waitFor(() => {
+      expect(mockDownloadTranscript).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.getByText("Loading transcript...")).toBeInTheDocument();
+    expect(screen.queryByText("Transcript unavailable.")).not.toBeInTheDocument();
   });
 });

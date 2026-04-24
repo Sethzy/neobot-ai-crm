@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { Header } from "@/components/landing/Header";
 import { Hero } from "@/components/landing/Hero";
-import { SmoothScroll } from "@/components/landing/SmoothScroll";
+import { SmoothScrollShell } from "@/components/landing/SmoothScrollShell";
+import { siteBrand } from "@/lib/branding/site";
 
 /** Below-fold sections — lazy-loaded to cut initial module count */
 const UseCases = dynamic(() => import("@/components/landing/UseCases").then(m => ({ default: m.UseCases })));
@@ -15,60 +16,57 @@ const Faqs = dynamic(() => import("@/components/landing/Faqs").then(m => ({ defa
 const Footer = dynamic(() => import("@/components/landing/Footer").then(m => ({ default: m.Footer })));
 
 export const metadata: Metadata = {
-  title: "NeoBot - Your AI Sales Assistant. Get Things Done via Chat.",
-  description:
-    "NeoBot runs your pipeline while you sleep — follow-ups, CRM updates, scheduling, and admin handled automatically. Built for B2C salespeople.",
+  title: siteBrand.marketingTitle,
+  description: siteBrand.marketingDescription,
   openGraph: {
-    title: "NeoBot - Your AI Sales Assistant. Get Things Done via Chat.",
-    description:
-      "NeoBot runs your pipeline while you sleep — follow-ups, CRM updates, scheduling, and admin handled automatically. Built for B2C salespeople.",
-    images: ["https://www.neobot.com/exports/og-image.png"],
-    url: "https://www.neobot.com/",
+    title: siteBrand.marketingTitle,
+    description: siteBrand.marketingDescription,
+    images: [siteBrand.ogImageUrl],
+    url: siteBrand.siteUrl,
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "NeoBot - Your AI Sales Assistant. Get Things Done via Chat.",
-    description:
-      "NeoBot runs your pipeline while you sleep — follow-ups, CRM updates, scheduling, and admin handled automatically. Built for B2C salespeople.",
-    images: ["https://www.neobot.com/exports/og-image.png"],
+    title: siteBrand.marketingTitle,
+    description: siteBrand.marketingDescription,
+    images: [siteBrand.ogImageUrl],
   },
   alternates: {
-    canonical: "https://www.neobot.com/",
+    canonical: siteBrand.siteUrl,
   },
 };
 
 export default function LandingPage() {
   return (
-    <SmoothScroll>
-    <div className="landing-page min-h-screen selection:bg-indigo-100 selection:text-indigo-900">
-      <Header />
-      <main>
-        <Hero />
-        <div className="lp-deferred-section">
-          <UseCases />
-        </div>
-        <div className="lp-deferred-section">
-          <PrimaryFeatures />
-        </div>
-        <div className="lp-deferred-section">
-          <SecondaryFeatures />
-        </div>
-        <div className="lp-deferred-section">
-          <Differentiator />
-        </div>
-        <div className="lp-deferred-section">
-          <Testimonials />
-        </div>
-        <div className="lp-deferred-section">
-          <Pricing />
-        </div>
-        <div className="lp-deferred-section">
-          <Faqs />
-        </div>
-      </main>
-      <Footer />
-    </div>
-    </SmoothScroll>
+    <SmoothScrollShell>
+      <div className="landing-page min-h-screen selection:bg-sunder-green-light/30 selection:text-sunder-green-dark">
+        <Header />
+        <main>
+          <Hero />
+          <div className="lp-deferred-section">
+            <UseCases />
+          </div>
+          <div className="lp-deferred-section">
+            <PrimaryFeatures />
+          </div>
+          <div className="lp-deferred-section">
+            <SecondaryFeatures />
+          </div>
+          <div className="lp-deferred-section">
+            <Differentiator />
+          </div>
+          <div className="lp-deferred-section">
+            <Testimonials />
+          </div>
+          <div className="lp-deferred-section">
+            <Pricing />
+          </div>
+          <div className="lp-deferred-section">
+            <Faqs />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    </SmoothScrollShell>
   );
 }

@@ -5,6 +5,7 @@ import { Agentation } from "agentation";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 import "./globals.css";
+import { siteBrand } from "@/lib/branding/site";
 import { cn } from "@/lib/utils";
 
 const figtree = localFont({
@@ -26,9 +27,8 @@ const fraunces = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Sunder - AI Document Processing for Singapore SMEs",
-  description:
-    "AI-powered document processing platform for invoices, receipts, and contracts.",
+  title: siteBrand.marketingTitle,
+  description: siteBrand.marketingDescription,
   icons: {
     icon: "/favicon.svg",
   },
@@ -46,12 +46,11 @@ export default function RootLayout({
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Sunder",
+    name: siteBrand.name,
     alternateName: ["Try Sunder", "Sunder AI", "Sunder Inc"],
-    url: "https://www.trysunder.com",
-    logo: "https://www.trysunder.com/neobot-logo.svg",
-    description:
-      "AI-powered document processing platform for invoices, receipts, and contracts.",
+    url: siteBrand.siteUrl,
+    logo: siteBrand.logoUrl,
+    description: siteBrand.organizationDescription,
     address: {
       "@type": "PostalAddress",
       streetAddress: "109 North Bridge Road, Funan",
