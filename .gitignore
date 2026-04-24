@@ -48,6 +48,9 @@ scripts/qa/output/
 docs/qa/reports/
 artifacts/
 
+# Local tool scratch (jscpd, etc.)
+.tmp/
+
 .trigger
 
 # Scratch screenshots at repo root
