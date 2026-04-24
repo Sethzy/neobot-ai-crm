@@ -153,7 +153,7 @@
 
 - [ ] Very complex browsing goal (e.g., multi-page pagination) — handles within 25-step cap or reports limitation
 - [ ] Site that blocks bots — returns failure, agent reports to user
-- [ ] Browse request during active autopilot run — `browse_website` not available in autopilot context
+- [ ] Browse request during an active background automation run — `browse_website` not available in trigger context
 - [ ] Multiple browse requests in quick succession — each creates its own session, no interference
 - [ ] Browse to a non-existent URL — returns failure gracefully
 - [ ] Auth flow: user clicks "Done" without actually logging in — verify route detects login failure, shows error toast
@@ -164,4 +164,4 @@
 ## Pass / Fail Criteria
 
 - **Pass:** Agent calls `browse_website` for interactive site tasks. Agent clarifies ambiguous requests before browsing. Agent does NOT retry silently on bad results. Auth card renders inline when `needsAuth` is returned. User can log in via embedded browser and profile is saved. Subsequent requests reuse saved profile. Tool not available to subagents or when API key is missing. Cost field present in results.
-- **Fail:** Agent uses `browse_website` for static pages that `web_scrape` handles. Agent retries silently without telling user. Auth card doesn't appear when `needsAuth` is returned. Profile not saved after successful login. Browser tools leak into subagent/autopilot contexts. Auth flow crashes the chat UI. No cost tracking in tool output.
+- **Fail:** Agent uses `browse_website` for static pages that `web_scrape` handles. Agent retries silently without telling user. Auth card doesn't appear when `needsAuth` is returned. Profile not saved after successful login. Browser tools leak into subagent/background-trigger contexts. Auth flow crashes the chat UI. No cost tracking in tool output.

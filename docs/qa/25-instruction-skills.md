@@ -145,7 +145,7 @@
 
 ### 25.11 Subagents see skills
 
-1. Set up a trigger that fires a subagent (or use an existing autopilot run)
+1. Set up a trigger that fires a subagent (or use an existing cron automation run)
 2. Check the subagent's system prompt in Langfuse
 3. **Expected:** Subagent's prompt includes `<available-skills>` block (same as main runner)
 

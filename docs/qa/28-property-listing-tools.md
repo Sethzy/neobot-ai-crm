@@ -250,7 +250,7 @@
 - [ ] PropertyGuru start-url mode still works after the Browser-Use migration
 - [ ] `search_market_data` is absent when property Supabase env is missing
 - [ ] Timeout failures surface as a user-visible scraping timeout message
-- [ ] Listing tools stay unavailable in autopilot and subagent runs
+- [ ] Listing tools stay unavailable in background automation and subagent runs
 - [ ] HDB stats with very broad query (no filters) — caps at 10,000 rows, totalMatching is exact
 - [ ] search_market_data with invalid dataset — agent handles validation error
 - [ ] search_market_data date range with no results — returns empty array, not error

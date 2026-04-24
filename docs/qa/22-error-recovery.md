@@ -52,8 +52,8 @@ The runner has multiple error recovery paths: quota enforcement, run creation fa
 
 ### 22.3 Message quota — exempt flows
 
-1. Trigger an autopilot pulse (via cron scan)
-2. **Expected:** Autopilot run does NOT consume a message quota unit
+1. Trigger `Daily Orchestrator` or any other cron automation (via cron scan)
+2. **Expected:** Cron automation run does NOT consume a message quota unit
 3. Trigger a webhook trigger
 4. **Expected:** Trigger run does NOT consume quota
 5. **Verify:** Only brand-new user-authored chat turns consume quota

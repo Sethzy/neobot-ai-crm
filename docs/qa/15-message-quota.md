@@ -79,8 +79,8 @@
 
 1. Trigger an approval continuation (approve a pending tool call)
 2. **Expected:** Usage count does NOT increment (approval continuations are exempt)
-3. If autopilot/pulse is active, let it fire
-4. **Expected:** Usage count does NOT increment (cron/pulse runs are exempt)
+3. Let `Daily Orchestrator` or any other cron automation fire
+4. **Expected:** Usage count does NOT increment (cron automation runs are exempt)
 5. Queue a message while a run is active
 6. **Expected:** Queue replay does NOT consume additional quota
 
