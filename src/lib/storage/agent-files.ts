@@ -3,6 +3,9 @@
  * @module lib/storage/agent-files
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 /** Supabase Storage bucket for all client-scoped agent files. */
 export const AGENT_FILES_BUCKET = "agent-files";

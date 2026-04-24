@@ -9,6 +9,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   async redirects() {
     return [
       {
@@ -87,6 +88,7 @@ const nextConfig: NextConfig = {
     ],
   },
   images: {
+    minimumCacheTTL: 2_592_000,
     remotePatterns: [
       {
         protocol: "https",
@@ -99,7 +101,7 @@ const nextConfig: NextConfig = {
     ],
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   turbopack: {
     resolveAlias: {

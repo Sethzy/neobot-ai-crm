@@ -33,7 +33,7 @@ Sunder is a general agent harness: a looping runner with tools that operates on 
 - **Safety model:** Two tiers. Internal work auto-runs. External-facing actions require approval via `agent.requires_action` → `user.tool_confirmation` round-trip. No per-action granularity — binary internal/external.
 - **Thread serialization:** Chat still runs one active run per thread. Automation executions run in dedicated run threads linked back to the parent automation.
 - **Automations:** Scheduled automations claim due trigger rows, start a fresh Anthropic Managed Agent run, and skip if that automation is already running.
-- **Autopilot:** Built-in pulse scheduling remains a separate background setting from the user-visible automations list.
+- **Daily Orchestrator:** New clients get one seeded scheduled automation (`Daily Orchestrator`) that appears in the normal Automations list and runs through the same trigger path as any other schedule automation.
 - **Improvement loop:** Langfuse traces instrument every run. Evals score tool-call correctness and safety. The feedback cycle is: run → trace → evaluate → improve context engineering → run again.
 - **Tenant isolation:** `clientId` injected into tool closures + RLS double-lock on every table.
 - **Model routing:** Main agent model is `claude-sonnet-4-6`, pinned by `ANTHROPIC_AGENT_VERSION`. Gemini models (via Vercel AI Gateway) are used only for cheap helpers: title generation (`google/gemini-3-flash`) and thread compaction (`google/gemini-2.5-flash-lite`).
