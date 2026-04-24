@@ -9,6 +9,9 @@
  */
 
 import { assertSupportedSttLanguage } from "@/lib/transcription/languages";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 const XAI_STT_URL = "https://api.x.ai/v1/stt";
 

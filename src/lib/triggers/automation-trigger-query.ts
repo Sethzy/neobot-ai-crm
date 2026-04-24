@@ -60,7 +60,6 @@ export async function listAutomationTriggers(
   const { data, error } = await supabaseClient
     .from("agent_triggers")
     .select(TRIGGER_LIST_SELECT)
-    .neq("trigger_type", "pulse")
     .order("created_at", { ascending: false });
 
   if (error) {
