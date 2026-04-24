@@ -20,6 +20,9 @@ import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
 import type { AnthropicEvent } from "./event-types";
 import { pickSourceEventId } from "./source-event-id";
 import { toInternalManagedAgentToolName } from "./tool-name-aliases";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 export interface PendingApprovalRunInfo {
   runId: string;

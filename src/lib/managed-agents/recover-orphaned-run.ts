@@ -27,6 +27,9 @@ import { buildAssistantPartsFromEvents } from "./events-to-assistant-parts";
 import { downloadSessionFiles } from "./download-session-files";
 import type { AnthropicEvent } from "./event-types";
 import { pickSourceEventId } from "./source-event-id";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 export interface OrphanedRunInfo {
   runId: string;

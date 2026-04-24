@@ -4,6 +4,9 @@
  */
 
 import { sleep, shouldRetry, calculateBackoff } from "./retry";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 const MAX_RETRIES = 3;
 const EXTEND_API_URL = "https://api.extend.ai/processor_runs";

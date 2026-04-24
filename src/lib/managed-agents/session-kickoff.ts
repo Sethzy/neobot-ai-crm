@@ -25,6 +25,9 @@ import {
 import { resolveAgentRef } from "./agent-config";
 import type { KickoffTextBlock, ManagedSupabaseClient } from "./types";
 import type { SessionAttachmentMount } from "./upload-files-for-session";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 export interface KickoffSkillSummary {
   slug: string;

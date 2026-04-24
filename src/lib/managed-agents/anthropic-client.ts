@@ -2,6 +2,8 @@
  * Shared Anthropic SDK singleton for Managed Agents server code.
  * @module lib/managed-agents/anthropic-client
  */
+import "server-only";
+
 import Anthropic from "@anthropic-ai/sdk";
 
 let cachedClient: Anthropic | null = null;

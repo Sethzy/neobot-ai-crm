@@ -16,6 +16,9 @@ import {
 import { toInternalManagedAgentToolName } from "./tool-name-aliases";
 
 import type { AnthropicEvent } from "./event-types";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 export type UiStreamPart = Record<string, unknown>;
 

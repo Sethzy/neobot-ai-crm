@@ -10,6 +10,9 @@
  */
 import type { SessionRunnerCallbacks } from "./types";
 import { toInternalManagedAgentToolName } from "./tool-name-aliases";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 /**
  * Dispatch a single Anthropic event to the matching callback. Safe to

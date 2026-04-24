@@ -17,6 +17,9 @@ import { evaluateCrmHallucinationOnSequence } from "./crm-hallucination-eval";
 import { extractToolSequenceFromEvents } from "./extract-tool-sequence";
 import { writeRunScore } from "./run-scores-writer";
 import { evaluateSafetyGateOnSequence } from "./safety-gate-eval";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 /** CRM write tool names that trigger the hallucination evaluator. */
 const CRM_WRITE_TOOLS = new Set(["create_record", "update_record"]);

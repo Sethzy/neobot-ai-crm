@@ -89,6 +89,9 @@ import { getAssistantTextFromParts } from "@/lib/runner/message-utils";
 import { resolveAgentRef } from "./agent-config";
 import { DEFAULT_CHAT_MODEL } from "@/lib/ai/models";
 import type { KickoffSkillSummary } from "./session-kickoff";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 export interface FinalizeRunOptions {
   supabase: ManagedSupabaseClient;

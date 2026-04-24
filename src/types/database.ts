@@ -203,50 +203,6 @@ export type Database = {
           },
         ]
       }
-      autopilot_config: {
-        Row: {
-          client_id: string
-          config_id: string
-          created_at: string
-          enabled: boolean
-          pulse_interval: string
-          quiet_hours_end: string | null
-          quiet_hours_start: string | null
-          timezone: string | null
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          config_id?: string
-          created_at?: string
-          enabled?: boolean
-          pulse_interval?: string
-          quiet_hours_end?: string | null
-          quiet_hours_start?: string | null
-          timezone?: string | null
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          config_id?: string
-          created_at?: string
-          enabled?: boolean
-          pulse_interval?: string
-          quiet_hours_end?: string | null
-          quiet_hours_start?: string | null
-          timezone?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "autopilot_config_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: true
-            referencedRelation: "clients"
-            referencedColumns: ["client_id"]
-          },
-        ]
-      }
       browser_profiles: {
         Row: {
           browser_use_profile_id: string
@@ -348,6 +304,7 @@ export type Database = {
           client_profile: string | null
           created_at: string
           current_period_end: string | null
+          daily_orchestrator_seeded_at: string | null
           display_name: string | null
           is_bootstrapped: boolean
           plan_name: string | null
@@ -365,6 +322,7 @@ export type Database = {
           client_profile?: string | null
           created_at?: string
           current_period_end?: string | null
+          daily_orchestrator_seeded_at?: string | null
           display_name?: string | null
           is_bootstrapped?: boolean
           plan_name?: string | null
@@ -382,6 +340,7 @@ export type Database = {
           client_profile?: string | null
           created_at?: string
           current_period_end?: string | null
+          daily_orchestrator_seeded_at?: string | null
           display_name?: string | null
           is_bootstrapped?: boolean
           plan_name?: string | null
@@ -1022,11 +981,8 @@ export type Database = {
           client_id: string
           created_at: string
           entity_type: string
-          filters: Json
-          is_default: boolean
           is_seeded: boolean
           name: string
-          sort: Json | null
           state: Json
           updated_at: string
           view_id: string
@@ -1035,11 +991,8 @@ export type Database = {
           client_id: string
           created_at?: string
           entity_type: string
-          filters?: Json
-          is_default?: boolean
           is_seeded?: boolean
           name: string
-          sort?: Json | null
           state?: Json
           updated_at?: string
           view_id?: string
@@ -1048,11 +1001,8 @@ export type Database = {
           client_id?: string
           created_at?: string
           entity_type?: string
-          filters?: Json
-          is_default?: boolean
           is_seeded?: boolean
           name?: string
-          sort?: Json | null
           state?: Json
           updated_at?: string
           view_id?: string
@@ -1710,6 +1660,30 @@ export type Database = {
           },
         ]
       }
+      telegram_inbound_updates: {
+        Row: {
+          error: string | null
+          payload: Json
+          processed_at: string | null
+          received_at: string
+          update_id: number
+        }
+        Insert: {
+          error?: string | null
+          payload: Json
+          processed_at?: string | null
+          received_at?: string
+          update_id: number
+        }
+        Update: {
+          error?: string | null
+          payload?: Json
+          processed_at?: string | null
+          received_at?: string
+          update_id?: number
+        }
+        Relationships: []
+      }
       telegram_pairing_sessions: {
         Row: {
           client_id: string
@@ -1954,14 +1928,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      autopilot_interval_to_cron: {
-        Args: { p_pulse_interval: string }
-        Returns: string
-      }
-      autopilot_next_fire_at: {
-        Args: { p_pulse_interval: string; p_reference: string }
-        Returns: string
-      }
       claim_due_triggers: {
         Args: never
         Returns: {
@@ -2013,9 +1979,25 @@ export type Database = {
           queue_id: string
         }[]
       }
-      ensure_autopilot_for_client: {
+      ensure_main_thread_for_client: {
         Args: { p_client_id: string }
-        Returns: undefined
+        Returns: string
+      }
+      seed_default_daily_orchestrator: {
+        Args: {
+          p_client_id: string
+          p_thread_id: string
+          p_name: string
+          p_instruction_path: string
+          p_invocation_message: string
+          p_cron_expression: string
+          p_payload: Json
+          p_next_fire_at: string
+        }
+        Returns: {
+          seeded: boolean
+          trigger_id: string | null
+        }[]
       }
       ensure_crm_views_for_client: {
         Args: { p_client_id: string }
@@ -2084,6 +2066,13 @@ export type Database = {
         }[]
       }
       sweep_stale_runs: { Args: never; Returns: undefined }
+      update_my_agent_context: {
+        Args: {
+          p_client_profile?: string | null
+          p_user_preferences?: string | null
+        }
+        Returns: Json
+      }
       upsert_timeline_activity: {
         Args: {
           p_actor_label: string

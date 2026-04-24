@@ -38,6 +38,9 @@ import type {
 } from "./types";
 
 import type { AnthropicEvent } from "./event-types";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 function serializeForLog(value: unknown): string {
   try {

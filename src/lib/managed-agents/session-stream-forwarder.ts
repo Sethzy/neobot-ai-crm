@@ -10,6 +10,9 @@ import type { UIMessageStreamWriter } from "ai";
 
 import { toInternalManagedAgentToolName } from "./tool-name-aliases";
 import type { SessionRunnerCallbacks } from "./types";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 export function buildUiStreamCallbacks(
   writer: UIMessageStreamWriter,

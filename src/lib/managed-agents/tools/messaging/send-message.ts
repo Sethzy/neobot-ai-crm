@@ -6,6 +6,9 @@
 import { z } from "zod";
 
 import type { ManagedAgentTool } from "../types";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 const inputSchema = z.object({
   to: z.array(z.string().min(1)).min(1).describe("Recipients. Use 'owner' for the primary user email."),

@@ -10,6 +10,9 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
 import type { ManagedFilePart } from "./types";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 export interface UploadedAnthropicFile {
   fileId: string;

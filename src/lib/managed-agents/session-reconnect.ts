@@ -42,6 +42,9 @@
 import type Anthropic from "@anthropic-ai/sdk";
 
 import { buildChatAnthropicRequestOptions } from "./chat-request-options";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 interface AnyEvent {
   id: string;

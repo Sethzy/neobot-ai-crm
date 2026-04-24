@@ -7,6 +7,9 @@
 import { generateText } from "ai";
 import type { ToolCallRecord } from "./extract-tool-sequence";
 import { COMPACTION_MODEL, gateway } from "@/lib/ai/gateway";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 /** Tool names that perform CRM writes. */
 const CRM_WRITE_TOOLS = new Set(["create_record", "update_record"]);

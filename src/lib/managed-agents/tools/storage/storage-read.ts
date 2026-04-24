@@ -18,6 +18,9 @@ import {
   resizeForModel,
   shouldFallbackToDirectory,
 } from "./shared";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 const inputSchema = z.object({
   path: z.string().describe(

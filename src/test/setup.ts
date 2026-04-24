@@ -4,6 +4,11 @@
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
+// Next.js uses this package to throw when server modules are imported into
+// client bundles. In Vitest we want to exercise those server modules directly,
+// so treat it as a no-op.
+vi.mock("server-only", () => ({}));
+
 vi.mock("posthog-js", () => ({
   default: {
     capture: vi.fn(),

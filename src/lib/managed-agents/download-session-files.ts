@@ -6,6 +6,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
 import type { Database } from "@/types/database";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 const BUCKET_ID = "agent-files";
 const SIGNED_URL_TTL_SECONDS = 60 * 60;

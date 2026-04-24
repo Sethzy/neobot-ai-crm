@@ -9,6 +9,9 @@ import { getComposio } from "@/lib/composio/client";
 
 import { getSupportedProviderDisplayName } from "../supported-providers";
 import type { ManagedAgentTool } from "../types";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 const inputSchema = z.object({
   connectionId: z.string().trim().min(1),
