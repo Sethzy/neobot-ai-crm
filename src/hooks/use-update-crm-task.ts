@@ -28,6 +28,12 @@ interface PersistCrmTaskUpdateResult {
   taskId: string;
 }
 
+interface OptimisticTaskUpdateContext {
+  previousDetail: CrmTaskWithRelations | undefined;
+  previousLists: Array<[readonly unknown[], unknown]>;
+  taskId: string;
+}
+
 async function persistCrmTaskUpdate({
   queryClient,
   taskId,
@@ -71,7 +77,7 @@ async function persistCrmTaskUpdate({
   };
 }
 
-function applyTaskUpdateSuccess({
+function applyTaskUpdatePatch({
   queryClient,
   savedUpdates,
   taskId,
@@ -88,7 +94,70 @@ function applyTaskUpdateSuccess({
     recordId: taskId,
     updates: savedUpdates,
   });
+}
+
+function applyTaskUpdateSuccess({
+  queryClient,
+  savedUpdates,
+  taskId,
+}: {
+  queryClient: ReturnType<typeof useQueryClient>;
+  savedUpdates: CrmTaskUpdate;
+  taskId: string;
+}) {
+  applyTaskUpdatePatch({
+    queryClient,
+    savedUpdates,
+    taskId,
+  });
   void queryClient.invalidateQueries({ queryKey: crmTaskKeys.all });
+}
+
+async function applyOptimisticTaskUpdate({
+  queryClient,
+  taskId,
+  updates,
+}: {
+  queryClient: ReturnType<typeof useQueryClient>;
+  taskId: string;
+  updates: CrmTaskUpdate;
+}): Promise<OptimisticTaskUpdateContext> {
+  await queryClient.cancelQueries({ queryKey: crmTaskKeys.all });
+
+  const previousDetail = queryClient.getQueryData<CrmTaskWithRelations>(crmTaskKeys.detail(taskId));
+  const previousLists = queryClient.getQueriesData({ queryKey: crmTaskKeys.lists() });
+
+  applyTaskUpdatePatch({
+    queryClient,
+    savedUpdates: updates,
+    taskId,
+  });
+
+  return {
+    previousDetail,
+    previousLists,
+    taskId,
+  };
+}
+
+function rollbackOptimisticTaskUpdate({
+  context,
+  queryClient,
+}: {
+  context: OptimisticTaskUpdateContext | undefined;
+  queryClient: ReturnType<typeof useQueryClient>;
+}) {
+  if (!context) {
+    return;
+  }
+
+  if (context.previousDetail !== undefined) {
+    queryClient.setQueryData(crmTaskKeys.detail(context.taskId), context.previousDetail);
+  }
+
+  for (const [queryKey, cachedData] of context.previousLists) {
+    queryClient.setQueryData(queryKey, cachedData);
+  }
 }
 
 /**
@@ -97,33 +166,52 @@ function applyTaskUpdateSuccess({
 export function useUpdateCrmTaskMutation() {
   const queryClient = useQueryClient();
 
-  return useMutation<PersistCrmTaskUpdateResult, Error, Omit<UpdateCrmTaskVariables, "queryClient">>({
+  return useMutation<
+    PersistCrmTaskUpdateResult,
+    Error,
+    Omit<UpdateCrmTaskVariables, "queryClient">,
+    OptimisticTaskUpdateContext
+  >({
     mutationFn: ({ taskId, updates }) =>
       persistCrmTaskUpdate({
         queryClient,
         taskId,
         updates,
       }),
-    onSuccess: ({ beforeSnapshot, savedUpdates, taskId }) => {
+    onMutate: async ({ taskId, updates }) =>
+      applyOptimisticTaskUpdate({
+        queryClient,
+        taskId,
+        updates,
+      }),
+    onError: (_error, _variables, context) => {
+      rollbackOptimisticTaskUpdate({
+        context,
+        queryClient,
+      });
+      void queryClient.invalidateQueries({ queryKey: crmTaskKeys.all });
+    },
+    onSuccess: ({ beforeSnapshot, savedUpdates, taskId }, _variables, context) => {
       applyTaskUpdateSuccess({
         queryClient,
         savedUpdates,
         taskId,
       });
 
+      const timelineBeforeSnapshot = context?.previousDetail ?? beforeSnapshot;
       const afterSnapshot = {
-        ...beforeSnapshot,
+        ...timelineBeforeSnapshot,
         ...savedUpdates,
       };
 
       void captureTimelineActivity({
         supabase,
-        clientId: beforeSnapshot.client_id,
+        clientId: timelineBeforeSnapshot.client_id,
         recordType: "task",
         recordId: taskId,
         action: "updated",
         actorType: "user",
-        before: beforeSnapshot,
+        before: timelineBeforeSnapshot,
         after: afterSnapshot,
       }).then((ok) => {
         if (ok) {
@@ -142,33 +230,47 @@ export function useUpdateCrmTaskMutation() {
 export function useUpdateCrmTask(taskId: string) {
   const queryClient = useQueryClient();
 
-  return useMutation<PersistCrmTaskUpdateResult, Error, CrmTaskUpdate>({
+  return useMutation<PersistCrmTaskUpdateResult, Error, CrmTaskUpdate, OptimisticTaskUpdateContext>({
     mutationFn: async (updates: CrmTaskUpdate) =>
       persistCrmTaskUpdate({
         queryClient,
         taskId,
         updates,
       }),
-    onSuccess: ({ beforeSnapshot, savedUpdates }) => {
+    onMutate: async (updates) =>
+      applyOptimisticTaskUpdate({
+        queryClient,
+        taskId,
+        updates,
+      }),
+    onError: (_error, _variables, context) => {
+      rollbackOptimisticTaskUpdate({
+        context,
+        queryClient,
+      });
+      void queryClient.invalidateQueries({ queryKey: crmTaskKeys.all });
+    },
+    onSuccess: ({ beforeSnapshot, savedUpdates }, _variables, context) => {
       applyTaskUpdateSuccess({
         queryClient,
         savedUpdates,
         taskId,
       });
 
+      const timelineBeforeSnapshot = context?.previousDetail ?? beforeSnapshot;
       const afterSnapshot = {
-        ...beforeSnapshot,
+        ...timelineBeforeSnapshot,
         ...savedUpdates,
       };
 
       void captureTimelineActivity({
         supabase,
-        clientId: beforeSnapshot.client_id,
+        clientId: timelineBeforeSnapshot.client_id,
         recordType: "task",
         recordId: taskId,
         action: "updated",
         actorType: "user",
-        before: beforeSnapshot,
+        before: timelineBeforeSnapshot,
         after: afterSnapshot,
       }).then((ok) => {
         if (ok) {

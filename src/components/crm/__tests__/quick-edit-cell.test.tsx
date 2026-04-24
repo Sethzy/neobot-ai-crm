@@ -4,6 +4,7 @@
  */
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useMemo } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
@@ -140,5 +141,45 @@ describe("QuickEditCell", () => {
 
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByText("To do")).toBeInTheDocument();
+  });
+
+  it("does not rerender when the parent rerenders with identical props", () => {
+    const childRenderSpy = vi.fn();
+    const onSave = vi.fn();
+    const options = [{ value: "lead", label: "Lead" }];
+
+    function RenderCounter() {
+      childRenderSpy();
+
+      return <span>Lead</span>;
+    }
+
+    function Harness({ tick }: { tick: number }) {
+      const stableChild = useMemo(() => <RenderCounter />, []);
+
+      return (
+        <div data-tick={tick}>
+          <QuickEditCell
+            ariaLabel="Stage"
+            value="lead"
+            displayValue="Lead"
+            type="select"
+            options={options}
+            onSave={onSave}
+          >
+            {stableChild}
+          </QuickEditCell>
+        </div>
+      );
+    }
+
+    const { rerender } = render(<Harness tick={1} />);
+
+    expect(childRenderSpy).toHaveBeenCalledTimes(1);
+
+    rerender(<Harness tick={2} />);
+
+    expect(childRenderSpy).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: /edit stage/i })).toBeInTheDocument();
   });
 });

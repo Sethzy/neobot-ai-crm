@@ -5,7 +5,7 @@
 import { z } from "zod";
 
 import { customFieldDefinitionSchema } from "@/lib/crm/config";
-import { crmViewStateSchema, crmViewSortSchema } from "@/lib/crm/view-state";
+import { crmViewStateSchema } from "@/lib/crm/view-state";
 
 /** ISO-8601 timestamp validator aligned with existing chat schemas. */
 const isoDateTimeSchema = z.string().datetime({ offset: true });
@@ -348,13 +348,7 @@ export const crmViewSchema = z.object({
   client_id: z.string().uuid(),
   name: z.string().min(1),
   entity_type: z.enum(crmViewEntityTypes),
-  filters: z.record(
-    z.string(),
-    z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())]),
-  ),
-  sort: crmViewSortSchema.nullable(),
   state: crmViewStateSchema,
-  is_default: z.boolean(),
   is_seeded: z.boolean(),
   created_at: isoDateTimeSchema,
   updated_at: isoDateTimeSchema,

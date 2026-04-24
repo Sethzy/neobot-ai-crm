@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { FieldDefinition } from "../field-definitions";
 import { buildColumnsFromConfig } from "../build-columns";
+import { RESIZE_MIN_WIDTH } from "../column-widths";
 
 const minimalFields: FieldDefinition[] = [
   { key: "name", label: "Name", type: "full_name", source: "column", tier: "indestructible", visible: true, order: 0, editable: false, required: true },
@@ -46,6 +47,17 @@ describe("buildColumnsFromConfig", () => {
     ];
     const columns = buildColumnsFromConfig(fieldsWithWidth, "contacts");
     expect(columns[0].size).toBe(200);
+  });
+
+  it("falls back to the field-type default width and min size", () => {
+    const fieldsWithoutWidth: FieldDefinition[] = [
+      { key: "email", label: "Email", type: "email", source: "column", tier: "default", visible: true, order: 0, editable: true, required: false },
+    ];
+    const columns = buildColumnsFromConfig(fieldsWithoutWidth, "contacts");
+
+    expect(columns[0].size).toBe(220);
+    expect(columns[0].minSize).toBe(RESIZE_MIN_WIDTH);
+    expect(columns[0].enableResizing).toBe(true);
   });
 
   it("cell renders formatted display value", () => {

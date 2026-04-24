@@ -40,6 +40,12 @@ interface FilterBarProps {
    * pages to colocate page-level actions (sort, "+ New") with the filter row.
    */
   trailingSlot?: React.ReactNode
+  /**
+   * Where to place the Filter button. `"leading"` keeps it adjacent to the
+   * leading slot (default, legacy behavior). `"trailing"` pairs it with the
+   * trailing cluster so Filter and Sort read as a matched refinement group.
+   */
+  filterPosition?: "leading" | "trailing"
 }
 
 /**
@@ -56,6 +62,7 @@ export function FilterBar({
   className,
   leadingSlot,
   trailingSlot,
+  filterPosition = "leading",
 }: FilterBarProps) {
   const [isOverlayOpen, setIsOverlayOpen] = React.useState(false)
   const [searchDraft, setSearchDraft] = React.useState(searchValue ?? "")
@@ -138,31 +145,34 @@ export function FilterBar({
     return null
   }
 
+  const filterButton =
+    filters.length > 0 ? (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="gap-1.5 px-2 font-medium text-muted-foreground hover:text-foreground"
+        onClick={() => setIsOverlayOpen(true)}
+      >
+        <Filter className="h-3.5 w-3.5" />
+        <span>Filter</span>
+        {activeFilterCount > 0 ? (
+          <Badge
+            variant="outline"
+            className="h-5 min-w-5 rounded-full border-border/60 px-1.5 text-caption"
+            aria-hidden="true"
+          >
+            {activeFilterCount}
+          </Badge>
+        ) : null}
+      </Button>
+    ) : null
+
   return (
     <div className={cn("flex flex-col gap-3", className)}>
       <div className="flex flex-wrap items-center gap-1 w-full">
         {leadingSlot}
-        {filters.length > 0 ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 px-2 font-medium text-muted-foreground hover:text-foreground"
-            onClick={() => setIsOverlayOpen(true)}
-          >
-            <Filter className="h-3.5 w-3.5" />
-            <span>Filter</span>
-            {activeFilterCount > 0 ? (
-              <Badge
-                variant="outline"
-                className="h-5 min-w-5 rounded-full border-border/60 px-1.5 text-caption"
-                aria-hidden="true"
-              >
-                {activeFilterCount}
-              </Badge>
-            ) : null}
-          </Button>
-        ) : null}
+        {filterPosition === "leading" ? filterButton : null}
         {onSearchChange ? (
           <div className="relative w-full sm:ml-auto sm:w-auto sm:min-w-[240px] sm:max-w-[320px]">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -174,8 +184,9 @@ export function FilterBar({
             />
           </div>
         ) : null}
-        {trailingSlot ? (
+        {filterPosition === "trailing" || trailingSlot ? (
           <div className="ml-auto flex flex-wrap items-center gap-1">
+            {filterPosition === "trailing" ? filterButton : null}
             {trailingSlot}
           </div>
         ) : null}

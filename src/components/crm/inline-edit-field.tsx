@@ -24,6 +24,7 @@ import {
 
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type { CrmSaveValidationResult } from "@/lib/crm/normalize";
 import { cn } from "@/lib/utils";
 
 interface SelectOption {
@@ -48,6 +49,8 @@ interface InlineEditFieldProps {
   type?: InlineEditType;
   /** Optional HTML input type when `type="text"` or `type="number"`. */
   inputType?: React.HTMLInputTypeAttribute;
+  /** Optional parser used before saving text-based values. */
+  parseValue?: (draft: string) => CrmSaveValidationResult;
   /** Select options for `type="select"`. */
   options?: SelectOption[];
   /** Hides the label for heading-style edit surfaces. */
@@ -95,6 +98,7 @@ export function InlineEditField({
   displayValue,
   type = "text",
   inputType,
+  parseValue,
   options = [],
   hideLabel = false,
   containerClassName,
@@ -108,6 +112,7 @@ export function InlineEditField({
   const [isSaved, setIsSaved] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const savedTimerRef = useRef<number | null>(null);
 
@@ -116,6 +121,7 @@ export function InlineEditField({
   useEffect(() => {
     if (!isEditing) {
       setDraft(currentValue);
+      setErrorMessage(null);
     }
   }, [currentValue, isEditing]);
 
@@ -152,6 +158,7 @@ export function InlineEditField({
     }
 
     setDraft(currentValue);
+    setErrorMessage(null);
     setIsEditing(true);
     if (type === "date") {
       setIsDatePickerOpen(true);
@@ -160,6 +167,7 @@ export function InlineEditField({
 
   const handleCancel = useCallback(() => {
     setDraft(currentValue);
+    setErrorMessage(null);
     setIsEditing(false);
     setIsDatePickerOpen(false);
   }, [currentValue]);
@@ -173,6 +181,41 @@ export function InlineEditField({
       const normalizedCurrent = currentValue.trim();
       const normalizedNext = nextValue.trim();
 
+      if (parseValue) {
+        const parsedValue = parseValue(nextValue);
+
+        if (!parsedValue.ok) {
+          setErrorMessage(parsedValue.message);
+          return;
+        }
+
+        const parsedCurrent = parseValue(currentValue);
+        if (parsedCurrent.ok && parsedCurrent.value === parsedValue.value) {
+          setErrorMessage(null);
+          setIsEditing(false);
+          setIsDatePickerOpen(false);
+          return;
+        }
+
+        setIsSaving(true);
+        setErrorMessage(null);
+        try {
+          await onSave(parsedValue.value ?? "");
+          setIsEditing(false);
+          setIsDatePickerOpen(false);
+          setSavedIndicator();
+        } catch (error) {
+          if (error instanceof Error && error.message.trim().length > 0) {
+            setErrorMessage(error.message);
+          } else {
+            setErrorMessage(`Unable to save ${label.toLowerCase()}.`);
+          }
+        } finally {
+          setIsSaving(false);
+        }
+        return;
+      }
+
       if (normalizedCurrent === normalizedNext) {
         setIsEditing(false);
         setIsDatePickerOpen(false);
@@ -180,18 +223,23 @@ export function InlineEditField({
       }
 
       setIsSaving(true);
+      setErrorMessage(null);
       try {
         await onSave(normalizedNext);
         setIsEditing(false);
         setIsDatePickerOpen(false);
         setSavedIndicator();
-      } catch {
-        // Keep edit mode open so the caller can retry after transient failures.
+      } catch (error) {
+        if (error instanceof Error && error.message.trim().length > 0) {
+          setErrorMessage(error.message);
+        } else {
+          setErrorMessage(`Unable to save ${label.toLowerCase()}.`);
+        }
       } finally {
         setIsSaving(false);
       }
     },
-    [currentValue, isSaving, onSave, setSavedIndicator],
+    [currentValue, isSaving, label, onSave, parseValue, setSavedIndicator],
   );
 
   const handleInputKeyDown = useCallback(
@@ -291,38 +339,39 @@ export function InlineEditField({
   // ---------------------------------------------------------------------------
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className={cn(
-        "group flex min-h-[28px] items-center gap-3 rounded-md px-1 transition-colors",
-        !isEditing && "hover:bg-muted/30",
-        hideLabel && "justify-start",
-        isTextareaField && !hideLabel && "items-start",
-        containerClassName,
-      )}
-      onClick={handleStartEditing}
-      onKeyDown={handleContainerKeyDown}
-    >
-      {/* Label column — fixed height, self-start so icon never shifts */}
-      {hideLabel ? null : (
-        <div className="flex h-7 w-[110px] shrink-0 items-center gap-2 self-start">
-          {icon ? (
-            <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground/40">
-              {icon}
-            </span>
-          ) : null}
-          <span className={cn("truncate text-sm leading-[20px] text-muted-foreground/70", labelClassName)}>{label}</span>
-        </div>
-      )}
-
-      {/* Value column */}
+    <div className="space-y-1">
       <div
+        role="button"
+        tabIndex={0}
         className={cn(
-          "flex min-h-[20px] min-w-0 flex-1 items-center gap-1.5",
-          !isEditing && isTextareaField && "items-start",
+          "group flex min-h-[28px] items-center gap-3 rounded-md px-1 transition-colors",
+          !isEditing && "hover:bg-muted/30",
+          hideLabel && "justify-start",
+          isTextareaField && !hideLabel && "items-start",
+          containerClassName,
         )}
+        onClick={handleStartEditing}
+        onKeyDown={handleContainerKeyDown}
       >
+        {/* Label column — fixed height, self-start so icon never shifts */}
+        {hideLabel ? null : (
+          <div className="flex h-7 w-[110px] shrink-0 items-center gap-2 self-start">
+            {icon ? (
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground/40">
+                {icon}
+              </span>
+            ) : null}
+            <span className={cn("truncate text-sm leading-[20px] text-muted-foreground/70", labelClassName)}>{label}</span>
+          </div>
+        )}
+
+        {/* Value column */}
+        <div
+          className={cn(
+            "flex min-h-[20px] min-w-0 flex-1 items-center gap-1.5",
+            !isEditing && isTextareaField && "items-start",
+          )}
+        >
         {/* --- Text / Number edit: inline chip --- */}
         {isEditing && !isSelectField && !isDateField && !isTextareaField ? (
           <div className="-ml-2 flex min-h-[24px] w-full items-center gap-1.5 rounded-md border border-border/50 px-2">
@@ -441,13 +490,17 @@ export function InlineEditField({
         ) : null}
 
         {/* --- Display mode (all field types) --- */}
-        {!isEditing ? (
-          <>
-            {displayElement}
-            {statusIndicator}
-          </>
-        ) : null}
+          {!isEditing ? (
+            <>
+              {displayElement}
+              {statusIndicator}
+            </>
+          ) : null}
+        </div>
       </div>
+      {errorMessage ? (
+        <p className="text-caption text-destructive">{errorMessage}</p>
+      ) : null}
     </div>
   );
 }

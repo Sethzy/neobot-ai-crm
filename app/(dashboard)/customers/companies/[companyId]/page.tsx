@@ -8,21 +8,33 @@ import { ArrowLeft } from "lucide-react";
 import { CompanyDetailContent } from "@/components/crm/record-detail/company-detail-content";
 import { PageCanvas, PageSurface } from "@/components/layout/page-canvas";
 import { Button } from "@/components/ui/button";
+import { getSingleQueryParam, resolveCrmRecordBackHref } from "@/lib/crm/navigation";
 
 interface CompanyDetailPageProps {
   params: Promise<{
     companyId: string;
   }>;
+  searchParams?: Promise<{
+    from?: string | string[];
+  }>;
 }
 
-export default async function CompanyDetailPage({ params }: CompanyDetailPageProps) {
+export default async function CompanyDetailPage({
+  params,
+  searchParams,
+}: CompanyDetailPageProps) {
   const { companyId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const backHref = resolveCrmRecordBackHref(
+    "company",
+    getSingleQueryParam(resolvedSearchParams.from),
+  );
 
   return (
     <PageCanvas>
       <div>
         <Button asChild variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-          <Link href="/customers/companies">
+          <Link href={backHref}>
             <ArrowLeft className="size-4" />
             <span>Back to Companies</span>
           </Link>

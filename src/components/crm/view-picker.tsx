@@ -1,7 +1,7 @@
 /**
  * Dropdown button for switching between saved CRM views.
- * Always renders the active label so the count chip always has a home —
- * collapses to a plain text label when no saved views exist.
+ * Renders the default label immediately so the toolbar layout is stable
+ * from first paint, then upgrades to show saved views once they resolve.
  * @module components/crm/view-picker
  */
 "use client";
@@ -37,29 +37,11 @@ const allLabel: Record<CrmViewEntityType, string> = {
 };
 
 export function ViewPicker({ entityType, activeViewId, onViewChange, count }: ViewPickerProps) {
-  const { data: views, isLoading } = useCrmViews(entityType);
+  const { data: views } = useCrmViews(entityType);
   const savedViews = views ?? [];
-
-  // Avoid layout flash while we wait for the first views fetch.
-  if (isLoading) {
-    return null;
-  }
-
   const activeView = savedViews.find((v) => v.view_id === activeViewId);
   const triggerLabel = activeView ? activeView.name : allLabel[entityType];
   const formattedCount = typeof count === "number" ? count.toLocaleString() : null;
-
-  // No saved views — there's nothing to switch between, so render a quiet text label.
-  if (savedViews.length === 0) {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-1 type-control font-medium text-foreground">
-        {triggerLabel}
-        {formattedCount ? (
-          <span className="text-muted-foreground">· {formattedCount}</span>
-        ) : null}
-      </span>
-    );
-  }
 
   return (
     <DropdownMenu>
@@ -70,9 +52,16 @@ export function ViewPicker({ entityType, activeViewId, onViewChange, count }: Vi
           className="gap-1.5 rounded-md px-2.5 font-medium text-foreground ring-1 ring-transparent transition-colors hover:bg-app-hover/60 hover:ring-app-border-subtle"
         >
           <span>{triggerLabel}</span>
-          {formattedCount ? (
-            <span className="text-muted-foreground">· {formattedCount}</span>
-          ) : null}
+          <span className="flex items-center gap-1 text-muted-foreground" aria-hidden={formattedCount === null}>
+            <span>·</span>
+            {formattedCount !== null ? (
+              <span>{formattedCount}</span>
+            ) : (
+              // Reserve width with a muted shimmer so the chevron doesn't jump
+              // when the count query resolves.
+              <span className="inline-block h-2.5 w-5 animate-pulse rounded-sm bg-muted-foreground/25" />
+            )}
+          </span>
           <ChevronDown className="size-3 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
@@ -88,7 +77,7 @@ export function ViewPicker({ entityType, activeViewId, onViewChange, count }: Vi
           {allLabel[entityType]}
         </DropdownMenuItem>
 
-        <DropdownMenuSeparator />
+        {savedViews.length > 0 ? <DropdownMenuSeparator /> : null}
 
         {savedViews.map((view) => (
           <DropdownMenuItem

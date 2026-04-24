@@ -4,23 +4,29 @@
  */
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
+import dynamic from "next/dynamic";
 import posthog from "posthog-js";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { applyViewColumns } from "@/components/crm/apply-view-columns";
+import type { KanbanBoardProps } from "@/components/crm/kanban-board";
+import {
+  NumberQuickEditCell,
+  SelectQuickEditCell,
+  TextQuickEditCell,
+} from "@/components/crm/crm-inline-cells";
 import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
 import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
-import { KanbanBoard } from "@/components/crm/kanban-board";
-import { OpenRecordHint } from "@/components/crm/open-record-hint";
-import { QuickEditCell } from "@/components/crm/quick-edit-cell";
+import { RecordLinkCell } from "@/components/crm/record-link-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
+import { useCrmListRouteState } from "@/components/crm/use-crm-list-route-state";
 import { useRecordOpenBehavior } from "@/components/crm/use-record-open-behavior";
 import { Button } from "@/components/ui/button";
 
@@ -32,7 +38,8 @@ import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useCrmViews } from "@/hooks/use-crm-views";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
-import { useCompanies, type CompanyWithCounts } from "@/hooks/use-companies";
+import { useUpdateFieldWidth } from "@/hooks/use-update-field-width";
+import { EMPTY_COMPANY_FILTERS, useCompanies, type CompanyWithCounts } from "@/hooks/use-companies";
 import { dealKeys, type DealWithContact, useDeals, usePaginatedDeals } from "@/hooks/use-deals";
 import { useUpdateDeal } from "@/hooks/use-update-deal";
 import { useViewPreference, type ViewType } from "@/hooks/use-view-preference";
@@ -53,17 +60,24 @@ import {
   getDealStageTopBorderClass,
 } from "@/lib/crm/display";
 import { supabase } from "@/lib/supabase";
+import { captureRecordCacheSnapshot, removeCachedRecord, restoreRecordCacheSnapshot } from "@/hooks/crm-cache-updates";
 
 const pageSize = 20;
 
-const pipelineSortOptions = {
-  amount_desc: "Price (high to low)",
-  amount_asc: "Price (low to high)",
-  updated_desc: "Updated (newest first)",
-  address_asc: "Address (A-Z)",
-} as const;
+function DealViewLoading() {
+  return (
+    <div className="h-48 animate-pulse rounded-md border border-app-border-subtle bg-app-surface" />
+  );
+}
 
-type PipelineSortOption = keyof typeof pipelineSortOptions;
+const KanbanBoard = dynamic<KanbanBoardProps<DealWithContact>>(
+  () =>
+    import("@/components/crm/kanban-board").then(
+      (module) =>
+        module.KanbanBoard as ComponentType<KanbanBoardProps<DealWithContact>>,
+    ),
+  { loading: () => <DealViewLoading /> },
+);
 
 interface DealStageCellProps {
   dealId: string;
@@ -83,6 +97,7 @@ interface DealAddressCellProps {
 
 interface DealCompanyCellProps {
   dealId: string;
+  companyId: string | null;
   company: DealWithContact["companies"];
   companies: CompanyWithCounts[];
 }
@@ -136,25 +151,14 @@ function getPrimaryContactLabel(deal: DealWithContact) {
   return primaryContact?.contacts ? formatContactFullName(primaryContact.contacts) : "";
 }
 
-function sortDealsByOption(sortBy: PipelineSortOption) {
+function compareDealsByAmountDesc(
+  leftDeal: Pick<DealWithContact, "amount">,
+  rightDeal: Pick<DealWithContact, "amount">,
+) {
   return (
-    leftDeal: Pick<DealWithContact, "address" | "amount" | "updated_at">,
-    rightDeal: Pick<DealWithContact, "address" | "amount" | "updated_at">,
-  ) => {
-    if (sortBy === "amount_desc") {
-      return (rightDeal.amount ?? Number.NEGATIVE_INFINITY) - (leftDeal.amount ?? Number.NEGATIVE_INFINITY);
-    }
-
-    if (sortBy === "amount_asc") {
-      return (leftDeal.amount ?? Number.POSITIVE_INFINITY) - (rightDeal.amount ?? Number.POSITIVE_INFINITY);
-    }
-
-    if (sortBy === "address_asc") {
-      return leftDeal.address.localeCompare(rightDeal.address);
-    }
-
-    return new Date(rightDeal.updated_at).getTime() - new Date(leftDeal.updated_at).getTime();
-  };
+    (rightDeal.amount ?? Number.NEGATIVE_INFINITY)
+    - (leftDeal.amount ?? Number.NEGATIVE_INFINITY)
+  );
 }
 
 function normalizeDealsView(rawView: string | null): ViewType | null {
@@ -182,92 +186,114 @@ function buildDealsHref(searchParams: URLSearchParams | null, nextView: ViewType
   return nextQuery.length > 0 ? `/customers/deals?${nextQuery}` : "/customers/deals";
 }
 
-function DealStageCell({ dealId, stage, stages }: DealStageCellProps) {
-  const updateDeal = useUpdateDeal(dealId);
+const DealStageCell = memo(function DealStageCell({ dealId, stage, stages }: DealStageCellProps) {
+  const { mutateAsync: updateDealAsync } = useUpdateDeal(dealId);
+  const stageOptions = useMemo(
+    () =>
+      stages.map((nextStage) => ({
+        value: nextStage,
+        label: formatCrmEnumLabel(nextStage),
+      })),
+    [stages],
+  );
+  const handleSaveStage = useCallback(
+    async (nextValue: string | number | null) => {
+      await updateDealAsync({ stage: nextValue as Deal["stage"] });
+    },
+    [updateDealAsync],
+  );
 
   return (
-    <QuickEditCell
+    <SelectQuickEditCell
       ariaLabel="Stage"
       value={stage}
       displayValue={formatDealStageLabel(stage)}
-      type="select"
-      options={stages.map((nextStage) => ({
-        value: nextStage,
-        label: formatCrmEnumLabel(nextStage),
-      }))}
-      onSave={async (nextValue) => {
-        await updateDeal.mutateAsync({ stage: nextValue as Deal["stage"] });
-      }}
+      options={stageOptions}
+      onSave={handleSaveStage}
     />
   );
-}
+});
 
-function DealAmountCell({ dealId, amount }: DealAmountCellProps) {
-  const updateDeal = useUpdateDeal(dealId);
+const DealAmountCell = memo(function DealAmountCell({ dealId, amount }: DealAmountCellProps) {
+  const { mutateAsync: updateDealAsync } = useUpdateDeal(dealId);
+  const displayValue = useMemo(() => formatCrmPrice(amount), [amount]);
+  const handleSaveAmount = useCallback(
+    async (nextValue: string | number | null) => {
+      await updateDealAsync({
+        amount: typeof nextValue === "number" ? nextValue : null,
+      });
+    },
+    [updateDealAsync],
+  );
 
   return (
-    <QuickEditCell
+    <NumberQuickEditCell
       ariaLabel="Price"
       value={amount}
-      displayValue={formatCrmPrice(amount)}
-      type="number"
-      onSave={async (nextValue) => {
-        await updateDeal.mutateAsync({
-          amount: typeof nextValue === "number" ? nextValue : null,
-        });
-      }}
+      displayValue={displayValue}
+      onSave={handleSaveAmount}
     />
   );
-}
+});
 
 /**
  * Inline editor for the deal's secondary address field. The primary column
  * (Name / address) opens the record drawer, so this sits alongside it for
  * quick corrections without leaving the list.
  */
-function DealAddressCell({ dealId, address }: DealAddressCellProps) {
-  const updateDeal = useUpdateDeal(dealId);
+const DealAddressCell = memo(function DealAddressCell({ dealId, address }: DealAddressCellProps) {
+  const { mutateAsync: updateDealAsync } = useUpdateDeal(dealId);
+  const handleSaveAddress = useCallback(
+    async (nextValue: string | number | null) => {
+      const next = typeof nextValue === "string" ? nextValue.trim() : "";
+      if (next.length === 0) return;
+      await updateDealAsync({ address: next });
+    },
+    [updateDealAsync],
+  );
 
   return (
-    <QuickEditCell
+    <TextQuickEditCell
       ariaLabel="Address"
       value={address}
-      onSave={async (nextValue) => {
-        const next = typeof nextValue === "string" ? nextValue.trim() : "";
-        if (next.length === 0) return;
-        await updateDeal.mutateAsync({ address: next });
-      }}
+      onSave={handleSaveAddress}
     />
   );
-}
+});
 
 /**
  * Keeps the linked company visible as a link and allows reassignment via a
  * select picker — mirrors ContactCompanyCell on the People list.
  */
-function DealCompanyCell({ dealId, company, companies }: DealCompanyCellProps) {
-  const updateDeal = useUpdateDeal(dealId);
+const DealCompanyCell = memo(function DealCompanyCell({
+  dealId,
+  companyId,
+  company,
+  companies,
+}: DealCompanyCellProps) {
+  const { mutateAsync: updateDealAsync } = useUpdateDeal(dealId);
   const options = useMemo(() => buildDealCompanyOptions(companies, company), [companies, company]);
+  const displayValue = companyId ? undefined : "";
+  const handleSaveCompany = useCallback(
+    async (nextValue: string | number | null) => {
+      const nextCompanyId = typeof nextValue === "string" && nextValue !== noCompanyOptionValue
+        ? nextValue
+        : null;
+      await updateDealAsync({ company_id: nextCompanyId });
+    },
+    [updateDealAsync],
+  );
 
   return (
-    <QuickEditCell
+    <SelectQuickEditCell
       ariaLabel="Company"
-      value={company?.company_id ?? noCompanyOptionValue}
-      type="select"
+      value={companyId ?? noCompanyOptionValue}
+      displayValue={displayValue}
       options={options}
-      onSave={async (nextValue) => {
-        const nextCompanyId = typeof nextValue === "string" && nextValue !== noCompanyOptionValue
-          ? nextValue
-          : null;
-        await updateDeal.mutateAsync({ company_id: nextCompanyId });
-      }}
-    >
-      {company?.company_id ? (
-        <span className="block max-w-[220px] truncate text-foreground/80">{company.name}</span>
-      ) : null}
-    </QuickEditCell>
+      onSave={handleSaveCompany}
+    />
   );
-}
+});
 
 export default function DealsPage() {
   const router = useRouter();
@@ -276,13 +302,18 @@ export default function DealsPage() {
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const { data: crmConfigResult } = useCrmConfig();
-  const { data: companies = [] } = useCompanies({});
+  const { data: companies = [] } = useCompanies(EMPTY_COMPANY_FILTERS);
   const { view, setView } = useViewPreference("deals");
-  const savedViewId = searchParams?.get("savedView") ?? null;
+  const {
+    savedViewId,
+    handleSavedViewChange: handleSavedViewRouteChange,
+  } = useCrmListRouteState({
+    basePath: "/customers/deals",
+    replace: router.replace,
+    searchParams,
+  });
   const { data: views } = useCrmViews("deals");
   const [page, setPage] = useState(1);
-  const [sortBy, setSortBy] = useState<PipelineSortOption>("amount_desc");
-  const [search, setSearch] = useState("");
   const [filterValues, setFilterValues] = useState<FilterValues>(() => {
     const stageQuery = searchParams?.get("stage")?.trim();
 
@@ -358,12 +389,11 @@ export default function DealsPage() {
             viewSort: activeState?.sort ?? undefined,
           }
         : {
-            search: search.trim().length > 0 ? search.trim() : undefined,
             stage: typeof filterValues.stage === "string" ? (filterValues.stage as Deal["stage"]) : undefined,
             createdAt: getDateRangeValue(filterValues.createdAt),
           }),
     }),
-    [activeState?.filters, activeState?.sort, filterValues.createdAt, filterValues.stage, isSavedViewActive, search],
+    [activeState?.filters, activeState?.sort, filterValues.createdAt, filterValues.stage, isSavedViewActive],
   );
 
   const tableFilters = useMemo(
@@ -449,6 +479,25 @@ export default function DealsPage() {
 
       return existingDeal;
     },
+    onMutate: async ({ dealId }: { dealId: string }) => {
+      await queryClient.cancelQueries({ queryKey: dealKeys.all });
+
+      const cacheSnapshot = captureRecordCacheSnapshot({
+        queryClient,
+        detailKey: dealKeys.detail(dealId),
+        listKeyPrefix: dealKeys.lists(),
+      });
+
+      removeCachedRecord<DealWithContact>({
+        queryClient,
+        detailKey: dealKeys.detail(dealId),
+        listKeyPrefix: dealKeys.lists(),
+        idKey: "deal_id",
+        recordId: dealId,
+      });
+
+      return { cacheSnapshot };
+    },
     onSuccess: async (deletedDeal) => {
       void captureTimelineActivity({
         supabase,
@@ -466,13 +515,24 @@ export default function DealsPage() {
         }
       });
 
-      await queryClient.invalidateQueries({ queryKey: dealKeys.all });
       toast.success("Deal deleted.");
     },
-    onError: () => {
+    onError: (_error, { dealId }, context) => {
+      if (context) {
+        restoreRecordCacheSnapshot({
+          queryClient,
+          detailKey: dealKeys.detail(dealId),
+          ...context.cacheSnapshot,
+        });
+      }
+
       toast.error("Unable to delete this deal.");
     },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: dealKeys.all });
+    },
   });
+  const { mutate: deleteDealMutation } = deleteDeal;
 
   const updateDealStage = useMutation({
     mutationFn: async ({
@@ -509,8 +569,11 @@ export default function DealsPage() {
 
   const tableRows = tableData?.rows ?? [];
   const sortedBoardDeals = useMemo(
-    () => (activeSavedView?.sort ? boardData : [...boardData].sort(sortDealsByOption(sortBy))),
-    [activeSavedView?.sort, boardData, sortBy],
+    () =>
+      activeSavedView?.state.sort
+        ? boardData
+        : [...boardData].sort(compareDealsByAmountDesc),
+    [activeSavedView?.state.sort, boardData],
   );
   const handleBoardColumnChange = useCallback(
     async (dealId: string, fromStage: string, toStage: string) => {
@@ -549,19 +612,10 @@ export default function DealsPage() {
             ...col,
             accessorFn: (row: DealWithContact) => row.address,
             cell: ({ row }: { row: { original: DealWithContact } }) => (
-              <span className="inline-flex min-w-0 items-center">
-                <button
-                  type="button"
-                  className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openRecord(row.original.deal_id);
-                  }}
-                >
-                  {row.original.address}
-                </button>
-                <OpenRecordHint />
-              </span>
+              <RecordLinkCell
+                label={row.original.address}
+                onOpen={() => openRecord(row.original.deal_id)}
+              />
             ),
           };
         case "amount":
@@ -592,6 +646,7 @@ export default function DealsPage() {
             cell: ({ row }: { row: { original: DealWithContact } }) => (
               <DealCompanyCell
                 dealId={row.original.deal_id}
+                companyId={row.original.company_id}
                 company={row.original.companies}
                 companies={companies}
               />
@@ -651,6 +706,39 @@ export default function DealsPage() {
     (rawStage: string) => matchVocabularyValue(rawStage, stages),
     [stages],
   );
+  const handleDealCardClick = useCallback((dealId: string) => {
+    openRecord(dealId);
+  }, [openRecord]);
+  const getDealBoardColumn = useCallback((deal: DealWithContact) => {
+    return matchStageToConfigKey(deal.stage);
+  }, [matchStageToConfigKey]);
+  const getDealItemId = useCallback((deal: DealWithContact) => deal.deal_id, []);
+  const handleDealRowClick = useCallback((row: DealWithContact) => {
+    openRecord(row.deal_id);
+  }, [openRecord]);
+  const getDealRowId = useCallback((row: DealWithContact) => row.deal_id, []);
+  const getDealRowActions = useCallback((row: DealWithContact) => [
+    { id: "view", label: "View", onSelect: () => openRecord(row.deal_id) },
+    {
+      id: "delete",
+      label: "Delete",
+      destructive: true,
+      onSelect: () => {
+        if (!window.confirm(`Delete ${row.address}? This cannot be undone.`)) {
+          return;
+        }
+
+        deleteDealMutation({ dealId: row.deal_id });
+      },
+    },
+  ], [deleteDealMutation, openRecord]);
+  const { mutate: updateDealFieldWidth } = useUpdateFieldWidth("deals");
+  const handleDealColumnResize = useCallback(
+    (columnId: string, width: number) => {
+      updateDealFieldWidth({ columnId, width });
+    },
+    [updateDealFieldWidth],
+  );
 
   const getColumnSummary = useCallback(
     (_columnKey: string, columnItems: DealWithContact[]) => {
@@ -660,27 +748,20 @@ export default function DealsPage() {
     [],
   );
 
-  const hasLocalFilters = Object.keys(filterValues).length > 0 || search.trim().length > 0;
+  const hasLocalFilters = Object.keys(filterValues).length > 0;
   const hasActiveFiltering = isSavedViewActive || hasLocalFilters;
-  const isBoardView = activeLayout === "kanban";
 
   function handleSavedViewChange(viewId: string | null) {
     setPage(1);
-    const params = new URLSearchParams(searchParams?.toString() ?? "");
-
-    if (viewId) {
-      params.set("savedView", viewId);
-    } else {
-      params.delete("savedView");
-    }
-
-    const nextQuery = params.toString();
-    router.replace(
-      nextQuery.length > 0 ? "/customers/deals?" + nextQuery : "/customers/deals",
-    );
+    handleSavedViewRouteChange(viewId);
   }
 
-  const dealCount = activeLayout === "table" ? tableData?.total : sortedBoardDeals.length;
+  const dealCount =
+    activeLayout === "table"
+      ? tableData?.total
+      : isBoardLoading
+        ? undefined
+        : sortedBoardDeals.length;
 
   const newDealButton = (
     <Button
@@ -693,25 +774,6 @@ export default function DealsPage() {
     </Button>
   );
 
-  const boardSortControl =
-    isBoardView && !isSavedViewActive ? (
-      <label className="flex items-center gap-1.5 type-control-muted text-muted-foreground">
-        <span>Sort</span>
-        <select
-          aria-label="Sort deals"
-          className="h-8 rounded-md border-none bg-transparent px-1 text-control font-medium text-foreground hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-          value={sortBy}
-          onChange={(event) => setSortBy(event.target.value as PipelineSortOption)}
-        >
-          {Object.entries(pipelineSortOptions).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-    ) : null;
-
   return (
     <CrmWorkspaceShell
       title="Deals"
@@ -722,9 +784,6 @@ export default function DealsPage() {
       filters={filters}
       filterValues={filterValues}
       isSavedViewActive={isSavedViewActive}
-      searchValue={search}
-      searchPlaceholder="Search deals by address..."
-      onSearchChange={setSearch}
       onFilterApply={(nextValues: FilterValues) => {
         setPage(1);
         setFilterValues(nextValues);
@@ -734,7 +793,6 @@ export default function DealsPage() {
         setFilterValues({});
       }}
       primaryAction={newDealButton}
-      secondaryActions={boardSortControl}
       viewType={activeLayout}
       views={["table", "kanban"]}
       onViewTypeChange={(nextView) => {
@@ -774,11 +832,11 @@ export default function DealsPage() {
             boardLabel="By Stage"
             items={sortedBoardDeals}
             columns={stageColumns}
-            groupBy={(deal) => matchStageToConfigKey(deal.stage)}
-            getItemId={(deal) => deal.deal_id}
+            groupBy={getDealBoardColumn}
+            getItemId={getDealItemId}
             getColumnSummary={getColumnSummary}
             renderCard={(deal) => <DealKanbanCard deal={deal} />}
-            onCardClick={(dealId) => openRecord(dealId)}
+            onCardClick={handleDealCardClick}
             onColumnChange={handleBoardColumnChange}
             emptyStateMessage="No deals in this stage yet."
           />
@@ -808,24 +866,11 @@ export default function DealsPage() {
                   onPageChange: setPage,
                 }
               : undefined}
-            rowActions={(row) => [
-              { id: "view", label: "View", onSelect: () => openRecord(row.deal_id) },
-              {
-                id: "delete",
-                label: "Delete",
-                destructive: true,
-                onSelect: () => {
-                  if (!window.confirm(`Delete ${row.address}? This cannot be undone.`)) {
-                    return;
-                  }
-
-                  deleteDeal.mutate({ dealId: row.deal_id });
-                },
-              },
-            ]}
-            onRowClick={(row) => openRecord(row.deal_id)}
+            rowActions={getDealRowActions}
+            onRowClick={handleDealRowClick}
+            onColumnResize={handleDealColumnResize}
             selectedRowId={recordId ?? undefined}
-            getRowId={(row) => row.deal_id}
+            getRowId={getDealRowId}
           />
         ),
       }}

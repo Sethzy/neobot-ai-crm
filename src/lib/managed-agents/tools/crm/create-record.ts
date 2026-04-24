@@ -13,7 +13,12 @@ import {
 } from "@/lib/crm/config";
 import { captureServerEvent, captureServerEvents } from "@/lib/analytics/posthog-server";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
-import { normalizeEmail, normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
+import {
+  normalizePhone,
+  validateEmailForSave,
+  validatePhoneForSave,
+  validateWebsiteForSave,
+} from "@/lib/crm/normalize";
 
 import { buildContainsIlikeLiteral, buildIlikePattern } from "@/lib/crm/filter-utils";
 
@@ -56,6 +61,14 @@ function normalizeDuplicatePhone(value: unknown): string | null {
   }
 
   return normalizePhone(trimmed) ?? trimmed;
+}
+
+function getValidatedValueOrThrow(validation: ReturnType<typeof validateEmailForSave>): string | null {
+  if (!validation.ok) {
+    throw new Error(validation.message);
+  }
+
+  return validation.value;
 }
 
 async function findDuplicateContacts(
@@ -182,15 +195,15 @@ async function findDuplicates(
         context,
         normalizeIdentityText(record.first_name),
         normalizeIdentityText(record.last_name),
-        record.email ? String(record.email) : null,
-        record.phone ? (normalizePhone(String(record.phone)) ?? String(record.phone)) : null,
+        normalizeDuplicateEmail(record.email),
+        normalizeDuplicatePhone(record.phone),
       );
     case "companies":
       return findDuplicateCompanies(
         context,
         normalizeIdentityText(record.name),
-        record.email ? String(record.email) : null,
-        record.phone ? (normalizePhone(String(record.phone)) ?? String(record.phone)) : null,
+        normalizeDuplicateEmail(record.email),
+        normalizeDuplicatePhone(record.phone),
       );
     case "deals":
       return findDuplicateDeals(context, normalizeIdentityText(record.address));
@@ -210,8 +223,12 @@ function buildContactRow(
     first_name: normalizeIdentityText(record.first_name),
     last_name: normalizeIdentityText(record.last_name),
     type: matchVocabularyValue(rawType, contactTypes),
-    email: normalizeEmail(record.email),
-    phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
+    email: getValidatedValueOrThrow(
+      validateEmailForSave(record.email as string | null | undefined),
+    ),
+    phone: getValidatedValueOrThrow(
+      validatePhoneForSave(record.phone as string | null | undefined),
+    ),
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };
 }
@@ -227,9 +244,15 @@ function buildCompanyRow(
     client_id: clientId,
     name: normalizeIdentityText(record.name),
     industry: rawIndustry ? matchVocabularyValue(rawIndustry, companyIndustries) : null,
-    website: normalizeWebsite(record.website as string | null) ?? (record.website as string | null) ?? null,
-    phone: normalizePhone(record.phone as string | null) ?? (record.phone as string | null) ?? null,
-    email: normalizeEmail(record.email),
+    website: getValidatedValueOrThrow(
+      validateWebsiteForSave(record.website as string | null | undefined),
+    ),
+    phone: getValidatedValueOrThrow(
+      validatePhoneForSave(record.phone as string | null | undefined),
+    ),
+    email: getValidatedValueOrThrow(
+      validateEmailForSave(record.email as string | null | undefined),
+    ),
     address: (record.address as string) ?? null,
     custom_fields: (record.custom_fields as Record<string, unknown>) ?? {},
   };

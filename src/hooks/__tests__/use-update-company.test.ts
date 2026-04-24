@@ -3,7 +3,7 @@
  * @module hooks/__tests__/use-update-company
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,7 +16,7 @@ const mockSelect = vi.fn();
 const mockSelectEq = vi.fn();
 const mockSingle = vi.fn();
 const mockUpdate = vi.fn();
-const mockEq = vi.fn();
+const mockUpdateEq = vi.fn();
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -36,12 +36,25 @@ function createWrapper(queryClient: QueryClient) {
 describe("useUpdateCompany", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSingle.mockResolvedValue({ data: { custom_fields: {} }, error: null });
+    mockSingle.mockResolvedValue({
+      data: {
+        company_id: "company-1",
+        client_id: "client-1",
+        name: "PropNex",
+        industry: "property_agency",
+        website: null,
+        phone: null,
+        email: null,
+        address: null,
+        custom_fields: {},
+      },
+      error: null,
+    });
     mockSelectEq.mockReturnValue({ single: mockSingle });
     mockSelect.mockReturnValue({ eq: mockSelectEq });
-    mockEq.mockResolvedValue({ error: null });
-    mockUpdate.mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ update: mockUpdate });
+    mockUpdateEq.mockResolvedValue({ error: null });
+    mockUpdate.mockReturnValue({ eq: mockUpdateEq });
+    mockFrom.mockReturnValue({ select: mockSelect, update: mockUpdate });
   });
 
   it("updates the row and invalidates company query keys", async () => {
@@ -70,9 +83,10 @@ describe("useUpdateCompany", () => {
 
     await result.current.mutateAsync({ phone: "+6591112222" });
 
-    expect(mockFrom).toHaveBeenCalledWith("companies");
+    expect(mockFrom).toHaveBeenNthCalledWith(1, "companies");
+    expect(mockSelect).toHaveBeenCalledWith("*");
     expect(mockUpdate).toHaveBeenCalledWith({ phone: "+6591112222" });
-    expect(mockEq).toHaveBeenCalledWith("company_id", "company-1");
+    expect(mockUpdateEq).toHaveBeenCalledWith("company_id", "company-1");
     expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
       expect.objectContaining({
         clientId: expect.any(String),
@@ -93,12 +107,217 @@ describe("useUpdateCompany", () => {
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: companyKeys.all });
   });
 
+  it("normalizes website, email, and phone through the shared save validators", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateCompany("company-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await result.current.mutateAsync({
+      website: "https://www.Acme.com/?utm=x",
+      email: "  HELLO@ACME.COM  ",
+      phone: "(212) 555-1234",
+    });
+
+    expect(mockUpdate).toHaveBeenCalledWith({
+      website: "acme.com",
+      email: "hello@acme.com",
+      phone: "+12125551234",
+    });
+  });
+
+  it("rejects invalid website updates before writing to Supabase", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateCompany("company-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await expect(result.current.mutateAsync({ website: "not a url" })).rejects.toThrow(
+      "Doesn't look like a website",
+    );
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("uses canonicalized values for the optimistic cache patch", async () => {
+    let resolveUpdate!: (value: { error: null }) => void;
+    mockUpdateEq.mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      }),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    queryClient.setQueryData(companyKeys.detail("company-1"), {
+      company_id: "company-1",
+      client_id: "client-1",
+      name: "PropNex",
+      industry: "property_agency",
+      website: null,
+      phone: null,
+      email: null,
+      address: null,
+      custom_fields: {},
+    });
+
+    const { result } = renderHook(() => useUpdateCompany("company-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    act(() => {
+      void result.current.mutateAsync({ website: "https://www.Acme.com/?utm=x" });
+    });
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(companyKeys.detail("company-1"))).toMatchObject({
+        website: "acme.com",
+      });
+    });
+
+    resolveUpdate({ error: null });
+  });
+
+  it("skips the optimistic cache patch when validation fails", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    queryClient.setQueryData(companyKeys.detail("company-1"), {
+      company_id: "company-1",
+      client_id: "client-1",
+      name: "PropNex",
+      industry: "property_agency",
+      website: null,
+      phone: null,
+      email: null,
+      address: null,
+      custom_fields: {},
+    });
+
+    const { result } = renderHook(() => useUpdateCompany("company-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    await expect(result.current.mutateAsync({ website: "not a url" })).rejects.toThrow(
+      "Doesn't look like a website",
+    );
+
+    expect(queryClient.getQueryData(companyKeys.detail("company-1"))).toMatchObject({
+      website: null,
+    });
+  });
+
+  it("patches the cached company immediately in onMutate and rolls back on error", async () => {
+    const error = { message: "update failed" };
+    let resolveUpdate!: (value: { error: typeof error | null }) => void;
+    mockUpdateEq.mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      }),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    queryClient.setQueryData(companyKeys.detail("company-1"), {
+      company_id: "company-1",
+      client_id: "client-1",
+      name: "PropNex",
+      industry: "property_agency",
+      website: null,
+      phone: null,
+      email: null,
+      address: null,
+      custom_fields: {},
+    });
+    queryClient.setQueryData(companyKeys.list({}), [
+      {
+        company_id: "company-1",
+        client_id: "client-1",
+        name: "PropNex",
+        industry: "property_agency",
+        website: null,
+        phone: null,
+        email: null,
+        address: null,
+        custom_fields: {},
+      },
+    ]);
+
+    const { result } = renderHook(() => useUpdateCompany("company-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    let mutationPromise!: Promise<unknown>;
+
+    act(() => {
+      mutationPromise = result.current.mutateAsync({ phone: "+6591112222" });
+    });
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(companyKeys.detail("company-1"))).toMatchObject({
+        phone: "+6591112222",
+      });
+      expect(queryClient.getQueryData(companyKeys.list({}))).toMatchObject([
+        expect.objectContaining({
+          phone: "+6591112222",
+        }),
+      ]);
+    });
+
+    resolveUpdate({ error });
+
+    await expect(mutationPromise).rejects.toEqual(error);
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(companyKeys.detail("company-1"))).toMatchObject({
+        phone: null,
+      });
+      expect(queryClient.getQueryData(companyKeys.list({}))).toMatchObject([
+        expect.objectContaining({
+          phone: null,
+        }),
+      ]);
+    });
+  });
+
   it("merges company custom_fields patches with the latest stored value before updating", async () => {
-    mockFrom.mockReset();
-    mockFrom
-      .mockImplementationOnce(() => ({ select: mockSelect }))
-      .mockImplementationOnce(() => ({ update: mockUpdate }));
-    mockSingle.mockResolvedValue({
+    mockSingle.mockResolvedValueOnce({
+      data: {
+        company_id: "company-1",
+        client_id: "client-1",
+        name: "PropNex",
+        industry: "property_agency",
+        website: null,
+        phone: null,
+        email: null,
+        address: null,
+        custom_fields: { tier: "a", hq: "Singapore" },
+      },
+      error: null,
+    });
+    mockSingle.mockResolvedValueOnce({
       data: { custom_fields: { tier: "a", hq: "Singapore" } },
       error: null,
     });
@@ -130,9 +349,10 @@ describe("useUpdateCompany", () => {
     });
 
     expect(mockFrom).toHaveBeenNthCalledWith(1, "companies");
-    expect(mockSelect).toHaveBeenCalledWith("custom_fields");
-    expect(mockSelectEq).toHaveBeenCalledWith("company_id", "company-1");
+    expect(mockSelect).toHaveBeenNthCalledWith(1, "*");
     expect(mockFrom).toHaveBeenNthCalledWith(2, "companies");
+    expect(mockSelect).toHaveBeenNthCalledWith(2, "custom_fields");
+    expect(mockUpdateEq).toHaveBeenCalledWith("company_id", "company-1");
     expect(mockUpdate).toHaveBeenCalledWith({
       custom_fields: {
         tier: "b",

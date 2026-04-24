@@ -80,7 +80,7 @@ describe("DrawerFilesTab", () => {
     render(<DrawerFilesTab recordType="contact" recordId="c-1" />);
 
     expect(screen.getByText("All 2")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /\+ add file/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add file/i })).toBeInTheDocument();
   });
 
   it("renders attachment rows for each file", () => {

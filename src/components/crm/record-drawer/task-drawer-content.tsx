@@ -26,7 +26,6 @@ import { crmTaskStatusValues, type CrmTask } from "@/lib/crm/schemas";
 
 import { CustomFieldEditors } from "./custom-field-editors";
 import { DrawerSection } from "./drawer-section";
-import { RecordDetailPanelFooter } from "./record-detail-panel-footer";
 import { RecordDetailPanelShell } from "./record-detail-panel-shell";
 
 interface TaskDrawerContentProps {
@@ -108,7 +107,6 @@ export function TaskDrawerContent({ taskId }: TaskDrawerContentProps) {
       activeTab={activeTab}
       onTabChange={setActiveTab}
       maxVisibleTabs={2}
-      footer={<RecordDetailPanelFooter />}
     >
       {activeTab === "home" ? (
         <div className="space-y-5">

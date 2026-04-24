@@ -2,7 +2,7 @@
  * Read-only badge for CRM deal stages.
  * @module components/crm/stage-badge
  */
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/crm/status-badge";
 import { dealStageBadgeVariantMap, formatDealStageLabel } from "@/lib/crm/display";
 import type { Deal } from "@/lib/crm/schemas";
 
@@ -15,8 +15,10 @@ interface StageBadgeProps {
  */
 export function StageBadge({ stage }: StageBadgeProps) {
   return (
-    <Badge variant={dealStageBadgeVariantMap[stage] ?? "secondary"}>
-      {formatDealStageLabel(stage)}
-    </Badge>
+    <StatusBadge
+      label={formatDealStageLabel(stage)}
+      value={stage}
+      variantMap={dealStageBadgeVariantMap}
+    />
   );
 }

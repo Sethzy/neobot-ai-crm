@@ -26,7 +26,9 @@ describe("useViewPreference", () => {
     });
 
     expect(result.current.view).toBe("kanban");
-    expect(localStorage.getItem("view-deals")).toBe("kanban");
+    expect(localStorage.getItem("view-deals")).toBe(
+      JSON.stringify({ v: 1, d: "kanban" }),
+    );
   });
 
   it("persists calendar as a valid view", () => {
@@ -37,7 +39,9 @@ describe("useViewPreference", () => {
     });
 
     expect(result.current.view).toBe("calendar");
-    expect(localStorage.getItem("view-tasks")).toBe("calendar");
+    expect(localStorage.getItem("view-tasks")).toBe(
+      JSON.stringify({ v: 1, d: "calendar" }),
+    );
   });
 
   it("ignores invalid localStorage values", () => {

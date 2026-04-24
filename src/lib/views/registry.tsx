@@ -6,18 +6,30 @@
 
 import { defineRegistry } from "@json-render/react";
 import { shadcnComponents } from "@json-render/shadcn";
+import dynamic from "next/dynamic";
 
-import {
-  BarChartPanel,
-  DonutChartPanel,
-  FunnelChartPanel,
-  LineChartPanel,
-} from "@/components/views/chart-panels";
 import { ContactCard } from "@/components/views/contact-card";
 import { DealCard } from "@/components/views/deal-card";
 import { StatMetric } from "@/components/views/stat-metric";
 import { TaskItem } from "@/components/views/task-item";
 import { catalog } from "@/lib/views/catalog";
+
+const BarChartPanel = dynamic(
+  () => import("@/components/views/chart-panels").then((module) => module.BarChartPanel),
+  { ssr: false },
+);
+const DonutChartPanel = dynamic(
+  () => import("@/components/views/chart-panels").then((module) => module.DonutChartPanel),
+  { ssr: false },
+);
+const FunnelChartPanel = dynamic(
+  () => import("@/components/views/chart-panels").then((module) => module.FunnelChartPanel),
+  { ssr: false },
+);
+const LineChartPanel = dynamic(
+  () => import("@/components/views/chart-panels").then((module) => module.LineChartPanel),
+  { ssr: false },
+);
 
 /** Convert all `null` values in an object to `undefined` so catalog nullable fields match component optional props. */
 function nullToUndefined<T extends Record<string, unknown>>(obj: T) {

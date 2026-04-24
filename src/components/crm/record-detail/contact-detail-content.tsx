@@ -4,25 +4,24 @@
  */
 "use client";
 
-import Link from "next/link";
 import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUpRight, Building2, Clock3, House, ListTodo, Mail, Paperclip, Phone, StickyNote, Tag } from "lucide-react";
+import { Building2, Clock3, House, ListTodo, Mail, Paperclip, Phone, StickyNote, Tag } from "lucide-react";
 
 import { LinkedTasksSection } from "@/components/crm/detail/linked-tasks-section";
+import { CrmRecordDetailSkeleton } from "@/components/crm/crm-record-detail-skeleton";
 import { InlineEditField } from "@/components/crm/inline-edit-field";
 import { StageBadge } from "@/components/crm/stage-badge";
 import { UnifiedTimeline } from "@/components/crm/timeline/unified-timeline";
+import { useCurrentCrmWorkspaceHref } from "@/components/crm/use-record-open-behavior";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useContactDeals, useContactTasks } from "@/hooks/use-contact-relations";
 import { useCompanies } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useContact } from "@/hooks/use-contacts";
 import { useUpdateContact } from "@/hooks/use-update-contact";
-import { getCrmRecordHref } from "@/components/crm/use-record-open-behavior";
+import type { ContactWithCompany } from "@/lib/crm/contact-record";
 import {
   buildCrmSelectOptions,
   contactTypeBadgeVariantMap,
@@ -31,6 +30,11 @@ import {
   parseCustomFieldInputValue,
   toNullableValue,
 } from "@/lib/crm/display";
+import { getCrmRecordHref } from "@/lib/crm/navigation";
+import {
+  validateEmailForSave,
+  validatePhoneForSave,
+} from "@/lib/crm/normalize";
 import { contactTypeValues, type Contact } from "@/lib/crm/schemas";
 
 import { DrawerFilesTab } from "../record-drawer/drawer-files-tab";
@@ -46,6 +50,8 @@ interface ContactDetailContentProps {
   contactId: string;
   /** Drawer keeps quick inspection; page mode is for deeper work. */
   surface?: "drawer" | "page";
+  /** Server-fetched detail record used to avoid a cold page transition. */
+  initialContact?: ContactWithCompany;
 }
 
 type ContactDrawerTab = "home" | "timeline" | "tasks" | "notes" | "files";
@@ -56,52 +62,24 @@ type ContactDrawerTab = "home" | "timeline" | "tasks" | "notes" | "files";
 export function ContactDetailContent({
   contactId,
   surface = "drawer",
+  initialContact,
 }: ContactDetailContentProps) {
-  const { data: contact, isLoading, isError } = useContact(contactId);
+  const [activeTab, setActiveTab] = useState<ContactDrawerTab>("home");
+  const { data: contact, isLoading, isError } = useContact(contactId, {
+    initialData: initialContact,
+  });
   const { data: linkedDeals = [] } = useContactDeals(contactId);
-  const { data: linkedTasks = [] } = useContactTasks(contactId);
+  const { data: linkedTasks = [] } = useContactTasks(contactId, {
+    enabled: activeTab === "tasks",
+  });
   const { data: companies = [] } = useCompanies({});
   const { data: crmConfigResult } = useCrmConfig();
   const updateContact = useUpdateContact(contactId);
-  const [activeTab, setActiveTab] = useState<ContactDrawerTab>("home");
   const isDrawerSurface = surface === "drawer";
+  const currentWorkspaceHref = useCurrentCrmWorkspaceHref();
 
   if (isLoading) {
-    return (
-      <div className="flex h-full min-h-0 min-w-0 flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="space-y-4 p-5">
-            <header className="space-y-2">
-              <div className="flex items-center gap-2.5">
-                <Skeleton className="size-7 shrink-0 rounded-full" />
-                <Skeleton className="h-4 w-36" />
-                <Skeleton className="ml-auto h-3 w-24 shrink-0" />
-              </div>
-              <Skeleton className="h-5 w-20 rounded-full" />
-            </header>
-            <div className="-mx-5 border-b border-border/60 px-5">
-              <div className="flex items-center gap-5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex h-10 items-center">
-                    <Skeleton className="h-3 w-12" />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-px pt-1">
-              <Skeleton className="mb-4 h-3 w-10" />
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 py-2">
-                  <Skeleton className="size-4 shrink-0" />
-                  <Skeleton className="h-3 w-16 shrink-0" />
-                  <Skeleton className="h-3 max-w-[160px] flex-1" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <CrmRecordDetailSkeleton tabCount={5} />;
   }
 
   if (isError || !contact) {
@@ -154,20 +132,20 @@ export function ContactDetailContent({
           {formatCrmEnumLabel(contact.type)}
         </Badge>
       )}
-      headerActions={isDrawerSurface ? (
-        <Button asChild variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-          <Link href={getCrmRecordHref("contact", contactId)}>
-            <span>Open page</span>
-            <ArrowUpRight className="size-3.5" />
-          </Link>
-        </Button>
-      ) : null}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
       maxVisibleTabs={5}
       reserveTrailingSpace={isDrawerSurface}
-      footer={<RecordDetailPanelFooter />}
+      footer={
+        <RecordDetailPanelFooter
+          openHref={
+            isDrawerSurface
+              ? getCrmRecordHref("contact", contactId, { returnTo: currentWorkspaceHref })
+              : undefined
+          }
+        />
+      }
     >
       {activeTab === "home" ? (
         <div className="space-y-5">
@@ -177,6 +155,8 @@ export function ContactDetailContent({
                 icon={<Phone className="h-4 w-4" />}
                 label="Phone"
                 value={contact.phone}
+                inputType="tel"
+                parseValue={validatePhoneForSave}
                 onSave={async (nextValue) => {
                   await updateContact.mutateAsync({ phone: toNullableValue(nextValue) });
                 }}
@@ -185,6 +165,8 @@ export function ContactDetailContent({
                 icon={<Mail className="h-4 w-4" />}
                 label="Email"
                 value={contact.email}
+                inputType="email"
+                parseValue={validateEmailForSave}
                 onSave={async (nextValue) => {
                   await updateContact.mutateAsync({ email: toNullableValue(nextValue) });
                 }}

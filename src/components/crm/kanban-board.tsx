@@ -66,7 +66,9 @@ interface DraggableKanbanBoardProps<T> extends KanbanBoardBaseProps<T> {
   onColumnChange: (itemId: string, fromColumn: string, toColumn: string) => Promise<void>;
 }
 
-type KanbanBoardProps<T> = StaticKanbanBoardProps<T> | DraggableKanbanBoardProps<T>;
+export type KanbanBoardProps<T> =
+  | StaticKanbanBoardProps<T>
+  | DraggableKanbanBoardProps<T>;
 
 interface KanbanCardShellProps {
   children: ReactNode;
@@ -108,7 +110,7 @@ const boardColumnClassName =
   "flex min-h-[60dvh] w-full flex-1 flex-col overflow-hidden md:w-64 md:flex-none";
 
 const boardCardClassName =
-  "group rounded-md border border-app-border-subtle bg-app-surface p-3 transition-all duration-[var(--duration-hover)] hover:bg-app-hover/35 hover:shadow-[var(--shadow-surface-light)]";
+  "group rounded-md border border-app-border-subtle bg-app-surface p-3 transition-all duration-[var(--duration-hover)] hover:bg-app-hover/35 hover:shadow-xs";
 
 /**
  * Build grouped column buckets, optionally honoring optimistic drag overrides first.
@@ -180,7 +182,7 @@ function KanbanColumnSection({
         {column.toneClassName ? (
           <span
             className={cn(
-              "inline-flex rounded-[var(--radius-chip)] px-1.5 py-0 text-[11px] font-medium",
+              "inline-flex rounded-[var(--radius-chip)] px-1.5 py-0 text-caption font-medium",
               column.toneClassName,
             )}
           >
@@ -300,7 +302,7 @@ function KanbanDragOverlay<T>({ activeItem, renderCard }: KanbanDragOverlayProps
   return (
     <DragOverlay>
       {activeItem ? (
-        <KanbanCardShell className="shadow-[var(--shadow-surface-strong)]">
+        <KanbanCardShell className="shadow-sm">
           {renderCard(activeItem)}
         </KanbanCardShell>
       ) : null}

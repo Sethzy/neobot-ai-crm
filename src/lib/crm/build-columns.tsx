@@ -5,6 +5,7 @@
  */
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { getDefaultWidthForFieldType, RESIZE_MIN_WIDTH } from "./column-widths";
 import type { FieldDefinition } from "./field-definitions";
 import { getFieldIcon } from "./field-icons";
 import { getFieldValue, renderFieldCell } from "./field-renderers";
@@ -35,7 +36,9 @@ export function buildColumnsFromConfig<TData extends Record<string, unknown>>(
             {field.label}
           </span>
         ),
-        size: field.width,
+        enableResizing: true,
+        minSize: RESIZE_MIN_WIDTH,
+        size: field.width ?? getDefaultWidthForFieldType(field.type),
         cell: ({ getValue }: { getValue: () => unknown }) => renderFieldCell(field.type, getValue()),
       };
     });

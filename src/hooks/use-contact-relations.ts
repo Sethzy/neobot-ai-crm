@@ -24,6 +24,11 @@ export type ContactTask = Pick<
   "task_id" | "title" | "status" | "due_date" | "description" | "contact_id" | "deal_id"
 >;
 
+interface ContactRelationQueryOptions {
+  /** Allows callers to defer non-visible tabs until needed. */
+  enabled?: boolean;
+}
+
 /**
  * Query key factory for contact relation queries.
  */
@@ -41,14 +46,15 @@ export const contactRelationKeys = {
 /**
  * Returns deal rows linked to a contact.
  */
-export function useContactDeals(contactId: string) {
+export function useContactDeals(contactId: string, options?: ContactRelationQueryOptions) {
   const { data: clientId } = useClientId();
+  const isEnabled = options?.enabled ?? true;
 
   useRealtimeTable({
     table: "deal_contacts",
     filter: clientId ? `client_id=eq.${clientId}` : undefined,
     queryKeys: [contactRelationKeys.deals(contactId)],
-    enabled: Boolean(clientId && contactId),
+    enabled: Boolean(clientId && contactId && isEnabled),
   });
 
   return useQuery({
@@ -66,7 +72,7 @@ export function useContactDeals(contactId: string) {
 
       return (data ?? []) as DealContactWithDeal[];
     },
-    enabled: Boolean(contactId),
+    enabled: Boolean(contactId && isEnabled),
   });
 }
 
@@ -105,14 +111,15 @@ export function useContactInteractions(contactId: string) {
 /**
  * Returns CRM task rows linked to a contact.
  */
-export function useContactTasks(contactId: string) {
+export function useContactTasks(contactId: string, options?: ContactRelationQueryOptions) {
   const { data: clientId } = useClientId();
+  const isEnabled = options?.enabled ?? true;
 
   useRealtimeTable({
     table: "crm_tasks",
     filter: clientId ? `client_id=eq.${clientId}` : undefined,
     queryKeys: [contactRelationKeys.tasks(contactId)],
-    enabled: Boolean(clientId && contactId),
+    enabled: Boolean(clientId && contactId && isEnabled),
   });
 
   return useQuery({
@@ -130,7 +137,7 @@ export function useContactTasks(contactId: string) {
 
       return (data ?? []) as ContactTask[];
     },
-    enabled: Boolean(contactId),
+    enabled: Boolean(contactId && isEnabled),
   });
 }
 

@@ -70,4 +70,33 @@ describe("FilterOverlay", () => {
     expect(clearSpy).toHaveBeenCalledTimes(1)
     expect(screen.getByRole("textbox", { name: "Search term" })).toHaveValue("")
   })
+
+  it("preserves in-progress draft state when the parent re-renders with equal initial values", async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(
+      <FilterOverlay
+        open
+        onOpenChange={vi.fn()}
+        onApply={vi.fn()}
+        filters={[{ id: "query", label: "Search term", type: "text" }]}
+        initialValues={{ query: "Existing value" }}
+      />,
+    )
+
+    const input = screen.getByRole("textbox", { name: "Search term" })
+    await user.clear(input)
+    await user.type(input, "typing")
+
+    rerender(
+      <FilterOverlay
+        open
+        onOpenChange={vi.fn()}
+        onApply={vi.fn()}
+        filters={[{ id: "query", label: "Search term", type: "text" }]}
+        initialValues={{ query: "Existing value" }}
+      />,
+    )
+
+    expect(screen.getByRole("textbox", { name: "Search term" })).toHaveValue("typing")
+  })
 })

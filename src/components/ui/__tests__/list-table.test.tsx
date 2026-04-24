@@ -3,6 +3,7 @@
  * @module components/ui/__tests__/list-table.test
  */
 import { render, screen, within } from "@testing-library/react"
+import { fireEvent } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 
@@ -25,6 +26,27 @@ const rows: PersonRow[] = [
   { id: "1", name: "Sarah Chen", email: "sarah@example.com", updated_at: "2026-03-02T12:30:00.000Z" },
   { id: "2", name: "Adam Tan", email: "adam@example.com", updated_at: "2026-03-01T12:30:00.000Z" },
 ]
+
+if (!HTMLElement.prototype.hasPointerCapture) {
+  Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", {
+    configurable: true,
+    value: () => false,
+  })
+}
+
+if (!HTMLElement.prototype.setPointerCapture) {
+  Object.defineProperty(HTMLElement.prototype, "setPointerCapture", {
+    configurable: true,
+    value: () => undefined,
+  })
+}
+
+if (!HTMLElement.prototype.releasePointerCapture) {
+  Object.defineProperty(HTMLElement.prototype, "releasePointerCapture", {
+    configurable: true,
+    value: () => undefined,
+  })
+}
 
 describe("ListTable", () => {
   it("sorts rows, isolates row actions, and forwards pagination clicks", async () => {
@@ -84,5 +106,31 @@ describe("ListTable", () => {
 
     rerender(<ListTable<PersonRow> columns={[...columns]} data={[]} />)
     expect(screen.getByText("No results.")).toBeInTheDocument()
+  })
+
+  it("applies resized widths and notifies when a column resize finishes", async () => {
+    const onColumnResize = vi.fn()
+
+    render(
+      <ListTable<PersonRow>
+        columns={[
+          { accessorKey: "name", header: "Name", size: 200, minSize: 104 },
+          { accessorKey: "email", header: "Email", size: 220, minSize: 104 },
+          { accessorKey: "updated_at", header: "Updated", size: 140, minSize: 104 },
+        ]}
+        data={rows}
+        onColumnResize={onColumnResize}
+      />,
+    )
+
+    const resizeHandle = screen.getByRole("button", { name: /resize name column/i })
+    fireEvent.mouseDown(resizeHandle, { clientX: 200 })
+    fireEvent.mouseMove(document, { clientX: 260 })
+    fireEvent.mouseUp(document, { clientX: 260 })
+
+    expect(await screen.findByRole("button", { name: /resize email column/i })).toBeInTheDocument()
+    expect(onColumnResize).toHaveBeenCalledWith("name", 260)
+    expect(screen.getByText("Name").closest("th")).toHaveStyle({ width: "260px" })
+    expect(screen.getByText("Sarah Chen").closest("td")).toHaveStyle({ width: "260px" })
   })
 })

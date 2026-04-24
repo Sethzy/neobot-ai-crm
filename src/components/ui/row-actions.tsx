@@ -118,7 +118,7 @@ export function RowActions({ items = [] }: RowActionsProps) {
     document.addEventListener("mousedown", handleDocumentClick)
     document.addEventListener("keydown", handleKeyDown)
     window.addEventListener("resize", handleWindowChange)
-    window.addEventListener("scroll", handleWindowChange, true)
+    window.addEventListener("scroll", handleWindowChange, { capture: true, passive: true })
 
     return () => {
       document.removeEventListener("mousedown", handleDocumentClick)

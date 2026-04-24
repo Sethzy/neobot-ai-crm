@@ -1,8 +1,8 @@
 /**
- * Tests for Tasks page query states and search wiring.
+ * Tests for Tasks page query states.
  * @module app/(dashboard)/tasks/__tests__/page
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,6 +15,7 @@ const mockFrom = vi.fn();
 const mockUseMutation = vi.fn();
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
+const mockTaskCalendarView = vi.fn(() => <div>Mock Calendar View</div>);
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -22,6 +23,7 @@ vi.mock("next/navigation", () => ({
     replace: mockReplace,
   }),
   useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/tasks",
 }));
 
 vi.mock("@/hooks/use-crm-tasks", () => ({
@@ -55,6 +57,10 @@ vi.mock("@/lib/supabase", () => ({
 
 vi.mock("@/components/ui/list-table", () => ({
   ListTable: () => <div>CRM Tasks Table</div>,
+}));
+
+vi.mock("@/components/crm/task-calendar-view", () => ({
+  TaskCalendarView: mockTaskCalendarView,
 }));
 
 vi.mock("@/hooks/use-record-drawer", () => ({
@@ -138,7 +144,7 @@ describe("TasksPage", () => {
     expect(screen.getByText(/no tasks yet/i)).toBeInTheDocument();
   });
 
-  it("passes trimmed search text into the tasks hook", async () => {
+  it("does not load the calendar bundle when the table view is active", async () => {
     const { useCrmTasks } = await import("@/hooks/use-crm-tasks");
 
     vi.mocked(useCrmTasks).mockReturnValue({
@@ -147,17 +153,9 @@ describe("TasksPage", () => {
       isError: false,
     } as never);
 
-    const user = userEvent.setup();
     render(<TasksPage />);
 
-    await user.type(screen.getByPlaceholderText(/search tasks/i), "  follow up  ");
-
-    await waitFor(
-      () => {
-        expect(vi.mocked(useCrmTasks)).toHaveBeenLastCalledWith({ search: "follow up" });
-      },
-      { timeout: 1500 },
-    );
+    expect(mockTaskCalendarView).not.toHaveBeenCalled();
   });
 
   it("captures a created timeline activity when a task is created from the page", async () => {

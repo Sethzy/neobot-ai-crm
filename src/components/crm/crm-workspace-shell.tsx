@@ -75,18 +75,24 @@ export function CrmWorkspaceShell({
     <PageCanvas>
       <PageHeader title={title} description={description} />
       <FilterBar
+        filterPosition="trailing"
         leadingSlot={(
-          <>
+          // Pull the cluster back by the picker's internal left padding so the
+          // picker's text lines up with the page title's left edge.
+          <div className="-ml-2.5 flex flex-wrap items-center gap-1">
             <ViewPicker
               entityType={entityType}
               activeViewId={activeViewId}
               onViewChange={onViewChange}
               count={count}
             />
-            {!isSavedViewActive && views.length > 1 && onViewTypeChange ? (
-              <ViewToggle current={viewType} views={views} onChange={onViewTypeChange} />
-            ) : null}
-          </>
+            <ViewToggle
+              current={viewType}
+              views={views}
+              onChange={onViewTypeChange ?? (() => {})}
+              disabled={isSavedViewActive || !onViewTypeChange}
+            />
+          </div>
         )}
         trailingSlot={(
           <>

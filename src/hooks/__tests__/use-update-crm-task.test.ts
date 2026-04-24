@@ -3,7 +3,7 @@
  * @module hooks/__tests__/use-update-crm-task
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -93,6 +93,42 @@ describe("useUpdateCrmTask", () => {
       }),
     );
     expect(invalidateQueriesSpy).toHaveBeenCalledWith({ queryKey: crmTaskKeys.all });
+  });
+
+  it("writes the updated task status into the cache in onMutate", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    queryClient.setQueryData(crmTaskKeys.detail("task-1"), {
+      task_id: "task-1",
+      client_id: "client-1",
+      title: "Follow up",
+      status: "todo",
+      due_date: null,
+      description: null,
+      custom_fields: {},
+      contact_id: null,
+      deal_id: null,
+      contacts: null,
+      deals: null,
+    });
+
+    const { result } = renderHook(() => useUpdateCrmTask("task-1"), {
+      wrapper: createWrapper(queryClient),
+    });
+
+    act(() => {
+      result.current.mutate({ status: "done" });
+    });
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(crmTaskKeys.detail("task-1"))).toMatchObject({
+        status: "done",
+      });
+    });
   });
 
   it("throws when Supabase returns an update error", async () => {

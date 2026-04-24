@@ -1,9 +1,10 @@
 /**
  * CRM data normalisation utilities.
  *
- * Normalisation happens at the tool layer (before insert/update) so the database
- * always receives clean, canonical values. The DB-level CHECK constraint is a
- * secondary safety net for any writes that bypass the application layer.
+ * Normalisation and save-time validation happen in the application layer before
+ * insert/update so the database always receives clean, canonical values. The
+ * DB-level CHECK constraint is a secondary safety net for writes that bypass
+ * those callers.
  *
  * @module lib/crm/normalize
  */
@@ -20,6 +21,14 @@ const NORMALIZE_URL_OPTIONS = {
   removeSingleSlash: true,
 } as const;
 const emailSchema = z.string().email();
+
+/**
+ * Shared result shape for CRM field validators used by both quick-edit UIs and
+ * write paths that need a user-facing validation message.
+ */
+export type CrmSaveValidationResult =
+  | { ok: true; value: string | null }
+  | { ok: false; message: string };
 
 /**
  * Attempts to normalise a phone string to E.164 format (e.g. `+12125551234`).
@@ -123,6 +132,121 @@ export function normalizeEmail(
   }
 
   return lowered;
+}
+
+/**
+ * Validates an email before saving to the CRM.
+ *
+ * - blank input clears the field
+ * - non-empty values must pass `z.string().email()`
+ * - stored form is trimmed + lowercased
+ */
+export function validateEmailForSave(
+  input: unknown,
+): CrmSaveValidationResult {
+  if (input === null || input === undefined) {
+    return { ok: true, value: null };
+  }
+
+  if (typeof input !== "string") {
+    return { ok: false, message: "Doesn't look like an email" };
+  }
+
+  const trimmed = input.trim();
+
+  if (!trimmed) {
+    return { ok: true, value: null };
+  }
+
+  const lowered = trimmed.toLowerCase();
+  const parsed = emailSchema.safeParse(lowered);
+
+  if (!parsed.success) {
+    return { ok: false, message: "Doesn't look like an email" };
+  }
+
+  return { ok: true, value: lowered };
+}
+
+/**
+ * Validates a phone number before saving to the CRM.
+ *
+ * - blank input clears the field
+ * - prefer canonical E.164 when the parser can produce one
+ * - otherwise accept the trimmed raw value only when it has at least 7 digits
+ */
+export function validatePhoneForSave(
+  input: unknown,
+  defaultCountry: CountryCode = "US",
+): CrmSaveValidationResult {
+  if (input === null || input === undefined) {
+    return { ok: true, value: null };
+  }
+
+  if (typeof input !== "string") {
+    return { ok: false, message: "Doesn't look like a phone number" };
+  }
+
+  const trimmed = input.trim();
+
+  if (!trimmed) {
+    return { ok: true, value: null };
+  }
+
+  const normalizedPhone = normalizePhone(trimmed, defaultCountry);
+
+  if (normalizedPhone) {
+    return { ok: true, value: normalizedPhone };
+  }
+
+  if (extractPhoneDigits(trimmed).length >= 7) {
+    return { ok: true, value: trimmed };
+  }
+
+  return { ok: false, message: "Doesn't look like a phone number" };
+}
+
+/**
+ * Validates a website before saving to the CRM.
+ *
+ * - blank input clears the field
+ * - non-empty values must normalize into a canonical URL-ish storage form
+ */
+export function validateWebsiteForSave(
+  input: unknown,
+): CrmSaveValidationResult {
+  if (input === null || input === undefined) {
+    return { ok: true, value: null };
+  }
+
+  if (typeof input !== "string") {
+    return { ok: false, message: "Doesn't look like a website" };
+  }
+
+  const trimmed = input.trim();
+
+  if (!trimmed) {
+    return { ok: true, value: null };
+  }
+
+  const normalizedWebsite = normalizeWebsite(trimmed);
+
+  if (!normalizedWebsite) {
+    return { ok: false, message: "Doesn't look like a website" };
+  }
+
+  try {
+    const parsedUrl = new URL(
+      normalizedWebsite.startsWith("http") ? normalizedWebsite : `https://${normalizedWebsite}`,
+    );
+    if (!parsedUrl.hostname.includes(".")) {
+      return { ok: false, message: "Doesn't look like a website" };
+    }
+  } catch {
+    return { ok: false, message: "Doesn't look like a website" };
+  }
+
+  return { ok: true, value: normalizedWebsite };
 }
 
 /**

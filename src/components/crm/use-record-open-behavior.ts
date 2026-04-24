@@ -4,35 +4,34 @@
  */
 "use client";
 
-import { useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import type { RecordObjectType } from "@/components/crm/record-drawer";
 import type { CrmViewOpenMode } from "@/lib/crm/view-state";
-
-type PageableRecordObjectType = Exclude<RecordObjectType, "task">;
-
-/**
- * Returns the canonical CRM detail route for a record type.
- */
-export function getCrmRecordHref(
-  objectType: PageableRecordObjectType,
-  recordId: string,
-) {
-  switch (objectType) {
-    case "contact":
-      return `/customers/people/${recordId}`;
-    case "company":
-      return `/customers/companies/${recordId}`;
-    case "deal":
-      return `/customers/deals/${recordId}`;
-  }
-}
+import {
+  getCrmRecordHref,
+  getCrmWorkspaceHref,
+} from "@/lib/crm/navigation";
 
 interface UseRecordOpenBehaviorOptions {
   objectType: RecordObjectType;
   openDrawer: (recordId: string) => void;
   openMode: CrmViewOpenMode;
+}
+
+/**
+ * Returns the active CRM workspace href so full-page detail routes can link
+ * back to the exact list or board state that opened them.
+ */
+export function useCurrentCrmWorkspaceHref() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  return useMemo(
+    () => getCrmWorkspaceHref(pathname, searchParams),
+    [pathname, searchParams],
+  );
 }
 
 /**
@@ -43,7 +42,8 @@ export function useRecordOpenBehavior({
   openDrawer,
   openMode,
 }: UseRecordOpenBehaviorOptions) {
-  const router = useRouter();
+  const { push } = useRouter();
+  const currentWorkspaceHref = useCurrentCrmWorkspaceHref();
 
   const openRecord = useCallback(
     (recordId: string) => {
@@ -52,9 +52,9 @@ export function useRecordOpenBehavior({
         return;
       }
 
-      router.push(getCrmRecordHref(objectType, recordId));
+      push(getCrmRecordHref(objectType, recordId, { returnTo: currentWorkspaceHref }));
     },
-    [objectType, openDrawer, openMode, router],
+    [currentWorkspaceHref, objectType, openDrawer, openMode, push],
   );
 
   const openFullPage = useCallback(
@@ -64,9 +64,9 @@ export function useRecordOpenBehavior({
         return;
       }
 
-      router.push(getCrmRecordHref(objectType, recordId));
+      push(getCrmRecordHref(objectType, recordId, { returnTo: currentWorkspaceHref }));
     },
-    [objectType, openDrawer, router],
+    [currentWorkspaceHref, objectType, openDrawer, push],
   );
 
   return {

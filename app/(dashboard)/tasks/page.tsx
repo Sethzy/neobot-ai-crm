@@ -6,22 +6,21 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AppIcon } from "@/components/icons/app-icons";
 import { applyViewColumns } from "@/components/crm/apply-view-columns";
 import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
-import { CrmTasksCalendar } from "@/components/crm/crm-tasks-calendar";
-import { KanbanBoard } from "@/components/crm/kanban-board";
 import { RecordDrawer } from "@/components/crm/record-drawer";
-import { TaskKanbanCard } from "@/components/crm/task-kanban-card";
-import { crmTaskStatusLabelMap } from "@/components/crm/task-status-badge";
 import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
+import { useCrmListRouteState } from "@/components/crm/use-crm-list-route-state";
 import { useRecordOpenBehavior } from "@/components/crm/use-record-open-behavior";
 import { PageSurface } from "@/components/layout/page-canvas";
 import { Button } from "@/components/ui/button";
+import type { FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 import { ListTable } from "@/components/ui/list-table";
 import { taskColumns } from "@/lib/crm/task-columns";
 import { crmTaskKeys } from "@/hooks/use-crm-tasks";
@@ -31,33 +30,45 @@ import { useCrmViews } from "@/hooks/use-crm-views";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { useUpdateCrmTaskMutation } from "@/hooks/use-update-crm-task";
 import { useViewPreference } from "@/hooks/use-view-preference";
-import {
-  taskStatusTopBorderMap,
-  taskStatusToneClassMap,
-} from "@/lib/crm/display";
-import { crmTaskStatusValues } from "@/lib/crm/schemas";
+import { crmTaskStatusValues, type CrmTask } from "@/lib/crm/schemas";
+import { formatCrmEnumLabel } from "@/lib/crm/display";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { supabase } from "@/lib/supabase";
 
-/** Static kanban column definitions for task statuses (all inputs are module-level constants). */
-const taskStatusColumns = crmTaskStatusValues.map((status) => ({
-  key: status,
-  label: crmTaskStatusLabelMap[status],
-  toneClassName: taskStatusToneClassMap[status],
-  topBorderClassName: taskStatusTopBorderMap[status],
-}));
+function TaskViewLoading() {
+  return (
+    <div className="h-48 animate-pulse rounded-md border border-app-border-subtle bg-app-surface" />
+  );
+}
+
+const TaskKanbanView = dynamic(
+  () => import("@/components/crm/task-kanban-view").then((mod) => mod.TaskKanbanView),
+  { loading: () => <TaskViewLoading /> },
+);
+
+const TaskCalendarView = dynamic(
+  () => import("@/components/crm/task-calendar-view").then((mod) => mod.TaskCalendarView),
+  { loading: () => <TaskViewLoading /> },
+);
 
 export default function TasksPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState("");
   const { isOpen, recordId, open, close } = useRecordDrawer();
   const { view, setView } = useViewPreference("tasks");
+  const [filterValues, setFilterValues] = useState<FilterValues>({});
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const updateTask = useUpdateCrmTaskMutation();
-  const savedViewId = searchParams?.get("savedView") ?? null;
+  const {
+    savedViewId,
+    handleSavedViewChange: handleSavedViewRouteChange,
+  } = useCrmListRouteState({
+    basePath: "/tasks",
+    replace: router.replace,
+    searchParams,
+  });
   const { data: views } = useCrmViews("tasks");
   const {
     activeSavedView,
@@ -117,7 +128,7 @@ export default function TasksPage() {
     async (taskId: string, _fromStatus: string, toStatus: string) => {
       await updateTask.mutateAsync({
         taskId,
-        updates: { status: toStatus as (typeof crmTaskStatusValues)[number] },
+        updates: { status: toStatus as CrmTask["status"] },
       });
     },
     [updateTask],
@@ -133,6 +144,21 @@ export default function TasksPage() {
     [updateTask],
   );
 
+  const taskFilterDefs = useMemo<FilterDef[]>(
+    () => [
+      {
+        id: "status",
+        label: "Status",
+        type: "select",
+        options: crmTaskStatusValues.map((status) => ({
+          value: status,
+          label: formatCrmEnumLabel(status),
+        })),
+      },
+    ],
+    [],
+  );
+
   const filters = useMemo(() => {
     if (isSavedViewActive) {
       return {
@@ -141,44 +167,44 @@ export default function TasksPage() {
       };
     }
 
-    const normalizedSearch = search.trim();
-
     return {
-      search: normalizedSearch.length > 0 ? normalizedSearch : undefined,
+      status:
+        typeof filterValues.status === "string"
+          ? (filterValues.status as CrmTask["status"])
+          : undefined,
     };
-  }, [activeState?.filters, activeState?.sort, isSavedViewActive, search]);
+  }, [activeState?.filters, activeState?.sort, filterValues.status, isSavedViewActive]);
 
   const { data: tasks = [], isLoading, isError, refetch } = useCrmTasks(filters);
-  const hasLocalFilters = search.trim().length > 0;
+  const hasLocalFilters = Object.keys(filterValues).length > 0;
   const hasActiveFiltering = isSavedViewActive || hasLocalFilters;
   const visibleTableColumns = useMemo(
     () => applyViewColumns(taskColumns, activeState),
     [activeState],
   );
+  const handleRowClick = useCallback(
+    (task: (typeof tasks)[number]) => {
+      openRecord(task.task_id);
+    },
+    [openRecord],
+  );
 
   function handleViewChange(viewId: string | null) {
-    const params = new URLSearchParams(searchParams?.toString());
-    if (viewId) {
-      params.set("savedView", viewId);
-    } else {
-      params.delete("savedView");
-    }
-
-    const nextQuery = params.toString();
-    router.replace(nextQuery ? "?" + nextQuery : "/tasks");
+    handleSavedViewRouteChange(viewId);
   }
 
   return (
     <CrmWorkspaceShell
       title="Todos"
-      description="Review follow-ups in a table, board, or calendar without leaving the workspace."
       entityType="tasks"
       activeViewId={activeSavedView?.view_id ?? null}
       onViewChange={handleViewChange}
+      count={isLoading ? undefined : tasks.length}
+      filters={taskFilterDefs}
+      filterValues={filterValues}
       isSavedViewActive={isSavedViewActive}
-      searchValue={search}
-      searchPlaceholder="Search tasks by title or description..."
-      onSearchChange={setSearch}
+      onFilterApply={(nextValues: FilterValues) => setFilterValues(nextValues)}
+      onFilterClear={() => setFilterValues({})}
       primaryAction={(
         <Button size="sm" onClick={() => createTask.mutate()} disabled={!clientId || createTask.isPending}>
           <Plus className="h-4 w-4" />
@@ -220,7 +246,7 @@ export default function TasksPage() {
             columns={visibleTableColumns}
             data={tasks}
             initialSorting={[{ id: "due_date", desc: false }]}
-            onRowClick={(task) => openRecord(task.task_id)}
+            onRowClick={handleRowClick}
           />
         ),
         calendar: isLoading ? (
@@ -250,7 +276,7 @@ export default function TasksPage() {
             </p>
           </PageSurface>
         ) : (
-          <CrmTasksCalendar
+          <TaskCalendarView
             onTaskClick={openRecord}
             onTaskDateChange={handleCalendarTaskDateChange}
             tasks={tasks}
@@ -283,15 +309,10 @@ export default function TasksPage() {
             </p>
           </PageSurface>
         ) : (
-          <KanbanBoard
-            boardLabel="By Status"
+          <TaskKanbanView
             items={tasks}
-            columns={taskStatusColumns}
-            groupBy={(task) => task.status}
-            getItemId={(task) => task.task_id}
-            renderCard={(task) => <TaskKanbanCard task={task} />}
-            onCardClick={openRecord}
-            onColumnChange={handleBoardColumnChange}
+            onTaskClick={openRecord}
+            onTaskStatusChange={handleBoardColumnChange}
           />
         ),
       }}

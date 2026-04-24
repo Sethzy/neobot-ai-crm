@@ -69,15 +69,15 @@ describe("createRecordTool", () => {
       makeContext(client),
     );
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/invalid email/i);
-    }
+    expect(result).toEqual({
+      success: false,
+      error: "Doesn't look like an email",
+    });
   });
 
   it("lowercases email on contact create", async () => {
     const inserted = { contact_id: "c1", first_name: "Jane", last_name: "Doe", email: "jane@acme.com" };
-    const { client } = createMockSupabase({
+    const { client, builderHistory } = createMockSupabase({
       contacts: [
         { data: [], error: null },
         { data: inserted, error: null },
@@ -93,10 +93,104 @@ describe("createRecordTool", () => {
     );
 
     expect(result.success).toBe(true);
+    expect(builderHistory.contacts[0]?.or).toHaveBeenCalledWith(
+      expect.stringContaining("email.eq.jane@acme.com"),
+    );
     if (result.success && "record" in result) {
       const record = result.record as { email: string };
       expect(record.email).toBe("jane@acme.com");
     }
+  });
+
+  it("stores plausible non-E.164 phone input as trimmed raw on contact create", async () => {
+    const inserted = { contact_id: "c1", first_name: "Jane", last_name: "Doe", phone: "9123 4567" };
+    const { client, builderHistory } = createMockSupabase({
+      contacts: [
+        { data: [], error: null },
+        { data: inserted, error: null },
+      ],
+    });
+
+    const result = await createRecordTool.execute(
+      {
+        entity: "contacts",
+        records: [{ first_name: "Jane", last_name: "Doe", phone: "9123 4567" }],
+      },
+      makeContext(client),
+    );
+
+    expect(result.success).toBe(true);
+    expect(builderHistory.contacts[0]?.or).toHaveBeenCalledWith(
+      expect.stringContaining("phone.eq.9123 4567"),
+    );
+    expect(builderHistory.contacts[1]?.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: "9123 4567" }),
+    );
+  });
+
+  it("canonicalizes duplicate lookup email before querying existing contacts", async () => {
+    const inserted = { contact_id: "c1", first_name: "Jane", last_name: "Doe", email: "foo@bar.com" };
+    const { client, builderHistory } = createMockSupabase({
+      contacts: [
+        { data: [], error: null },
+        { data: inserted, error: null },
+      ],
+    });
+
+    const result = await createRecordTool.execute(
+      {
+        entity: "contacts",
+        records: [{ first_name: "Jane", last_name: "Doe", email: "  Foo@Bar.COM  " }],
+      },
+      makeContext(client),
+    );
+
+    expect(result.success).toBe(true);
+    expect(builderHistory.contacts[0]?.or).toHaveBeenCalledWith(
+      expect.stringContaining("email.eq.foo@bar.com"),
+    );
+  });
+
+  it("canonicalizes duplicate lookup phone before querying existing contacts", async () => {
+    const inserted = { contact_id: "c1", first_name: "Jane", last_name: "Doe", phone: "9123 4567" };
+    const { client, builderHistory } = createMockSupabase({
+      contacts: [
+        { data: [], error: null },
+        { data: inserted, error: null },
+      ],
+    });
+
+    const result = await createRecordTool.execute(
+      {
+        entity: "contacts",
+        records: [{ first_name: "Jane", last_name: "Doe", phone: " 9123 4567 " }],
+      },
+      makeContext(client),
+    );
+
+    expect(result.success).toBe(true);
+    expect(builderHistory.contacts[0]?.or).toHaveBeenCalledWith(
+      expect.stringContaining("phone.eq.9123 4567"),
+    );
+  });
+
+  it("rejects implausible phone input on contact create", async () => {
+    const { client } = createMockSupabase({
+      contacts: { data: [], error: null },
+    });
+
+    const result = await createRecordTool.execute(
+      {
+        entity: "contacts",
+        records: [{ first_name: "Jane", last_name: "Doe", phone: "123" }],
+      },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Doesn't look like a phone number",
+    });
   });
 
   it("rejects invalid email format on company create", async () => {
@@ -112,10 +206,10 @@ describe("createRecordTool", () => {
       makeContext(client),
     );
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error).toMatch(/invalid email/i);
-    }
+    expect(result).toEqual({
+      success: false,
+      error: "Doesn't look like an email",
+    });
   });
 
   it("rejects deal with negative amount on create", async () => {
@@ -191,6 +285,25 @@ describe("createRecordTool", () => {
     expect(builderHistory.companies[1]?.insert).toHaveBeenCalledWith(
       expect.objectContaining({ website: "acme.com" }),
     );
+  });
+
+  it("rejects invalid website format on company create", async () => {
+    const { client } = createMockSupabase({
+      companies: { data: [], error: null },
+    });
+
+    const result = await createRecordTool.execute(
+      {
+        entity: "companies",
+        records: [{ name: "Acme", website: "not a url" }],
+      },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Doesn't look like a website",
+    });
   });
 
   it("returns possible_duplicates when duplicate detection finds a match", async () => {

@@ -9,6 +9,40 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import TasksPage from "../page";
 
+const { mockDynamicTaskCalendarView, mockDynamicTaskKanbanView } = vi.hoisted(() => ({
+  mockDynamicTaskKanbanView: vi.fn(({ items }: { items: Array<{ title: string }> }) => (
+    <div>
+      <div>By Status</div>
+      <div>To do</div>
+      {items.map((item) => (
+        <div key={item.title}>{item.title}</div>
+      ))}
+    </div>
+  )),
+  mockDynamicTaskCalendarView: vi.fn(({ tasks }: { tasks: Array<{ title: string }> }) => (
+    <div>
+      <div>Scheduled tasks</div>
+      <div>March 2026</div>
+      {tasks.map((task) => (
+        <div key={task.title}>{task.title}</div>
+      ))}
+    </div>
+  )),
+}));
+
+vi.mock("next/dynamic", () => ({
+  default: (() => {
+    let dynamicImportCallCount = 0;
+
+    return () => {
+    dynamicImportCallCount += 1;
+    return dynamicImportCallCount === 1
+      ? mockDynamicTaskKanbanView
+      : mockDynamicTaskCalendarView;
+    };
+  })(),
+}));
+
 vi.mock("@dnd-kit/core", async () => {
   const React = await import("react");
 
@@ -84,6 +118,7 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
   }),
   useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/tasks",
 }));
 
 describe("TasksPage integration", () => {

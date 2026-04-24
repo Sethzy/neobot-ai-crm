@@ -3,9 +3,8 @@
  * (Tasks, Companies, People, Deals). Visual rhythm matches the Tasks page:
  *
  *   - No outer card — lives on the page canvas directly.
- *   - Column header: `type-table-heading` at 12px uppercase caption.
- *   - Row cell:      14px medium in the primary column, 14px regular elsewhere.
- *   - Row padding:   `px-4 py-2.5`.
+ *   - Column header: compact `h-8` chrome for header/content contrast.
+ *   - Row cell:      `h-[41px]` for breathing room, 14px text.
  *   - Hover:         `bg-app-hover/70` when clickable.
  *
  * Toolbars (search, filter chips, view tabs, page header) are rendered by the
@@ -18,6 +17,7 @@
 
 import * as React from "react";
 import {
+  type ColumnSizingState,
   flexRender,
   getCoreRowModel,
   getSortedRowModel,
@@ -54,6 +54,8 @@ export interface ListTableProps<TData> {
   initialSorting?: SortingState;
   /** Freezes the first column to the left of the scroll container (Attio-style). */
   pinFirstColumn?: boolean;
+  /** Called after a config-backed column finishes resizing. */
+  onColumnResize?: (columnId: string, width: number) => void;
   className?: string;
 }
 
@@ -154,9 +156,13 @@ export function ListTable<TData>({
   getRowId,
   initialSorting,
   pinFirstColumn = false,
+  onColumnResize,
   className,
 }: ListTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>(initialSorting ?? []);
+  const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({});
+  const previousColumnSizingRef = React.useRef<ColumnSizingState>({});
+  const isColumnResizeEnabled = typeof onColumnResize === "function";
 
   const resolvedColumns = React.useMemo<ColumnDef<TData, unknown>[]>(() => {
     if (!rowActions) return columns;
@@ -166,6 +172,8 @@ export function ListTable<TData>({
         id: "__row_actions",
         header: () => <span className="sr-only">Actions</span>,
         enableSorting: false,
+        enableResizing: false,
+        size: 52,
         cell: ({ row }) => (
           <div
             className="flex justify-end opacity-0 transition-opacity group-hover/row:opacity-100"
@@ -183,13 +191,36 @@ export function ListTable<TData>({
   const table = useReactTable({
     data,
     columns: resolvedColumns,
-    state: { sorting },
+    state: {
+      sorting,
+      columnSizing,
+    },
     onSortingChange: setSorting,
+    onColumnSizingChange: setColumnSizing,
+    enableColumnResizing: isColumnResizeEnabled,
+    columnResizeMode: "onEnd",
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
 
-  const colSpan = resolvedColumns.length;
+  React.useEffect(() => {
+    if (!onColumnResize) {
+      return;
+    }
+
+    const previousColumnSizing = previousColumnSizingRef.current;
+
+    for (const [columnId, width] of Object.entries(columnSizing)) {
+      if (previousColumnSizing[columnId] !== width) {
+        onColumnResize(columnId, width);
+      }
+    }
+
+    previousColumnSizingRef.current = columnSizing;
+  }, [columnSizing, onColumnResize]);
+
+  const visibleLeafColumns = table.getVisibleLeafColumns();
+  const colSpan = visibleLeafColumns.length;
   const startResult =
     pagination && pagination.total > 0 ? (pagination.page - 1) * pagination.pageSize + 1 : 0;
   const endResult =
@@ -200,21 +231,29 @@ export function ListTable<TData>({
   return (
     <div className={cn("min-w-0", className)}>
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table
+          className={cn("w-full", isColumnResizeEnabled && "min-w-full table-fixed")}
+          style={isColumnResizeEnabled ? { width: table.getTotalSize() } : undefined}
+        >
           <thead className="border-b border-app-border-subtle">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header, headerIndex) => {
                   const isActionsColumn = header.column.id === "__row_actions";
                   const isPinnedColumn = pinFirstColumn && headerIndex === 0;
+                  const headerWidth = header.getSize();
+                  const canResize = isColumnResizeEnabled && header.column.getCanResize();
                   return (
                     <th
                       key={header.id}
+                      colSpan={header.colSpan}
                       className={cn(
-                        "h-8 px-2 text-left text-[13px] font-medium text-muted-foreground",
+                        "h-8 px-2 text-left text-meta font-medium text-muted-foreground",
+                        canResize && "group/header relative",
                         isActionsColumn && "w-[1%] text-right",
                         isPinnedColumn && "sticky left-0 z-10 bg-background",
                       )}
+                      style={isColumnResizeEnabled ? { width: headerWidth } : undefined}
                     >
                       {header.isPlaceholder ? null : header.column.getCanSort() ? (
                         <button
@@ -236,6 +275,24 @@ export function ListTable<TData>({
                           {flexRender(header.column.columnDef.header, header.getContext())}
                         </span>
                       )}
+                      {canResize ? (
+                        <button
+                          type="button"
+                          aria-label={`Resize ${header.column.id} column`}
+                          className={cn(
+                            "absolute inset-y-0 right-0 z-20 hidden w-3 translate-x-1/2 cursor-col-resize touch-none sm:block",
+                            "after:absolute after:inset-y-1 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-app-border",
+                            "opacity-0 transition-opacity group-hover/header:opacity-100",
+                            header.column.getIsResizing() && "opacity-100",
+                          )}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                          }}
+                          onMouseDown={header.getResizeHandler()}
+                          onTouchStart={header.getResizeHandler()}
+                        />
+                      ) : null}
                     </th>
                   );
                 })}
@@ -246,20 +303,21 @@ export function ListTable<TData>({
             {isLoading
               ? Array.from({ length: 6 }).map((_, rowIndex) => (
                   <tr key={rowIndex} className="group/row border-t border-app-border-subtle/40">
-                    {resolvedColumns.map((col, colIndex) => {
-                      const colId = (col.id as string | undefined) ?? `col${colIndex}`;
+                    {visibleLeafColumns.map((column, colIndex) => {
+                      const colId = column.id;
                       const isActionsCol = colId === "__row_actions";
-                      const isLastCol = colIndex === resolvedColumns.length - 1;
+                      const isLastCol = colIndex === visibleLeafColumns.length - 1;
                       const isPinnedCol = pinFirstColumn && colIndex === 0;
                       return (
                         <td
                           key={colIndex}
                           className={cn(
-                            "h-8 px-2",
+                            "h-[41px] px-2",
                             !isLastCol && "border-r border-app-border-subtle/80",
                             isActionsCol && "w-[1%] text-right",
                             isPinnedCol && PINNED_FIRST_COL_CLASSES,
                           )}
+                          style={isColumnResizeEnabled ? { width: column.getSize() } : undefined}
                         >
                           <Skeleton
                             className={cn("h-3.5", getSkeletonCellWidth(colId, rowIndex))}
@@ -316,12 +374,13 @@ export function ListTable<TData>({
                               <td
                                 key={cell.id}
                                 className={cn(
-                                  "h-8 px-2 text-meta text-foreground",
+                                  "h-[41px] px-2 text-meta text-foreground",
                                   !isLastCell && "border-r border-app-border-subtle/80",
                                   isActionsColumn && "w-[1%] whitespace-nowrap text-right",
                                   isPinnedCell && PINNED_FIRST_COL_CLASSES,
                                   isPinnedCell && isSelected && "bg-[var(--selection)]",
                                 )}
+                                style={isColumnResizeEnabled ? { width: cell.column.getSize() } : undefined}
                               >
                                 {resolvedContent}
                               </td>

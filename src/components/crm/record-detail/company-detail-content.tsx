@@ -4,24 +4,22 @@
  */
 "use client";
 
-import Link from "next/link";
 import { type ReactNode, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowUpRight, BriefcaseBusiness, Building2, Clock3, Globe, House, Mail, MapPin, Paperclip, Phone, StickyNote, Users } from "lucide-react";
+import { BriefcaseBusiness, Building2, Clock3, Globe, House, Mail, MapPin, Paperclip, Phone, StickyNote, Users } from "lucide-react";
 
 import { LinkedContactsSection } from "@/components/crm/detail/linked-contacts-section";
 import { LinkedDealsSection } from "@/components/crm/detail/linked-deals-section";
+import { CrmRecordDetailSkeleton } from "@/components/crm/crm-record-detail-skeleton";
 import { InlineEditField } from "@/components/crm/inline-edit-field";
 import { UnifiedTimeline } from "@/components/crm/timeline/unified-timeline";
+import { useCurrentCrmWorkspaceHref } from "@/components/crm/use-record-open-behavior";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useCompanyContacts, useCompanyDeals } from "@/hooks/use-company-relations";
 import { useCompany } from "@/hooks/use-companies";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useUpdateCompany } from "@/hooks/use-update-company";
-import { getCrmRecordHref } from "@/components/crm/use-record-open-behavior";
 import { CRM_DEFAULTS } from "@/lib/crm/config";
 import {
   buildCrmSelectOptions,
@@ -31,6 +29,12 @@ import {
   parseCustomFieldInputValue,
   toNullableValue,
 } from "@/lib/crm/display";
+import { getCrmRecordHref } from "@/lib/crm/navigation";
+import {
+  validateEmailForSave,
+  validatePhoneForSave,
+  validateWebsiteForSave,
+} from "@/lib/crm/normalize";
 
 import { DrawerFilesTab } from "../record-drawer/drawer-files-tab";
 import { DrawerNotesTab } from "../record-drawer/drawer-notes-tab";
@@ -63,43 +67,10 @@ export function CompanyDetailContent({
   const updateCompany = useUpdateCompany(companyId);
   const [activeTab, setActiveTab] = useState<CompanyDrawerTab>("home");
   const isDrawerSurface = surface === "drawer";
+  const currentWorkspaceHref = useCurrentCrmWorkspaceHref();
 
   if (isLoading) {
-    return (
-      <div className="flex h-full min-h-0 min-w-0 flex-col">
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="space-y-4 p-5">
-            <header className="space-y-2">
-              <div className="flex items-center gap-2.5">
-                <Skeleton className="size-7 shrink-0 rounded-full" />
-                <Skeleton className="h-4 w-36" />
-                <Skeleton className="ml-auto h-3 w-24 shrink-0" />
-              </div>
-              <Skeleton className="h-5 w-24 rounded-full" />
-            </header>
-            <div className="-mx-5 border-b border-border/60 px-5">
-              <div className="flex items-center gap-5">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="flex h-10 items-center">
-                    <Skeleton className="h-3 w-12" />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-px pt-1">
-              <Skeleton className="mb-4 h-3 w-10" />
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3 py-2">
-                  <Skeleton className="size-4 shrink-0" />
-                  <Skeleton className="h-3 w-16 shrink-0" />
-                  <Skeleton className="h-3 max-w-[160px] flex-1" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <CrmRecordDetailSkeleton tabCount={6} />;
   }
 
   if (isError || !company) {
@@ -129,7 +100,7 @@ export function CompanyDetailContent({
       meta={`Updated ${formatDistanceToNow(new Date(company.updated_at), { addSuffix: true })}`}
       avatar={
         <Avatar size="lg">
-          <AvatarFallback className="bg-emerald-500/10 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          <AvatarFallback className="bg-success/10 text-sm font-medium text-success">
             {company.name.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
@@ -139,20 +110,20 @@ export function CompanyDetailContent({
           {formatCrmEnumLabel(company.industry)}
         </Badge>
       ) : null}
-      headerActions={isDrawerSurface ? (
-        <Button asChild variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-          <Link href={getCrmRecordHref("company", companyId)}>
-            <span>Open page</span>
-            <ArrowUpRight className="size-3.5" />
-          </Link>
-        </Button>
-      ) : null}
       tabs={tabs}
       activeTab={activeTab}
       onTabChange={setActiveTab}
       maxVisibleTabs={6}
       reserveTrailingSpace={isDrawerSurface}
-      footer={<RecordDetailPanelFooter />}
+      footer={
+        <RecordDetailPanelFooter
+          openHref={
+            isDrawerSurface
+              ? getCrmRecordHref("company", companyId, { returnTo: currentWorkspaceHref })
+              : undefined
+          }
+        />
+      }
     >
       {activeTab === "home" ? (
         <div className="space-y-5">
@@ -180,6 +151,8 @@ export function CompanyDetailContent({
                 icon={<Globe className="h-4 w-4" />}
                 label="Website"
                 value={company.website}
+                inputType="url"
+                parseValue={validateWebsiteForSave}
                 onSave={async (nextValue) => {
                   await updateCompany.mutateAsync({ website: toNullableValue(nextValue) });
                 }}
@@ -188,6 +161,8 @@ export function CompanyDetailContent({
                 icon={<Phone className="h-4 w-4" />}
                 label="Phone"
                 value={company.phone}
+                inputType="tel"
+                parseValue={validatePhoneForSave}
                 onSave={async (nextValue) => {
                   await updateCompany.mutateAsync({ phone: toNullableValue(nextValue) });
                 }}
@@ -196,6 +171,8 @@ export function CompanyDetailContent({
                 icon={<Mail className="h-4 w-4" />}
                 label="Email"
                 value={company.email}
+                inputType="email"
+                parseValue={validateEmailForSave}
                 onSave={async (nextValue) => {
                   await updateCompany.mutateAsync({ email: toNullableValue(nextValue) });
                 }}

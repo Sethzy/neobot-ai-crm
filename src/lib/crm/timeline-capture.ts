@@ -5,6 +5,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database, Json } from "@/types/database";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 export type TimelineActorType = "user" | "agent" | "system";
 export type TimelineRecordType = "contact" | "company" | "deal" | "task";

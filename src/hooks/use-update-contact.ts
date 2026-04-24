@@ -6,10 +6,18 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { applyCommittedRecordPatch } from "@/hooks/crm-cache-updates";
+import {
+  applyCommittedRecordPatch,
+  captureRecordCacheSnapshot,
+  restoreRecordCacheSnapshot,
+} from "@/hooks/crm-cache-updates";
 import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
 import { contactKeys, type ContactWithCompany } from "@/hooks/use-contacts";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
+import {
+  validateEmailForSave,
+  validatePhoneForSave,
+} from "@/lib/crm/normalize";
 import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { type Contact } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
@@ -26,35 +34,61 @@ interface UpdateContactResult {
   beforeSnapshot: ContactRow;
   savedUpdates: ContactUpdate;
 }
+interface UpdateContactContext {
+  cacheSnapshot?: ReturnType<typeof captureRecordCacheSnapshot>;
+  didOptimisticUpdate: boolean;
+}
 
 /**
  * Returns a mutation for updating one contact row.
  */
+function normalizeContactUpdatesForSave(updates: ContactUpdate): ContactUpdate {
+  const normalizedUpdates: ContactUpdate = { ...updates };
+
+  if ("phone" in normalizedUpdates) {
+    const validation = validatePhoneForSave(normalizedUpdates.phone);
+    if (!validation.ok) {
+      throw new Error(validation.message);
+    }
+    normalizedUpdates.phone = validation.value;
+  }
+
+  if ("email" in normalizedUpdates) {
+    const validation = validateEmailForSave(normalizedUpdates.email);
+    if (!validation.ok) {
+      throw new Error(validation.message);
+    }
+    normalizedUpdates.email = validation.value;
+  }
+
+  return normalizedUpdates;
+}
+
 export function useUpdateContact(contactId: string) {
   const queryClient = useQueryClient();
 
-  return useMutation<UpdateContactResult, Error, ContactUpdate>({
+  return useMutation<UpdateContactResult, Error, ContactUpdate, UpdateContactContext>({
     mutationFn: async (updates: ContactUpdate) => {
-      const cachedSnapshot = queryClient.getQueryData(contactKeys.detail(contactId)) as ContactRow | undefined;
-      const beforeSnapshot: ContactRow = cachedSnapshot
-        ?? await supabase
-          .from("contacts")
-          .select("*")
-          .eq("contact_id", contactId)
-          .single()
-          .then(({ data, error }) => {
-            if (error) {
-              throw error;
-            }
+      const normalizedUpdates = normalizeContactUpdatesForSave(updates);
 
-            return data;
-          });
+      const beforeSnapshot = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("contact_id", contactId)
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            throw error;
+          }
+
+          return data;
+        });
 
       const mergedUpdates = await mergeCustomFieldPatch({
         table: "contacts",
         idColumn: "contact_id",
         recordId: contactId,
-        updates,
+        updates: normalizedUpdates,
       });
 
       const { error } = await supabase
@@ -70,6 +104,45 @@ export function useUpdateContact(contactId: string) {
         beforeSnapshot,
         savedUpdates: mergedUpdates,
       };
+    },
+    onMutate: async (updates) => {
+      let normalizedUpdates: ContactUpdate;
+
+      try {
+        normalizedUpdates = normalizeContactUpdatesForSave(updates);
+      } catch {
+        return { didOptimisticUpdate: false };
+      }
+
+      await queryClient.cancelQueries({ queryKey: contactKeys.all });
+
+      const cacheSnapshot = captureRecordCacheSnapshot({
+        queryClient,
+        detailKey: contactKeys.detail(contactId),
+        listKeyPrefix: contactKeys.lists(),
+      });
+
+      applyCommittedRecordPatch<ContactWithCompany>({
+        queryClient,
+        detailKey: contactKeys.detail(contactId),
+        listKeyPrefix: contactKeys.lists(),
+        idKey: "contact_id",
+        recordId: contactId,
+        updates: normalizedUpdates,
+      });
+
+      return { cacheSnapshot, didOptimisticUpdate: true };
+    },
+    onError: (_error, _updates, context) => {
+      if (!context?.didOptimisticUpdate || !context.cacheSnapshot) {
+        return;
+      }
+
+      restoreRecordCacheSnapshot({
+        queryClient,
+        detailKey: contactKeys.detail(contactId),
+        ...context.cacheSnapshot,
+      });
     },
     onSuccess: ({ beforeSnapshot, savedUpdates }) => {
       applyCommittedRecordPatch<ContactWithCompany>({
@@ -102,7 +175,8 @@ export function useUpdateContact(contactId: string) {
           });
         }
       });
-
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: contactKeys.all });
     },
   });

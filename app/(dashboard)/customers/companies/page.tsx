@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
@@ -12,11 +12,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { applyViewColumns } from "@/components/crm/apply-view-columns";
+import {
+  EmailQuickEditCell,
+  PhoneQuickEditCell,
+  SelectQuickEditCell,
+  WebsiteQuickEditCell,
+} from "@/components/crm/crm-inline-cells";
 import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
-import { OpenRecordHint } from "@/components/crm/open-record-hint";
-import { QuickEditCell } from "@/components/crm/quick-edit-cell";
+import { RecordLinkCell } from "@/components/crm/record-link-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
+import { useCrmListRouteState } from "@/components/crm/use-crm-list-route-state";
 import { useRecordOpenBehavior } from "@/components/crm/use-record-open-behavior";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -26,6 +32,7 @@ import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useCrmViews } from "@/hooks/use-crm-views";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
+import { useUpdateFieldWidth } from "@/hooks/use-update-field-width";
 import { companyKeys, type CompanyWithCounts, usePaginatedCompanies } from "@/hooks/use-companies";
 import { useUpdateCompany } from "@/hooks/use-update-company";
 import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
@@ -36,22 +43,9 @@ import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { type Company } from "@/lib/crm/schemas";
 import { supabase } from "@/lib/supabase";
+import { captureRecordCacheSnapshot, removeCachedRecord, restoreRecordCacheSnapshot } from "@/hooks/crm-cache-updates";
 
 const pageSize = 20;
-
-/**
- * Shared contract for company cells that keep a read-mode link beside a quick-edit trigger.
- */
-interface CompanyLinkEditCellProps {
-  ariaLabel: string;
-  value: string | null;
-  hrefBuilder: (value: string) => string;
-  onSave: (nextValue: string | number | null) => void | Promise<void>;
-  linkClassName: string;
-  linkTarget?: string;
-  linkRel?: string;
-  displayValue?: (value: string) => string;
-}
 
 interface CompanyIndustryCellProps {
   companyId: string;
@@ -86,143 +80,133 @@ function getWebsiteDisplayValue(website: string) {
 }
 
 /**
- * Ensures website links remain absolute when users enter a bare domain.
- */
-function normalizeWebsiteValue(nextValue: string | null): string | null {
-  if (!nextValue) {
-    return null;
-  }
-
-  const normalizedValue = nextValue.trim();
-
-  if (/^[a-z][a-z\d+\-.]*:\/\//i.test(normalizedValue)) {
-    return normalizedValue;
-  }
-
-  return `https://${normalizedValue}`;
-}
-
-/**
- * Renders a read-mode link plus an explicit edit affordance for one company field.
- */
-function CompanyLinkEditCell({
-  ariaLabel,
-  value,
-  hrefBuilder,
-  onSave,
-  linkClassName,
-  linkTarget,
-  linkRel,
-  displayValue,
-}: CompanyLinkEditCellProps) {
-  return (
-    <QuickEditCell
-      ariaLabel={ariaLabel}
-      value={value}
-      onSave={onSave}
-    >
-      {value ? (
-        <a
-          href={hrefBuilder(value)}
-          target={linkTarget}
-          rel={linkRel}
-          className={linkClassName}
-          onClick={(event) => event.stopPropagation()}
-        >
-          {displayValue ? displayValue(value) : value}
-        </a>
-      ) : null}
-    </QuickEditCell>
-  );
-}
-
-/**
  * Handles inline phone edits while preserving the tel: link in read mode.
  */
-function CompanyPhoneCell({ companyId, phone }: { companyId: string; phone: string | null }) {
-  const updateCompany = useUpdateCompany(companyId);
+const CompanyPhoneCell = memo(function CompanyPhoneCell({
+  companyId,
+  phone,
+}: {
+  companyId: string;
+  phone: string | null;
+}) {
+  const { mutateAsync: updateCompanyAsync } = useUpdateCompany(companyId);
+  const handleSavePhone = useCallback(
+    async (nextValue: string | number | null) => {
+      const val = nextValue != null ? String(nextValue) : null;
+      await updateCompanyAsync({ phone: val });
+    },
+    [updateCompanyAsync],
+  );
 
   return (
-    <CompanyLinkEditCell
+    <PhoneQuickEditCell
       ariaLabel="Phone"
       value={phone}
-      hrefBuilder={(value) => `tel:${value}`}
       linkClassName="block max-w-[180px] truncate text-foreground/80 hover:underline"
-      onSave={async (nextValue) => {
-        const val = nextValue != null ? String(nextValue) : null;
-        await updateCompany.mutateAsync({ phone: val });
-      }}
+      onSave={handleSavePhone}
     />
   );
-}
+});
 
 /**
  * Handles inline email edits while preserving the mailto: link in read mode.
  */
-function CompanyEmailCell({ companyId, email }: { companyId: string; email: string | null }) {
-  const updateCompany = useUpdateCompany(companyId);
+const CompanyEmailCell = memo(function CompanyEmailCell({
+  companyId,
+  email,
+}: {
+  companyId: string;
+  email: string | null;
+}) {
+  const { mutateAsync: updateCompanyAsync } = useUpdateCompany(companyId);
+  const handleSaveEmail = useCallback(
+    async (nextValue: string | number | null) => {
+      const val = nextValue != null ? String(nextValue) : null;
+      await updateCompanyAsync({ email: val });
+    },
+    [updateCompanyAsync],
+  );
 
   return (
-    <CompanyLinkEditCell
+    <EmailQuickEditCell
       ariaLabel="Email"
       value={email}
-      hrefBuilder={(value) => `mailto:${value}`}
       linkClassName="block max-w-[220px] truncate text-foreground/80 hover:underline"
-      onSave={async (nextValue) => {
-        const val = nextValue != null ? String(nextValue) : null;
-        await updateCompany.mutateAsync({ email: val });
-      }}
+      onSave={handleSaveEmail}
     />
   );
-}
+});
 
 /**
  * Handles inline website edits while preserving the outbound link in read mode.
  */
-function CompanyWebsiteCell({ companyId, website }: { companyId: string; website: string | null }) {
-  const updateCompany = useUpdateCompany(companyId);
+const CompanyWebsiteCell = memo(function CompanyWebsiteCell({
+  companyId,
+  website,
+}: {
+  companyId: string;
+  website: string | null;
+}) {
+  const { mutateAsync: updateCompanyAsync } = useUpdateCompany(companyId);
+  const handleSaveWebsite = useCallback(
+    async (nextValue: string | number | null) => {
+      const val = nextValue != null ? String(nextValue) : null;
+      await updateCompanyAsync({ website: val });
+    },
+    [updateCompanyAsync],
+  );
 
   return (
-    <CompanyLinkEditCell
+    <WebsiteQuickEditCell
       ariaLabel="Website"
       value={website}
-      hrefBuilder={(value) => value}
       linkClassName="block max-w-[220px] truncate text-foreground/80 hover:underline"
-      linkTarget="_blank"
-      linkRel="noreferrer"
-      displayValue={getWebsiteDisplayValue}
-      onSave={async (nextValue) => {
-        const val = nextValue != null ? String(nextValue) : null;
-        await updateCompany.mutateAsync({ website: normalizeWebsiteValue(val) });
-      }}
+      displayValue={website ? getWebsiteDisplayValue(website) : null}
+      onSave={handleSaveWebsite}
     />
   );
-}
+});
 
 /**
  * Keeps the industry badge visible in read mode and delegates changes to the quick-edit control.
  */
-function CompanyIndustryCell({ companyId, industry, industryOptions }: CompanyIndustryCellProps) {
-  const updateCompany = useUpdateCompany(companyId);
-
-  return (
-    <QuickEditCell
-      ariaLabel="Industry"
-      value={industry}
-      displayValue={industry ? formatCrmEnumLabel(industry) : null}
-      type="select"
-      options={industryOptions.map((option) => ({
+const CompanyIndustryCell = memo(function CompanyIndustryCell({
+  companyId,
+  industry,
+  industryOptions,
+}: CompanyIndustryCellProps) {
+  const { mutateAsync: updateCompanyAsync } = useUpdateCompany(companyId);
+  const options = useMemo(
+    () =>
+      industryOptions.map((option) => ({
         value: option,
         label: formatCrmEnumLabel(option),
-      }))}
-      onSave={async (nextValue) => {
-        await updateCompany.mutateAsync({
-          industry: toNullableTextValue(nextValue) as Company["industry"],
-        });
-      }}
+      })),
+    [industryOptions],
+  );
+  const displayValue = useMemo(
+    () => (industry ? formatCrmEnumLabel(industry) : null),
+    [industry],
+  );
+  const handleSaveIndustry = useCallback(
+    async (nextValue: string | number | null) => {
+      await updateCompanyAsync({
+        industry: toNullableTextValue(nextValue) as Company["industry"],
+      });
+    },
+    [updateCompanyAsync],
+  );
+
+  return (
+    <SelectQuickEditCell
+      ariaLabel="Industry"
+      value={industry}
+      displayValue={displayValue}
+      options={options}
+      onSave={handleSaveIndustry}
     />
   );
-}
+});
 
 export default function CompaniesPage() {
   const router = useRouter();
@@ -234,7 +218,14 @@ export default function CompaniesPage() {
   const { data: views } = useCrmViews("companies");
   const [page, setPage] = useState(1);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
-  const savedViewId = searchParams?.get("savedView") ?? null;
+  const {
+    savedViewId,
+    handleSavedViewChange: handleSavedViewRouteChange,
+  } = useCrmListRouteState({
+    basePath: "/customers/companies",
+    replace: router.replace,
+    searchParams,
+  });
   const {
     activeSavedView,
     activeState,
@@ -356,6 +347,25 @@ export default function CompaniesPage() {
 
       return existingCompany;
     },
+    onMutate: async ({ companyId }: { companyId: string }) => {
+      await queryClient.cancelQueries({ queryKey: companyKeys.all });
+
+      const cacheSnapshot = captureRecordCacheSnapshot({
+        queryClient,
+        detailKey: companyKeys.detail(companyId),
+        listKeyPrefix: companyKeys.lists(),
+      });
+
+      removeCachedRecord<CompanyWithCounts>({
+        queryClient,
+        detailKey: companyKeys.detail(companyId),
+        listKeyPrefix: companyKeys.lists(),
+        idKey: "company_id",
+        recordId: companyId,
+      });
+
+      return { cacheSnapshot };
+    },
     onSuccess: async (deletedCompany) => {
       void captureTimelineActivity({
         supabase,
@@ -373,31 +383,54 @@ export default function CompaniesPage() {
         }
       });
 
-      await queryClient.invalidateQueries({ queryKey: companyKeys.all });
       toast.success("Company deleted.");
     },
-    onError: () => {
+    onError: (_error, { companyId }, context) => {
+      if (context) {
+        restoreRecordCacheSnapshot({
+          queryClient,
+          detailKey: companyKeys.detail(companyId),
+          ...context.cacheSnapshot,
+        });
+      }
+
       toast.error("Unable to delete this company.");
     },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: companyKeys.all });
+    },
   });
+  const { mutate: deleteCompanyMutation } = deleteCompany;
 
   function handleSavedViewChange(viewId: string | null) {
     setPage(1);
-    const params = new URLSearchParams(searchParams?.toString() ?? "");
-
-    if (viewId) {
-      params.set("savedView", viewId);
-    } else {
-      params.delete("savedView");
-    }
-
-    const nextQuery = params.toString();
-    router.replace(
-      nextQuery.length > 0 ? "/customers/companies?" + nextQuery : "/customers/companies",
-    );
+    handleSavedViewRouteChange(viewId);
   }
 
   const rows = data?.rows ?? [];
+  const handleCompanyRowClick = useCallback((row: CompanyWithCounts) => {
+    openRecord(row.company_id);
+  }, [openRecord]);
+  const getCompanyRowId = useCallback((row: CompanyWithCounts) => row.company_id, []);
+  const getCompanyRowActions = useCallback((row: CompanyWithCounts) => [
+    { id: "view", label: "View", onSelect: () => openRecord(row.company_id) },
+    {
+      id: "delete",
+      label: "Delete",
+      destructive: true,
+      onSelect: () => {
+        if (!window.confirm(`Delete ${row.name}? This cannot be undone.`)) return;
+        deleteCompanyMutation({ companyId: row.company_id });
+      },
+    },
+  ], [deleteCompanyMutation, openRecord]);
+  const { mutate: updateCompanyFieldWidth } = useUpdateFieldWidth("companies");
+  const handleCompanyColumnResize = useCallback(
+    (columnId: string, width: number) => {
+      updateCompanyFieldWidth({ columnId, width });
+    },
+    [updateCompanyFieldWidth],
+  );
 
   /**
    * Build columns from config, then override specific keys with the existing
@@ -416,19 +449,10 @@ export default function CompaniesPage() {
           return {
             ...col,
             cell: ({ row }: { row: { original: CompanyWithCounts } }) => (
-              <span className="inline-flex min-w-0 items-center">
-                <button
-                  type="button"
-                  className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openRecord(row.original.company_id);
-                  }}
-                >
-                  {row.original.name}
-                </button>
-                <OpenRecordHint />
-              </span>
+              <RecordLinkCell
+                label={row.original.name}
+                onOpen={() => openRecord(row.original.company_id)}
+              />
             ),
           };
         case "industry":
@@ -485,11 +509,15 @@ export default function CompaniesPage() {
       {
         accessorKey: "contact_count",
         header: "Contacts",
+        enableResizing: false,
+        size: 112,
         cell: ({ row }) => <span className="tabular-nums">{row.original.contact_count}</span>,
       },
       {
         accessorKey: "deal_count",
         header: "Deals",
+        enableResizing: false,
+        size: 112,
         cell: ({ row }) => <span className="tabular-nums">{row.original.deal_count}</span>,
       },
     ];
@@ -562,21 +590,11 @@ export default function CompaniesPage() {
                   }
                 : undefined
             }
-            rowActions={(row) => [
-              { id: "view", label: "View", onSelect: () => openRecord(row.company_id) },
-              {
-                id: "delete",
-                label: "Delete",
-                destructive: true,
-                onSelect: () => {
-                  if (!window.confirm(`Delete ${row.name}? This cannot be undone.`)) return;
-                  deleteCompany.mutate({ companyId: row.company_id });
-                },
-              },
-            ]}
-            onRowClick={(row) => openRecord(row.company_id)}
+            rowActions={getCompanyRowActions}
+            onRowClick={handleCompanyRowClick}
+            onColumnResize={handleCompanyColumnResize}
             selectedRowId={recordId ?? undefined}
-            getRowId={(row) => row.company_id}
+            getRowId={getCompanyRowId}
           />
         ),
       }}

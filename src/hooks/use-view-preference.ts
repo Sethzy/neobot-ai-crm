@@ -6,10 +6,16 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
+import {
+  readVersionedJSON,
+  writeVersionedJSON,
+} from "@/lib/storage/versioned-local";
+
 export type ViewType = "table" | "kanban" | "calendar";
 
 const validViews = new Set<ViewType>(["table", "kanban", "calendar"]);
 const viewPreferenceEventName = "view-preference-change";
+const viewPreferenceStorageVersion = 1;
 
 function getStorageKey(objectType: string): string {
   return `view-${objectType}`;
@@ -24,7 +30,12 @@ function getSnapshot(objectType: string): ViewType {
     return "table";
   }
 
-  const storedValue = window.localStorage.getItem(getStorageKey(objectType));
+  const storedValue = readVersionedJSON<string | null>(
+    getStorageKey(objectType),
+    viewPreferenceStorageVersion,
+    null,
+  );
+
   return isViewType(storedValue) ? storedValue : "table";
 }
 
@@ -76,7 +87,7 @@ export function useViewPreference(objectType: string) {
         return;
       }
 
-      window.localStorage.setItem(storageKey, nextView);
+      writeVersionedJSON(storageKey, viewPreferenceStorageVersion, nextView);
       window.dispatchEvent(
         new CustomEvent<{ key: string }>(viewPreferenceEventName, {
           detail: { key: storageKey },

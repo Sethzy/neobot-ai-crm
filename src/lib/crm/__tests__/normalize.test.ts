@@ -7,9 +7,107 @@ import { describe, expect, it } from "vitest";
 import {
   extractEmailDomain,
   extractPhoneDigits,
+  validateEmailForSave,
+  validatePhoneForSave,
+  validateWebsiteForSave,
   normalizeWebsite,
   phoneMatchesByDigits,
 } from "../normalize";
+
+describe("validateEmailForSave", () => {
+  it("returns null for blank input", () => {
+    expect(validateEmailForSave("")).toEqual({ ok: true, value: null });
+  });
+
+  it("trims and lowercases valid emails", () => {
+    expect(validateEmailForSave("  Foo@Bar.COM  ")).toEqual({
+      ok: true,
+      value: "foo@bar.com",
+    });
+  });
+
+  it("rejects invalid emails with the shared message", () => {
+    expect(validateEmailForSave("hello")).toEqual({
+      ok: false,
+      message: "Doesn't look like an email",
+    });
+  });
+});
+
+describe("validatePhoneForSave", () => {
+  it("returns null for blank input", () => {
+    expect(validatePhoneForSave("")).toEqual({ ok: true, value: null });
+  });
+
+  it("stores parsed E.164 when available", () => {
+    expect(validatePhoneForSave("(212) 555-1234")).toEqual({
+      ok: true,
+      value: "+12125551234",
+    });
+  });
+
+  it("accepts raw plausible numbers when parsing fails", () => {
+    expect(validatePhoneForSave("9123 4567")).toEqual({
+      ok: true,
+      value: "9123 4567",
+    });
+  });
+
+  it("stores explicit international numbers in E.164 format", () => {
+    expect(validatePhoneForSave("+65 9123 4567")).toEqual({
+      ok: true,
+      value: "+6591234567",
+    });
+  });
+
+  it("rejects too-short numeric input", () => {
+    expect(validatePhoneForSave("123")).toEqual({
+      ok: false,
+      message: "Doesn't look like a phone number",
+    });
+  });
+
+  it("rejects non-phone text", () => {
+    expect(validatePhoneForSave("asdf")).toEqual({
+      ok: false,
+      message: "Doesn't look like a phone number",
+    });
+  });
+});
+
+describe("validateWebsiteForSave", () => {
+  it("returns null for blank input", () => {
+    expect(validateWebsiteForSave("")).toEqual({ ok: true, value: null });
+  });
+
+  it("stores canonical normalized websites", () => {
+    expect(validateWebsiteForSave("https://www.Acme.com/?utm=x")).toEqual({
+      ok: true,
+      value: "acme.com",
+    });
+  });
+
+  it("accepts bare domains when they normalize cleanly", () => {
+    expect(validateWebsiteForSave("acme.com")).toEqual({
+      ok: true,
+      value: "acme.com",
+    });
+  });
+
+  it("rejects bare words that are not websites", () => {
+    expect(validateWebsiteForSave("hello")).toEqual({
+      ok: false,
+      message: "Doesn't look like a website",
+    });
+  });
+
+  it("rejects malformed URLs with the shared message", () => {
+    expect(validateWebsiteForSave("not a url")).toEqual({
+      ok: false,
+      message: "Doesn't look like a website",
+    });
+  });
+});
 
 describe("normalizeWebsite", () => {
   it("strips protocol and www", () => {

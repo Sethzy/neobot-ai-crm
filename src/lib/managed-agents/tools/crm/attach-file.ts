@@ -10,6 +10,9 @@ import { AGENT_FILES_BUCKET, normalizeWorkspacePath } from "@/lib/storage/agent-
 
 import type { ManagedAgentTool } from "../types";
 import { findOwnedRecord } from "./record-ownership";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 const recordTypeSchema = z.enum(["contact", "company", "deal"]);
 

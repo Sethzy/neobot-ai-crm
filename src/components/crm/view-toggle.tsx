@@ -15,6 +15,9 @@ interface ViewToggleProps {
   views: ViewType[];
   /** Called when the user chooses a different view. */
   onChange: (view: ViewType) => void;
+  /** When true, all pills render locked — used when the active saved view
+   * freezes the layout or the surface only supports one view. */
+  disabled?: boolean;
 }
 
 const viewIconMap: Record<ViewType, AppIconName> = {
@@ -29,7 +32,9 @@ const viewLabelMap: Record<ViewType, string> = {
   calendar: "Calendar",
 };
 
-export function ViewToggle({ current, views, onChange }: ViewToggleProps) {
+export function ViewToggle({ current, views, onChange, disabled = false }: ViewToggleProps) {
+  const isLocked = disabled || views.length === 1;
+
   return (
     <ToggleGroup
       type="single"
@@ -41,7 +46,13 @@ export function ViewToggle({ current, views, onChange }: ViewToggleProps) {
       }}
     >
       {views.map((view) => (
-        <ToggleGroupItem key={view} value={view} aria-label={`${viewLabelMap[view]} view`}>
+        <ToggleGroupItem
+          key={view}
+          value={view}
+          aria-label={`${viewLabelMap[view]} view`}
+          disabled={isLocked}
+          className={isLocked ? "cursor-default opacity-100" : undefined}
+        >
           <AppIcon name={viewIconMap[view]} className="size-3.5" />
           <span>{viewLabelMap[view]}</span>
         </ToggleGroupItem>

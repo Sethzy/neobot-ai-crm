@@ -7,7 +7,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import posthog from "posthog-js";
 
-import { applyCommittedRecordPatch } from "@/hooks/crm-cache-updates";
+import {
+  applyCommittedRecordPatch,
+  captureRecordCacheSnapshot,
+  restoreRecordCacheSnapshot,
+} from "@/hooks/crm-cache-updates";
 import { mergeCustomFieldPatch } from "@/hooks/crm-custom-fields";
 import { dealKeys, type DealWithContact } from "@/hooks/use-deals";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
@@ -24,6 +28,9 @@ interface UpdateDealResult {
   beforeSnapshot: DealRow;
   savedUpdates: DealUpdate;
 }
+interface UpdateDealContext {
+  cacheSnapshot: ReturnType<typeof captureRecordCacheSnapshot>;
+}
 
 /**
  * Returns a mutation for updating one deal row.
@@ -31,25 +38,20 @@ interface UpdateDealResult {
 export function useUpdateDeal(dealId: string) {
   const queryClient = useQueryClient();
 
-  return useMutation<UpdateDealResult, Error, DealUpdate>({
+  return useMutation<UpdateDealResult, Error, DealUpdate, UpdateDealContext>({
     mutationFn: async (updates: DealUpdate) => {
-      const cachedSnapshot = queryClient.getQueryData(dealKeys.detail(dealId)) as DealRow | undefined;
-      const beforeSnapshot: DealRow = cachedSnapshot
-        ?? await supabase
-          .from("deals")
-          .select("*")
-          .eq("deal_id", dealId)
-          .single()
-          .then(({ data, error }) => {
-            if (error) {
-              throw error;
-            }
+      const beforeSnapshot = await supabase
+        .from("deals")
+        .select("*")
+        .eq("deal_id", dealId)
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            throw error;
+          }
 
-            return data;
-          });
-
-      const previousStage = beforeSnapshot.stage ?? null;
-      const previousAmount = beforeSnapshot.amount ?? null;
+          return data;
+        });
 
       const mergedUpdates = await mergeCustomFieldPatch({
         table: "deals",
@@ -67,21 +69,41 @@ export function useUpdateDeal(dealId: string) {
         throw error;
       }
 
-      if (updates.stage && previousStage && previousStage !== updates.stage) {
-        posthog.capture("deal_stage_changed", {
-          from_stage: previousStage,
-          to_stage: updates.stage,
-          deal_value:
-            typeof mergedUpdates.amount === "number"
-              ? mergedUpdates.amount
-              : previousAmount,
-        });
-      }
-
       return {
         beforeSnapshot,
         savedUpdates: mergedUpdates,
       };
+    },
+    onMutate: async (updates) => {
+      await queryClient.cancelQueries({ queryKey: dealKeys.all });
+
+      const cacheSnapshot = captureRecordCacheSnapshot({
+        queryClient,
+        detailKey: dealKeys.detail(dealId),
+        listKeyPrefix: dealKeys.lists(),
+      });
+
+      applyCommittedRecordPatch<DealWithContact>({
+        queryClient,
+        detailKey: dealKeys.detail(dealId),
+        listKeyPrefix: dealKeys.lists(),
+        idKey: "deal_id",
+        recordId: dealId,
+        updates,
+      });
+
+      return { cacheSnapshot };
+    },
+    onError: (_error, _updates, context) => {
+      if (!context) {
+        return;
+      }
+
+      restoreRecordCacheSnapshot({
+        queryClient,
+        detailKey: dealKeys.detail(dealId),
+        ...context.cacheSnapshot,
+      });
     },
     onSuccess: ({ beforeSnapshot, savedUpdates }) => {
       applyCommittedRecordPatch<DealWithContact>({
@@ -92,6 +114,19 @@ export function useUpdateDeal(dealId: string) {
         recordId: dealId,
         updates: savedUpdates,
       });
+
+      const previousStage = beforeSnapshot.stage ?? null;
+      const previousAmount = beforeSnapshot.amount ?? null;
+      if (savedUpdates.stage && previousStage && previousStage !== savedUpdates.stage) {
+        posthog.capture("deal_stage_changed", {
+          from_stage: previousStage,
+          to_stage: savedUpdates.stage,
+          deal_value:
+            typeof savedUpdates.amount === "number"
+              ? savedUpdates.amount
+              : previousAmount,
+        });
+      }
 
       const afterSnapshot = {
         ...beforeSnapshot,
@@ -114,7 +149,8 @@ export function useUpdateDeal(dealId: string) {
           });
         }
       });
-
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: dealKeys.all });
     },
   });

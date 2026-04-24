@@ -192,7 +192,7 @@ export function renderFieldCell(type: FieldType, value: unknown): ReactNode {
         <span className="inline-flex items-center gap-2">
           <span
             aria-hidden
-            className={`flex size-5 shrink-0 items-center justify-center rounded-sm text-[10px] font-semibold ${avatarClasses}`}
+            className={`flex size-5 shrink-0 items-center justify-center rounded-sm text-caption font-semibold ${avatarClasses}`}
           >
             {initials}
           </span>

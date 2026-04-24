@@ -3,7 +3,7 @@
  * @module hooks/__tests__/use-update-deal
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,10 +14,9 @@ const mockCaptureTimelineActivity = vi.fn().mockResolvedValue(true);
 const mockFrom = vi.fn();
 const mockSelect = vi.fn();
 const mockSelectEq = vi.fn();
-const mockMaybeSingle = vi.fn();
 const mockSingle = vi.fn();
 const mockUpdate = vi.fn();
-const mockEq = vi.fn();
+const mockUpdateEq = vi.fn();
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -37,13 +36,23 @@ function createWrapper(queryClient: QueryClient) {
 describe("useUpdateDeal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSingle.mockResolvedValue({ data: { custom_fields: {} }, error: null });
-    mockMaybeSingle.mockResolvedValue({ data: { stage: "leads", amount: 500000 }, error: null });
+    mockSingle.mockResolvedValue({
+      data: {
+        deal_id: "deal-1",
+        client_id: "client-1",
+        address: "1 Market Street",
+        stage: "leads",
+        amount: 500000,
+        company_id: null,
+        custom_fields: {},
+      },
+      error: null,
+    });
     mockSelectEq.mockReturnValue({ single: mockSingle });
     mockSelect.mockReturnValue({ eq: mockSelectEq });
-    mockEq.mockResolvedValue({ error: null });
-    mockUpdate.mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ update: mockUpdate });
+    mockUpdateEq.mockResolvedValue({ error: null });
+    mockUpdate.mockReturnValue({ eq: mockUpdateEq });
+    mockFrom.mockReturnValue({ select: mockSelect, update: mockUpdate });
   });
 
   it("updates the row and invalidates deal query keys", async () => {
@@ -72,9 +81,10 @@ describe("useUpdateDeal", () => {
 
     await result.current.mutateAsync({ address: "22 River Valley Road" });
 
-    expect(mockFrom).toHaveBeenCalledWith("deals");
+    expect(mockFrom).toHaveBeenNthCalledWith(1, "deals");
+    expect(mockSelect).toHaveBeenCalledWith("*");
     expect(mockUpdate).toHaveBeenCalledWith({ address: "22 River Valley Road" });
-    expect(mockEq).toHaveBeenCalledWith("deal_id", "deal-1");
+    expect(mockUpdateEq).toHaveBeenCalledWith("deal_id", "deal-1");
     expect(mockCaptureTimelineActivity).toHaveBeenCalledWith(
       expect.objectContaining({
         clientId: expect.any(String),
@@ -123,9 +133,14 @@ describe("useUpdateDeal", () => {
     expect(mockUpdate).toHaveBeenCalledWith({ company_id: "company-1" });
   });
 
-  it("throws when Supabase returns an update error", async () => {
+  it("patches the cached deal immediately in onMutate and rolls back on error", async () => {
     const error = { message: "update failed" };
-    mockEq.mockResolvedValue({ error });
+    let resolveUpdate!: (value: { error: typeof error | null }) => void;
+    mockUpdateEq.mockReturnValue(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      }),
+    );
 
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -139,25 +154,76 @@ describe("useUpdateDeal", () => {
       address: "1 Market Street",
       stage: "leads",
       amount: 500000,
-      company_id: null,
-      custom_fields: {},
-      deal_contacts: [],
-      companies: null,
-    });
+        company_id: null,
+        custom_fields: {},
+        deal_contacts: [],
+        companies: null,
+      });
+    queryClient.setQueryData(dealKeys.list({}), [
+      {
+        deal_id: "deal-1",
+        client_id: "client-1",
+        address: "1 Market Street",
+        stage: "leads",
+        amount: 500000,
+        company_id: null,
+        custom_fields: {},
+        deal_contacts: [],
+        companies: null,
+      },
+    ]);
 
     const { result } = renderHook(() => useUpdateDeal("deal-1"), {
       wrapper: createWrapper(queryClient),
     });
 
-    await expect(result.current.mutateAsync({ stage: "offer" })).rejects.toEqual(error);
+    let mutationPromise!: Promise<unknown>;
+
+    act(() => {
+      mutationPromise = result.current.mutateAsync({ address: "22 River Valley Road" });
+    });
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(dealKeys.detail("deal-1"))).toMatchObject({
+        address: "22 River Valley Road",
+      });
+      expect(queryClient.getQueryData(dealKeys.list({}))).toMatchObject([
+        expect.objectContaining({
+          address: "22 River Valley Road",
+        }),
+      ]);
+    });
+
+    resolveUpdate({ error });
+
+    await expect(mutationPromise).rejects.toEqual(error);
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(dealKeys.detail("deal-1"))).toMatchObject({
+        address: "1 Market Street",
+      });
+      expect(queryClient.getQueryData(dealKeys.list({}))).toMatchObject([
+        expect.objectContaining({
+          address: "1 Market Street",
+        }),
+      ]);
+    });
   });
 
   it("merges deal custom_fields patches with the latest stored value before updating", async () => {
-    mockFrom.mockReset();
-    mockFrom
-      .mockImplementationOnce(() => ({ select: mockSelect }))
-      .mockImplementationOnce(() => ({ update: mockUpdate }));
-    mockSingle.mockResolvedValue({
+    mockSingle.mockResolvedValueOnce({
+      data: {
+        deal_id: "deal-1",
+        client_id: "client-1",
+        address: "1 Market Street",
+        stage: "leads",
+        amount: 500000,
+        company_id: null,
+        custom_fields: { policy_number: "P-123", coverage_amount: 250000 },
+      },
+      error: null,
+    });
+    mockSingle.mockResolvedValueOnce({
       data: { custom_fields: { policy_number: "P-123", coverage_amount: 250000 } },
       error: null,
     });
@@ -189,9 +255,10 @@ describe("useUpdateDeal", () => {
     });
 
     expect(mockFrom).toHaveBeenNthCalledWith(1, "deals");
-    expect(mockSelect).toHaveBeenCalledWith("custom_fields");
-    expect(mockSelectEq).toHaveBeenCalledWith("deal_id", "deal-1");
+    expect(mockSelect).toHaveBeenNthCalledWith(1, "*");
     expect(mockFrom).toHaveBeenNthCalledWith(2, "deals");
+    expect(mockSelect).toHaveBeenNthCalledWith(2, "custom_fields");
+    expect(mockUpdateEq).toHaveBeenCalledWith("deal_id", "deal-1");
     expect(mockUpdate).toHaveBeenCalledWith({
       custom_fields: {
         policy_number: "P-123",

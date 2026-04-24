@@ -35,15 +35,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
+import type { CrmSaveValidationResult } from "@/lib/crm/normalize";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import * as React from "react";
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type QuickEditCellType = "text" | "number" | "select" | "date";
 
-type ParsedQuickEditValue =
-  | { ok: true; value: string | number | null }
-  | { ok: false; message: string };
+type ParsedQuickEditValue = CrmSaveValidationResult | { ok: true; value: number | null };
 
 interface QuickEditOption {
   value: string;
@@ -78,6 +78,7 @@ interface QuickEditCellProps {
 }
 
 const savedIndicatorDurationMs = 1500;
+const EMPTY_OPTIONS: QuickEditOption[] = [];
 
 function parseDateValue(value: string): Date | null {
   const parsedDate = new Date(value);
@@ -193,14 +194,32 @@ function stopEventPropagation(event: { stopPropagation: () => void }) {
   event.stopPropagation();
 }
 
-export function QuickEditCell({
+function areQuickEditCellPropsEqual(
+  previousProps: QuickEditCellProps,
+  nextProps: QuickEditCellProps,
+) {
+  return (
+    previousProps.ariaLabel === nextProps.ariaLabel
+    && previousProps.value === nextProps.value
+    && previousProps.displayValue === nextProps.displayValue
+    && previousProps.hideDisplayValue === nextProps.hideDisplayValue
+    && (previousProps.type ?? "text") === (nextProps.type ?? "text")
+    && previousProps.inputType === nextProps.inputType
+    && (previousProps.options ?? EMPTY_OPTIONS) === (nextProps.options ?? EMPTY_OPTIONS)
+    && previousProps.parseValue === nextProps.parseValue
+    && previousProps.onSave === nextProps.onSave
+    && Boolean(previousProps.children) === Boolean(nextProps.children)
+  );
+}
+
+function QuickEditCellImpl({
   ariaLabel,
   value,
   displayValue,
   hideDisplayValue = false,
   type = "text",
   inputType,
-  options = [],
+  options = EMPTY_OPTIONS,
   parseValue,
   onSave,
   children,
@@ -572,3 +591,7 @@ export function QuickEditCell({
     </div>
   );
 }
+
+export const QuickEditCell = React.memo(QuickEditCellImpl, areQuickEditCellPropsEqual);
+
+QuickEditCell.displayName = "QuickEditCell";

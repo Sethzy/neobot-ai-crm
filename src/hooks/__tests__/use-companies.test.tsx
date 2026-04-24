@@ -8,7 +8,9 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  EMPTY_COMPANY_FILTERS,
   companyKeys,
+  companiesQueryOptions,
   useCompanies,
   useCompany,
 } from "@/hooks/use-companies";
@@ -72,6 +74,13 @@ describe("companyKeys", () => {
       { search: "propnex", industry: "developer" },
     ]);
     expect(companyKeys.detail("company-1")).toEqual(["companies", "detail", "company-1"]);
+  });
+
+  it("reuses the same query key for the shared empty company filter", () => {
+    const firstQueryKey = companiesQueryOptions(EMPTY_COMPANY_FILTERS).queryKey;
+    const secondQueryKey = companiesQueryOptions(EMPTY_COMPANY_FILTERS).queryKey;
+
+    expect(secondQueryKey).toBe(firstQueryKey);
   });
 });
 

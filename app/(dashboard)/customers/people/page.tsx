@@ -5,7 +5,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Plus } from "lucide-react";
@@ -13,11 +13,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { applyViewColumns } from "@/components/crm/apply-view-columns";
+import {
+  EmailQuickEditCell,
+  PhoneQuickEditCell,
+  SelectQuickEditCell,
+} from "@/components/crm/crm-inline-cells";
 import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
-import { OpenRecordHint } from "@/components/crm/open-record-hint";
-import { QuickEditCell } from "@/components/crm/quick-edit-cell";
+import { RecordLinkCell } from "@/components/crm/record-link-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
+import { useCrmListRouteState } from "@/components/crm/use-crm-list-route-state";
 import { useRecordOpenBehavior } from "@/components/crm/use-record-open-behavior";
 import { Button } from "@/components/ui/button";
 import { ListTable } from "@/components/ui/list-table";
@@ -25,12 +30,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 import type { DateRangeFilterValue, FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 
 import { contactKeys, type ContactWithCompany, type ContactType, usePaginatedContacts } from "@/hooks/use-contacts";
-import { type CompanyWithCounts, useCompanies } from "@/hooks/use-companies";
+import { EMPTY_COMPANY_FILTERS, type CompanyWithCounts, useCompanies } from "@/hooks/use-companies";
 import { useClientId } from "@/hooks/use-client-id";
 import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useCrmViews } from "@/hooks/use-crm-views";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
+import { useUpdateFieldWidth } from "@/hooks/use-update-field-width";
 import { useUpdateContact } from "@/hooks/use-update-contact";
+import { captureRecordCacheSnapshot, removeCachedRecord, restoreRecordCacheSnapshot } from "@/hooks/crm-cache-updates";
 import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
 import { CONTACT_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { buildCrmSelectOptions, formatContactFullName, formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
@@ -42,17 +49,6 @@ import { supabase } from "@/lib/supabase";
 const pageSize = 20;
 const noCompanyOptionValue = "__none__";
 
-/**
- * Shared contract for contact cells that keep a read-mode link beside a quick-edit trigger.
- */
-interface ContactLinkEditCellProps {
-  ariaLabel: string;
-  value: string | null;
-  hrefBuilder: (value: string) => string;
-  onSave: (nextValue: string | number | null) => void | Promise<void>;
-  linkClassName: string;
-}
-
 interface ContactTypeCellProps {
   contactId: string;
   type: ContactType;
@@ -61,6 +57,7 @@ interface ContactTypeCellProps {
 
 interface ContactCompanyCellProps {
   contactId: string;
+  companyId: string | null;
   company: ContactWithCompany["companies"];
   companies: CompanyWithCounts[];
 }
@@ -110,134 +107,154 @@ function buildCompanyOptions(
 }
 
 /**
- * Renders a read-mode link plus an explicit edit affordance for one contact field.
- */
-function ContactLinkEditCell({
-  ariaLabel,
-  value,
-  hrefBuilder,
-  onSave,
-  linkClassName,
-}: ContactLinkEditCellProps) {
-  return (
-    <QuickEditCell
-      ariaLabel={ariaLabel}
-      value={value}
-      onSave={onSave}
-    >
-      {value ? (
-        <a
-          href={hrefBuilder(value)}
-          className={linkClassName}
-          onClick={(event) => event.stopPropagation()}
-        >
-          {value}
-        </a>
-      ) : null}
-    </QuickEditCell>
-  );
-}
-
-/**
  * Handles inline phone edits while preserving the tel: link in read mode.
  */
-function ContactPhoneCell({ contactId, phone }: { contactId: string; phone: string | null }) {
-  const updateContact = useUpdateContact(contactId);
+const ContactPhoneCell = memo(function ContactPhoneCell({
+  contactId,
+  phone,
+}: {
+  contactId: string;
+  phone: string | null;
+}) {
+  const { mutateAsync: updateContactAsync } = useUpdateContact(contactId);
+  const handleSavePhone = useCallback(
+    async (nextValue: string | number | null) => {
+      const val = nextValue != null ? String(nextValue) : null;
+      await updateContactAsync({ phone: val });
+    },
+    [updateContactAsync],
+  );
 
   return (
-    <ContactLinkEditCell
+    <PhoneQuickEditCell
       ariaLabel="Phone"
       value={phone}
-      hrefBuilder={(value) => `tel:${value}`}
       linkClassName="block max-w-[180px] truncate text-foreground/80 hover:underline"
-      onSave={async (nextValue) => {
-        const val = nextValue != null ? String(nextValue) : null;
-        await updateContact.mutateAsync({ phone: val });
-      }}
+      onSave={handleSavePhone}
     />
   );
-}
+});
 
 /**
  * Handles inline email edits while preserving the mailto: link in read mode.
  */
-function ContactEmailCell({ contactId, email }: { contactId: string; email: string | null }) {
-  const updateContact = useUpdateContact(contactId);
+const ContactEmailCell = memo(function ContactEmailCell({
+  contactId,
+  email,
+}: {
+  contactId: string;
+  email: string | null;
+}) {
+  const { mutateAsync: updateContactAsync } = useUpdateContact(contactId);
+  const handleSaveEmail = useCallback(
+    async (nextValue: string | number | null) => {
+      const val = nextValue != null ? String(nextValue) : null;
+      await updateContactAsync({ email: val });
+    },
+    [updateContactAsync],
+  );
 
   return (
-    <ContactLinkEditCell
+    <EmailQuickEditCell
       ariaLabel="Email"
       value={email}
-      hrefBuilder={(value) => `mailto:${value}`}
       linkClassName="block max-w-[250px] truncate text-foreground/80 hover:underline"
-      onSave={async (nextValue) => {
-        const val = nextValue != null ? String(nextValue) : null;
-        await updateContact.mutateAsync({ email: val });
-      }}
+      onSave={handleSaveEmail}
     />
   );
-}
+});
 
 /**
  * Keeps the contact type badge visible in read mode and delegates changes to the quick-edit control.
  */
-function ContactTypeCell({ contactId, type, contactTypes }: ContactTypeCellProps) {
-  const updateContact = useUpdateContact(contactId);
+const ContactTypeCell = memo(function ContactTypeCell({
+  contactId,
+  type,
+  contactTypes,
+}: ContactTypeCellProps) {
+  const { mutateAsync: updateContactAsync } = useUpdateContact(contactId);
   const options = useMemo(() => buildCrmSelectOptions(contactTypes, type), [contactTypes, type]);
+  const displayValue = useMemo(() => formatCrmEnumLabel(type), [type]);
+  const handleSaveType = useCallback(
+    async (nextValue: string | number | null) => {
+      const nextType = toNullableTextValue(nextValue);
+
+      if (!nextType) {
+        return;
+      }
+
+      await updateContactAsync({ type: nextType });
+    },
+    [updateContactAsync],
+  );
 
   return (
-    <QuickEditCell
+    <SelectQuickEditCell
       ariaLabel="Type"
       value={type}
-      displayValue={formatCrmEnumLabel(type)}
-      type="select"
+      displayValue={displayValue}
       options={options}
-      onSave={async (nextValue) => {
-        const nextType = toNullableTextValue(nextValue);
-
-        if (!nextType) {
-          return;
-        }
-
-        await updateContact.mutateAsync({ type: nextType });
-      }}
+      onSave={handleSaveType}
     />
   );
-}
+});
 
 /**
  * Preserves the linked company in read mode and allows reassignment from the list.
  */
-function ContactCompanyCell({ contactId, company, companies }: ContactCompanyCellProps) {
-  const updateContact = useUpdateContact(contactId);
+const ContactCompanyCell = memo(function ContactCompanyCell({
+  contactId,
+  companyId,
+  company,
+  companies,
+}: ContactCompanyCellProps) {
+  const { mutateAsync: updateContactAsync } = useUpdateContact(contactId);
   const options = useMemo(() => buildCompanyOptions(companies, company), [companies, company]);
+  const companyLabel = useMemo(() => {
+    if (!companyId) {
+      return null;
+    }
+
+    return options.find((option) => option.value === companyId)?.label ?? company?.name ?? null;
+  }, [company?.name, companyId, options]);
+  const linkContent = useMemo(() => {
+    if (!companyId || !companyLabel) {
+      return null;
+    }
+
+    return (
+      <Link
+        href={`/customers/companies/${companyId}`}
+        className="block max-w-[220px] truncate text-foreground/80 hover:underline"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {companyLabel}
+      </Link>
+    );
+  }, [companyId, companyLabel]);
+  const handleSaveCompany = useCallback(
+    async (nextValue: string | number | null) => {
+      const nextCompanyId = typeof nextValue === "string" && nextValue !== noCompanyOptionValue
+        ? nextValue
+        : null;
+
+      await updateContactAsync({ company_id: nextCompanyId });
+    },
+    [updateContactAsync],
+  );
 
   return (
-    <QuickEditCell
+    <SelectQuickEditCell
       ariaLabel="Company"
-      value={company?.company_id ?? noCompanyOptionValue}
-      type="select"
+      value={companyId ?? noCompanyOptionValue}
+      displayValue={companyLabel}
       options={options}
-      onSave={async (nextValue) => {
-        const nextCompanyId = typeof nextValue === "string" && nextValue !== noCompanyOptionValue
-          ? nextValue
-          : null;
-
-        await updateContact.mutateAsync({ company_id: nextCompanyId });
-      }}
+      onSave={handleSaveCompany}
     >
-      {company?.company_id ? (
-        <Link
-          href={`/customers/companies/${company.company_id}`}
-          className="block max-w-[220px] truncate text-foreground/80 hover:underline"
-          onClick={(event) => event.stopPropagation()}
-        >
-          {company.name}
-        </Link>
-      ) : null}
-    </QuickEditCell>
+      {linkContent}
+    </SelectQuickEditCell>
   );
-}
+});
 
 export default function PeoplePage() {
   const router = useRouter();
@@ -246,11 +263,18 @@ export default function PeoplePage() {
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const { data: crmConfigResult } = useCrmConfig();
-  const { data: companies = [] } = useCompanies({});
+  const { data: companies = [] } = useCompanies(EMPTY_COMPANY_FILTERS);
   const { data: views } = useCrmViews("contacts");
   const [page, setPage] = useState(1);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
-  const savedViewId = searchParams?.get("savedView") ?? null;
+  const {
+    savedViewId,
+    handleSavedViewChange: handleSavedViewRouteChange,
+  } = useCrmListRouteState({
+    basePath: "/customers/people",
+    replace: router.replace,
+    searchParams,
+  });
   const {
     activeSavedView,
     activeState,
@@ -384,6 +408,25 @@ export default function PeoplePage() {
 
       return existingContact;
     },
+    onMutate: async ({ contactId }: { contactId: string }) => {
+      await queryClient.cancelQueries({ queryKey: contactKeys.all });
+
+      const cacheSnapshot = captureRecordCacheSnapshot({
+        queryClient,
+        detailKey: contactKeys.detail(contactId),
+        listKeyPrefix: contactKeys.lists(),
+      });
+
+      removeCachedRecord<ContactWithCompany>({
+        queryClient,
+        detailKey: contactKeys.detail(contactId),
+        listKeyPrefix: contactKeys.lists(),
+        idKey: "contact_id",
+        recordId: contactId,
+      });
+
+      return { cacheSnapshot };
+    },
     onSuccess: async (deletedContact) => {
       void captureTimelineActivity({
         supabase,
@@ -401,31 +444,54 @@ export default function PeoplePage() {
         }
       });
 
-      await queryClient.invalidateQueries({ queryKey: contactKeys.all });
       toast.success("Person deleted.");
     },
-    onError: () => {
+    onError: (_error, { contactId }, context) => {
+      if (context) {
+        restoreRecordCacheSnapshot({
+          queryClient,
+          detailKey: contactKeys.detail(contactId),
+          ...context.cacheSnapshot,
+        });
+      }
+
       toast.error("Unable to delete this person.");
     },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: contactKeys.all });
+    },
   });
+  const { mutate: deletePersonMutation } = deletePerson;
 
   function handleSavedViewChange(viewId: string | null) {
     setPage(1);
-    const params = new URLSearchParams(searchParams?.toString() ?? "");
-
-    if (viewId) {
-      params.set("savedView", viewId);
-    } else {
-      params.delete("savedView");
-    }
-
-    const nextQuery = params.toString();
-    router.replace(
-      nextQuery.length > 0 ? "/customers/people?" + nextQuery : "/customers/people",
-    );
+    handleSavedViewRouteChange(viewId);
   }
 
   const rows = data?.rows ?? [];
+  const handleContactRowClick = useCallback((row: ContactWithCompany) => {
+    openRecord(row.contact_id);
+  }, [openRecord]);
+  const getContactRowId = useCallback((row: ContactWithCompany) => row.contact_id, []);
+  const getContactRowActions = useCallback((row: ContactWithCompany) => [
+    { id: "view", label: "View", onSelect: () => openRecord(row.contact_id) },
+    {
+      id: "delete",
+      label: "Delete",
+      destructive: true,
+      onSelect: () => {
+        if (!window.confirm(`Delete ${formatContactFullName(row)}? This cannot be undone.`)) return;
+        deletePersonMutation({ contactId: row.contact_id });
+      },
+    },
+  ], [deletePersonMutation, openRecord]);
+  const { mutate: updateContactFieldWidth } = useUpdateFieldWidth("contacts");
+  const handleContactColumnResize = useCallback(
+    (columnId: string, width: number) => {
+      updateContactFieldWidth({ columnId, width });
+    },
+    [updateContactFieldWidth],
+  );
 
   /**
    * Build columns from the config-driven field definition array, then override
@@ -449,19 +515,10 @@ export default function PeoplePage() {
             sortingFn: (rowA: { original: ContactWithCompany }, rowB: { original: ContactWithCompany }) =>
               formatContactFullName(rowA.original).localeCompare(formatContactFullName(rowB.original)),
             cell: ({ row }: { row: { original: ContactWithCompany } }) => (
-              <span className="inline-flex min-w-0 items-center">
-                <button
-                  type="button"
-                  className="block max-w-[250px] truncate font-medium text-foreground hover:underline"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openRecord(row.original.contact_id);
-                  }}
-                >
-                  {formatContactFullName(row.original)}
-                </button>
-                <OpenRecordHint />
-              </span>
+              <RecordLinkCell
+                label={formatContactFullName(row.original)}
+                onOpen={() => openRecord(row.original.contact_id)}
+              />
             ),
           };
         case "emails":
@@ -486,6 +543,7 @@ export default function PeoplePage() {
             cell: ({ row }: { row: { original: ContactWithCompany } }) => (
               <ContactCompanyCell
                 contactId={row.original.contact_id}
+                companyId={row.original.company_id}
                 company={row.original.companies}
                 companies={companies}
               />
@@ -582,21 +640,11 @@ export default function PeoplePage() {
                   }
                 : undefined
             }
-            rowActions={(row) => [
-              { id: "view", label: "View", onSelect: () => openRecord(row.contact_id) },
-              {
-                id: "delete",
-                label: "Delete",
-                destructive: true,
-                onSelect: () => {
-                  if (!window.confirm(`Delete ${formatContactFullName(row)}? This cannot be undone.`)) return;
-                  deletePerson.mutate({ contactId: row.contact_id });
-                },
-              },
-            ]}
-            onRowClick={(row) => openRecord(row.contact_id)}
+            rowActions={getContactRowActions}
+            onRowClick={handleContactRowClick}
+            onColumnResize={handleContactColumnResize}
             selectedRowId={recordId ?? undefined}
-            getRowId={(row) => row.contact_id}
+            getRowId={getContactRowId}
           />
         ),
       }}

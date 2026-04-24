@@ -71,7 +71,7 @@ function RecordNoteCard({
           value={draftValue ?? ""}
           disabled={isSaving}
           placeholder="Add note..."
-          className="min-h-24 w-full resize-y border-none bg-transparent p-0 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-60"
+          className="block min-h-24 w-full resize-y border-none bg-transparent p-0 m-0 text-sm leading-relaxed text-foreground/90 outline-none placeholder:text-muted-foreground disabled:opacity-60"
           onChange={(event) => onChangeDraft(note.note_id, event.target.value)}
           onBlur={() => {
             void onCommitDraft(note);
@@ -89,7 +89,7 @@ function RecordNoteCard({
             }
           }}
         >
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+          <p className="m-0 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
             {note.body.trim() ? note.body : <span className="text-muted-foreground">Empty note</span>}
           </p>
         </button>
@@ -233,7 +233,7 @@ export function DrawerNotesTab({ recordType, recordId }: DrawerNotesTabProps) {
             }}
           >
             {createRecordNote.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-            + Add note
+            Add note
           </Button>
         </EmptyContent>
       </Empty>
@@ -254,7 +254,7 @@ export function DrawerNotesTab({ recordType, recordId }: DrawerNotesTabProps) {
           }}
         >
           {createRecordNote.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-          + Add note
+          Add note
         </Button>
       </div>
 

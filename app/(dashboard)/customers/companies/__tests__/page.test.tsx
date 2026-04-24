@@ -15,6 +15,7 @@ const mockOpen = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockCaptureTimelineActivity = vi.fn().mockResolvedValue(true);
 const mockFrom = vi.fn();
+const mockedListTable = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -77,6 +78,20 @@ vi.mock("@/lib/supabase", () => ({
     removeChannel: vi.fn(),
   },
 }));
+
+vi.mock("@/components/ui/list-table", async () => {
+  const actual = await vi.importActual<typeof import("@/components/ui/list-table")>(
+    "@/components/ui/list-table",
+  );
+
+  return {
+    ...actual,
+    ListTable: (props: unknown) => {
+      mockedListTable(props);
+      return actual.ListTable(props as never);
+    },
+  };
+});
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -163,29 +178,56 @@ describe("CompaniesPage", () => {
     expect(screen.getByRole("button", { name: /edit industry/i })).toBeInTheDocument();
   });
 
-  it("saves a phone edit without triggering row navigation", async () => {
+  it("reuses stable list callbacks across rerenders", () => {
+    const { rerender } = render(<CompaniesPage />, { wrapper: createWrapper() });
+
+    const firstProps = mockedListTable.mock.lastCall?.[0];
+
+    rerender(<CompaniesPage />);
+
+    const secondProps = mockedListTable.mock.lastCall?.[0];
+
+    expect(secondProps.onRowClick).toBe(firstProps.onRowClick);
+    expect(secondProps.getRowId).toBe(firstProps.getRowId);
+    expect(secondProps.rowActions).toBe(firstProps.rowActions);
+  });
+
+  it("normalizes phone edits before saving without triggering row navigation", async () => {
     const user = userEvent.setup();
 
     render(<CompaniesPage />, { wrapper: createWrapper() });
 
     await user.click(screen.getByRole("button", { name: /edit phone/i }));
     await user.clear(screen.getByRole("textbox", { name: /phone/i }));
-    await user.type(screen.getByRole("textbox", { name: /phone/i }), "+6590000000{Enter}");
+    await user.type(screen.getByRole("textbox", { name: /phone/i }), "(212) 555-1234{Enter}");
 
-    expect(mockMutateAsync).toHaveBeenCalledWith({ phone: "+6590000000" });
+    expect(mockMutateAsync).toHaveBeenCalledWith({ phone: "+12125551234" });
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it("normalizes bare website domains before saving", async () => {
+  it("canonicalizes websites before saving", async () => {
     const user = userEvent.setup();
 
     render(<CompaniesPage />, { wrapper: createWrapper() });
 
     await user.click(screen.getByRole("button", { name: /edit website/i }));
     await user.clear(screen.getByRole("textbox", { name: /website/i }));
-    await user.type(screen.getByRole("textbox", { name: /website/i }), "acme.example{Enter}");
+    await user.type(screen.getByRole("textbox", { name: /website/i }), "https://www.acme.example/?utm=x{Enter}");
 
-    expect(mockMutateAsync).toHaveBeenCalledWith({ website: "https://acme.example" });
+    expect(mockMutateAsync).toHaveBeenCalledWith({ website: "acme.example" });
+  });
+
+  it("shows a validation error for invalid website edits and does not save", async () => {
+    const user = userEvent.setup();
+
+    render(<CompaniesPage />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole("button", { name: /edit website/i }));
+    await user.clear(screen.getByRole("textbox", { name: /website/i }));
+    await user.type(screen.getByRole("textbox", { name: /website/i }), "not a url{Enter}");
+
+    expect(await screen.findByText("Doesn't look like a website")).toBeInTheDocument();
+    expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
   it("captures a created timeline activity when a company is created from the page", async () => {

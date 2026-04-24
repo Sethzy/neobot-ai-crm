@@ -7,7 +7,11 @@ import { z } from "zod";
 
 import { CRM_DEFAULTS, matchVocabularyValue, type CrmVocabConfig } from "@/lib/crm/config";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
-import { normalizeEmail, normalizePhone, normalizeWebsite } from "@/lib/crm/normalize";
+import {
+  validateEmailForSave,
+  validatePhoneForSave,
+  validateWebsiteForSave,
+} from "@/lib/crm/normalize";
 import type { JsonObject } from "@/types/database";
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 
@@ -18,6 +22,14 @@ import { findOwnedRecord } from "./record-ownership";
 
 const UPDATE_ENTITIES = ["contacts", "companies", "deals"] as const;
 type UpdateEntity = (typeof UPDATE_ENTITIES)[number];
+const UPDATE_ENTITY_ALIASES: Record<string, UpdateEntity> = {
+  contact: "contacts",
+  contacts: "contacts",
+  company: "companies",
+  companies: "companies",
+  deal: "deals",
+  deals: "deals",
+};
 
 const ENTITY_ROUTING: Record<
   UpdateEntity,
@@ -34,21 +46,84 @@ const RECORD_TYPE_MAP: Record<UpdateEntity, "contact" | "company" | "deal"> = {
   deals: "deal",
 };
 
-const inputSchema = z.object({
-  entity: z.enum(UPDATE_ENTITIES).describe("CRM entity type to update."),
-  updates: z
-    .array(
-      z.object({
-        id: z.string().uuid().describe("UUID of the record to update."),
-        fields: z
-          .record(z.string(), z.unknown())
-          .describe("Partial field patch. Only included keys are updated."),
-      }),
-    )
-    .min(1)
-    .max(50)
-    .describe("Array of { id, fields } patches."),
-});
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeEntityAlias(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  return UPDATE_ENTITY_ALIASES[value.trim().toLowerCase()] ?? value;
+}
+
+function normalizeUpdatePatch(value: unknown): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  if ("fields" in value) {
+    return value;
+  }
+
+  const { id, ...rest } = value;
+
+  if (typeof id !== "string") {
+    return value;
+  }
+
+  return {
+    id,
+    fields: rest,
+  };
+}
+
+function normalizeUpdateRecordInput(value: unknown): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const normalizedEntity = normalizeEntityAlias(value.entity);
+  let normalizedUpdates = value.updates;
+
+  if (Array.isArray(value.updates)) {
+    normalizedUpdates = value.updates.map(normalizeUpdatePatch);
+  } else if (typeof value.id === "string") {
+    const singleUpdate = { ...value };
+    delete singleUpdate.entity;
+    delete singleUpdate.updates;
+    normalizedUpdates = [normalizeUpdatePatch(singleUpdate)];
+  }
+
+  return {
+    ...value,
+    entity: normalizedEntity,
+    updates: normalizedUpdates,
+  };
+}
+
+const updatePatchSchema = z.preprocess(
+  normalizeUpdatePatch,
+  z.object({
+    id: z.string().uuid().describe("UUID of the record to update."),
+    fields: z
+      .record(z.string(), z.unknown())
+      .describe("Partial field patch. Only included keys are updated."),
+  }),
+);
+
+const inputSchema = z.preprocess(
+  normalizeUpdateRecordInput,
+  z.object({
+    entity: z.enum(UPDATE_ENTITIES).describe("CRM entity type to update."),
+    updates: z
+      .array(updatePatchSchema)
+      .min(1)
+      .max(50)
+      .describe("Array of { id, fields } patches."),
+  }),
+);
 
 type UpdateRecordInput = z.infer<typeof inputSchema>;
 
@@ -116,8 +191,12 @@ async function updateOne(
     updates.industry = matchVocabularyValue(updates.industry, config.company_industries);
   }
 
-  if ((entity === "contacts" || entity === "companies") && typeof updates.phone === "string") {
-    updates.phone = normalizePhone(updates.phone) ?? updates.phone;
+  if ((entity === "contacts" || entity === "companies") && ("phone" in updates)) {
+    const validation = validatePhoneForSave(updates.phone as string | null | undefined);
+    if (!validation.ok) {
+      return { success: false, error: validation.message };
+    }
+    updates.phone = validation.value;
   }
 
   if (entity === "deals" && typeof updates.amount === "number") {
@@ -126,16 +205,20 @@ async function updateOne(
     }
   }
 
-  if ((entity === "contacts" || entity === "companies") && typeof updates.email === "string") {
-    try {
-      updates.email = normalizeEmail(updates.email) ?? updates.email;
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : "Invalid email" };
+  if ((entity === "contacts" || entity === "companies") && ("email" in updates)) {
+    const validation = validateEmailForSave(updates.email as string | null | undefined);
+    if (!validation.ok) {
+      return { success: false, error: validation.message };
     }
+    updates.email = validation.value;
   }
 
-  if (entity === "companies" && typeof updates.website === "string") {
-    updates.website = normalizeWebsite(updates.website) ?? updates.website;
+  if (entity === "companies" && ("website" in updates)) {
+    const validation = validateWebsiteForSave(updates.website as string | null | undefined);
+    if (!validation.ok) {
+      return { success: false, error: validation.message };
+    }
+    updates.website = validation.value;
   }
 
   const previousStage =
@@ -220,6 +303,8 @@ export const updateRecordTool: ManagedAgentTool<UpdateRecordInput> = {
     "Update one or more CRM records by ID. Only provided fields are changed. " +
     "Pass null to clear a nullable field. Omit fields to leave them unchanged. " +
     "Custom fields are deep-merged (existing keys not in the patch are preserved). " +
+    "Use plural entity names: contacts, companies, or deals. " +
+    "Example: {\"entity\":\"contacts\",\"updates\":[{\"id\":\"<uuid>\",\"fields\":{\"email\":\"person@example.com\"}}]}. " +
     "Supports batch updates (up to 50 records per call) - all records must be the same entity type. " +
     "Data Modification Warning: Only update records when the user has explicitly asked.",
   inputSchema,

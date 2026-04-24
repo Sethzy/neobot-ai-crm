@@ -8,15 +8,14 @@ import { keepPreviousData, queryOptions, useQuery } from "@tanstack/react-query"
 
 import { useClientId } from "@/hooks/use-client-id";
 import { useRealtimeTable } from "@/hooks/use-realtime";
+import type { ContactWithCompany } from "@/lib/crm/contact-record";
 import { buildSearchExpression } from "@/lib/crm/postgrest-filters";
-import { type Company, type Contact } from "@/lib/crm/schemas";
+import { type Contact } from "@/lib/crm/schemas";
 import { applyViewFilters, resolveSymbolicDates } from "@/lib/crm/view-filters";
 import { supabase } from "@/lib/supabase";
 
 export type ContactType = Contact["type"];
-export type ContactWithCompany = Contact & {
-  companies: Pick<Company, "company_id" | "name"> | null;
-};
+export type { ContactWithCompany };
 
 export interface ContactFilters {
   search?: string;
@@ -259,10 +258,18 @@ export function usePaginatedContacts(filters: PaginatedContactFilters) {
   });
 }
 
+interface UseContactOptions {
+  /** Server-fetched contact record used to avoid a cold first paint. */
+  initialData?: ContactWithCompany;
+}
+
 /**
  * Returns a single contact by id.
  */
-export function useContact(contactId: string) {
+export function useContact(
+  contactId: string,
+  options?: UseContactOptions,
+) {
   const { data: clientId } = useClientId();
 
   useRealtimeTable({
@@ -282,6 +289,8 @@ export function useContact(contactId: string) {
   return useQuery({
     ...contactDetailQueryOptions(contactId),
     enabled: Boolean(contactId),
+    initialData: options?.initialData,
+    initialDataUpdatedAt: options?.initialData ? Date.now() : undefined,
   });
 }
 

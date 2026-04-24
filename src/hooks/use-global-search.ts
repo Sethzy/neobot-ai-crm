@@ -22,6 +22,10 @@ import {
   formatDealStageLabel,
 } from "@/lib/crm/display";
 import { getCompanyLogoUrl } from "@/lib/branding/logo-urls";
+import {
+  readVersionedJSON,
+  writeVersionedJSON,
+} from "@/lib/storage/versioned-local";
 import { supabase } from "@/lib/supabase";
 
 export type SearchEntityType =
@@ -66,6 +70,7 @@ const idleStoragePrefix = "sunder:global-search:recent:v1";
 const idleResultLimit = 10;
 const searchResultLimit = 14;
 const perEntitySearchLimit = 8;
+const globalSearchRecentsStorageVersion = 1;
 const perEntityIdleLimit = {
   company: 4,
   contact: 4,
@@ -161,40 +166,34 @@ function readStoredRecentRecords(clientId: string) {
     return [] as StoredRecentSearchRecord[];
   }
 
-  const rawValue = window.localStorage.getItem(getStorageKey(clientId));
+  const parsed = readVersionedJSON<unknown>(
+    getStorageKey(clientId),
+    globalSearchRecentsStorageVersion,
+    [],
+  );
 
-  if (!rawValue) {
+  if (!Array.isArray(parsed)) {
     return [];
   }
 
-  try {
-    const parsed = JSON.parse(rawValue) as unknown;
-
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed
-      .filter((item): item is StoredRecentSearchRecord => {
-        return Boolean(
-          item
-            && typeof item === "object"
-            && "entityType" in item
-            && "id" in item
-            && "title" in item
-            && "href" in item
-            && "updatedAt" in item
-            && "lastOpenedAt" in item,
-        );
-      })
-      .sort(
-        (left, right) =>
-          new Date(right.lastOpenedAt).getTime()
-          - new Date(left.lastOpenedAt).getTime(),
+  return parsed
+    .filter((item): item is StoredRecentSearchRecord => {
+      return Boolean(
+        item
+          && typeof item === "object"
+          && "entityType" in item
+          && "id" in item
+          && "title" in item
+          && "href" in item
+          && "updatedAt" in item
+          && "lastOpenedAt" in item,
       );
-  } catch {
-    return [];
-  }
+    })
+    .sort(
+      (left, right) =>
+        new Date(right.lastOpenedAt).getTime()
+        - new Date(left.lastOpenedAt).getTime(),
+    );
 }
 
 function writeStoredRecentRecords(
@@ -205,7 +204,11 @@ function writeStoredRecentRecords(
     return;
   }
 
-  window.localStorage.setItem(getStorageKey(clientId), JSON.stringify(records));
+  writeVersionedJSON(
+    getStorageKey(clientId),
+    globalSearchRecentsStorageVersion,
+    records,
+  );
 }
 
 export function trackRecentSearchRecord(

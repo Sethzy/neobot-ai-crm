@@ -23,6 +23,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { KanbanCardRow } from "@/components/crm/kanban-card-row";
 import { useClientId } from "@/hooks/use-client-id";
 import { companiesQueryOptions } from "@/hooks/use-companies";
 import { contactsQueryOptions } from "@/hooks/use-contacts";
@@ -88,12 +89,12 @@ function AmountRow({ amount, dealId }: { amount: number | null; dealId: string }
     <Popover open={open} onOpenChange={handleOpen}>
       <PopoverTrigger asChild>
         <button type="button" className={rowTriggerClassName} onClick={stop}>
-          <DollarSign className="h-3 w-3 shrink-0" />
-          {amount != null ? (
-            <span>{formatCompactCurrency(amount)}</span>
-          ) : (
-            <span className="text-muted-foreground/50">Amount</span>
-          )}
+          <KanbanCardRow
+            icon={<DollarSign className="h-3 w-3 shrink-0" />}
+            isPlaceholder={amount == null}
+          >
+            {amount != null ? formatCompactCurrency(amount) : "Amount"}
+          </KanbanCardRow>
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -117,7 +118,7 @@ function AmountRow({ amount, dealId }: { amount: number | null; dealId: string }
             type="text"
             inputMode="numeric"
             placeholder="Enter amount"
-            className="h-8 w-full rounded-md border border-border bg-background px-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring/40 sm:text-control"
+            className="h-8 w-full rounded-md border border-border bg-background px-2 type-control outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -153,12 +154,13 @@ function CompanyPickerRow({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" className={rowTriggerClassName} onClick={stop}>
-          <Building2 className="h-3 w-3 shrink-0" />
-          {companyName ? (
-            <span className="truncate">{companyName}</span>
-          ) : (
-            <span className="truncate text-muted-foreground/50">Company</span>
-          )}
+          <KanbanCardRow
+            icon={<Building2 className="h-3 w-3 shrink-0" />}
+            contentClassName="truncate"
+            isPlaceholder={!companyName}
+          >
+            {companyName ?? "Company"}
+          </KanbanCardRow>
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-52 p-0" align="start" onClick={stop}>
@@ -260,22 +262,27 @@ function ContactPickerRow({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" className={rowTriggerClassName} onClick={stop}>
-          <User className="h-3 w-3 shrink-0" />
-          {contactName ? (
-            <span className="inline-flex items-center gap-1 truncate">
-              <span
-                className={cn(
-                  "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-caption font-medium",
-                  avatarColorFor(contactName),
-                )}
-              >
-                {contactName.charAt(0).toUpperCase()}
+          <KanbanCardRow
+            icon={<User className="h-3 w-3 shrink-0" />}
+            contentClassName="truncate"
+            isPlaceholder={!contactName}
+          >
+            {contactName ? (
+              <span className="inline-flex items-center gap-1 truncate">
+                <span
+                  className={cn(
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-caption font-medium",
+                    avatarColorFor(contactName),
+                  )}
+                >
+                  {contactName.charAt(0).toUpperCase()}
+                </span>
+                {contactName}
               </span>
-              {contactName}
-            </span>
-          ) : (
-            <span className="text-muted-foreground/50">Contact</span>
-          )}
+            ) : (
+              "Contact"
+            )}
+          </KanbanCardRow>
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-52 p-0" align="start" onClick={stop}>
@@ -353,10 +360,9 @@ export function DealKanbanCard({ deal }: DealKanbanCardProps) {
       {/* Data rows — all rendered for uniform card height, each inline-editable */}
       <div className="flex flex-col gap-1 pl-7 type-row-meta text-muted-foreground">
         <AmountRow amount={deal.amount} dealId={deal.deal_id} />
-        <div className="flex items-center gap-2">
-          <Calendar className="h-3 w-3 shrink-0" />
-          <span>{formatCrmDate(deal.updated_at)}</span>
-        </div>
+        <KanbanCardRow icon={<Calendar className="h-3 w-3 shrink-0" />}>
+          {formatCrmDate(deal.updated_at)}
+        </KanbanCardRow>
         <CompanyPickerRow companyName={companyName} dealId={deal.deal_id} />
         <ContactPickerRow
           contactName={contactName}

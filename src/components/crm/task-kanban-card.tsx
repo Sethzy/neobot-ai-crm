@@ -6,6 +6,7 @@
 import { formatDistanceToNow } from "date-fns";
 
 import { AppIcon } from "@/components/icons/app-icons";
+import { KanbanCardRow } from "@/components/crm/kanban-card-row";
 import { TaskStatusBadge } from "@/components/crm/task-status-badge";
 import type { CrmTaskWithRelations } from "@/hooks/use-crm-tasks";
 import { formatContactFullName, formatCrmDate } from "@/lib/crm/display";
@@ -29,35 +30,25 @@ export function TaskKanbanCard({ task }: TaskKanbanCardProps) {
 
       {/* Field rows */}
       <div className="space-y-1 text-xs text-muted-foreground">
-        {/* Status */}
-        <div className="flex items-center gap-1.5">
-          <AppIcon name="check" className="h-3.5 w-3.5 shrink-0" />
+        <KanbanCardRow icon={<AppIcon name="check" className="h-3.5 w-3.5 shrink-0" />}>
           <TaskStatusBadge status={task.status} />
-        </div>
-
-        {/* Due Date */}
-        <div className="flex items-center gap-1.5">
-          <AppIcon name="calendar" className="h-3.5 w-3.5 shrink-0" />
-          <span className={task.due_date ? "" : "text-muted-foreground/40"}>
-            {task.due_date ? formatCrmDate(task.due_date) : "Due Date"}
-          </span>
-        </div>
-
-        {/* Contact */}
-        <div className="flex items-center gap-1.5">
-          <AppIcon name="person" className="h-3.5 w-3.5 shrink-0" />
-          <span className={contactName ? "truncate" : "text-muted-foreground/40"}>
-            {contactName ?? "Contact"}
-          </span>
-        </div>
-
-        {/* Created date */}
-        <div className="flex items-center gap-1.5">
-          <AppIcon name="schedule" className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
-          </span>
-        </div>
+        </KanbanCardRow>
+        <KanbanCardRow
+          icon={<AppIcon name="calendar" className="h-3.5 w-3.5 shrink-0" />}
+          isPlaceholder={!task.due_date}
+        >
+          {task.due_date ? formatCrmDate(task.due_date) : "Due Date"}
+        </KanbanCardRow>
+        <KanbanCardRow
+          icon={<AppIcon name="person" className="h-3.5 w-3.5 shrink-0" />}
+          contentClassName="truncate"
+          isPlaceholder={!contactName}
+        >
+          {contactName ?? "Contact"}
+        </KanbanCardRow>
+        <KanbanCardRow icon={<AppIcon name="schedule" className="h-3.5 w-3.5 shrink-0" />}>
+          {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+        </KanbanCardRow>
       </div>
     </div>
   );

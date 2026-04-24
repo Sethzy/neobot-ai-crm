@@ -22,6 +22,8 @@ export interface CompanyFilters {
   viewSort?: { column: string; ascending: boolean };
 }
 
+export const EMPTY_COMPANY_FILTERS: CompanyFilters = {};
+
 export interface CompanyDateRangeFilter {
   from?: string;
   to?: string;
@@ -51,10 +53,15 @@ export interface PaginatedCompaniesResult {
 /**
  * Query key factory for company list and detail queries.
  */
+const companyAllKey = ["companies"] as const;
+const companyListsKey = [...companyAllKey, "list"] as const;
+const emptyCompanyListKey = [...companyListsKey, EMPTY_COMPANY_FILTERS] as const;
+
 export const companyKeys = {
-  all: ["companies"] as const,
-  lists: () => [...companyKeys.all, "list"] as const,
-  list: (filters: CompanyFilters) => [...companyKeys.lists(), filters] as const,
+  all: companyAllKey,
+  lists: () => companyListsKey,
+  list: (filters: CompanyFilters) =>
+    filters === EMPTY_COMPANY_FILTERS ? emptyCompanyListKey : [...companyListsKey, filters] as const,
   paginatedList: (filters: PaginatedCompanyFilters) =>
     [...companyKeys.lists(), "paginated", filters] as const,
   details: () => [...companyKeys.all, "detail"] as const,

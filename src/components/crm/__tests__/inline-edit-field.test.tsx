@@ -57,6 +57,40 @@ describe("InlineEditField", () => {
     expect(onSave).toHaveBeenCalledWith("9111-2222");
   });
 
+  it("shows a parse error and does not save invalid input", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <InlineEditField
+        label="Email"
+        value="sarah@example.com"
+        parseValue={() => ({ ok: false, message: "Doesn't look like an email" })}
+        onSave={onSave}
+      />,
+    );
+
+    await user.click(screen.getByText("sarah@example.com"));
+    await user.clear(screen.getByRole("textbox"));
+    await user.type(screen.getByRole("textbox"), "hello{Enter}");
+
+    expect(await screen.findByText("Doesn't look like an email")).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("shows a save error and keeps the field in edit mode", async () => {
+    const user = userEvent.setup();
+    const failingSave = vi.fn().mockRejectedValue(new Error("Request failed"));
+
+    render(<InlineEditField label="Phone" value="9234-5678" onSave={failingSave} />);
+
+    await user.click(screen.getByText("9234-5678"));
+    await user.clear(screen.getByRole("textbox"));
+    await user.type(screen.getByRole("textbox"), "9111-2222{Enter}");
+
+    expect(await screen.findByText("Request failed")).toBeInTheDocument();
+    expect(screen.getByRole("textbox")).toBeInTheDocument();
+  });
+
   it("reverts on Escape without saving", async () => {
     const user = userEvent.setup();
 

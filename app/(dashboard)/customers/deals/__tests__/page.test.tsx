@@ -15,6 +15,8 @@ const mockReplace = vi.fn();
 const mockOpen = vi.fn();
 const mockCaptureTimelineActivity = vi.fn().mockResolvedValue(true);
 const mockFrom = vi.fn();
+const mockedKanbanBoard = vi.hoisted(() => vi.fn());
+const mockedListTable = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -70,6 +72,34 @@ vi.mock("@/hooks/use-deals", async () => {
     ...actual,
     useDeals: vi.fn(),
     usePaginatedDeals: vi.fn(),
+  };
+});
+
+vi.mock("@/components/crm/kanban-board", async () => {
+  const actual = await vi.importActual<typeof import("@/components/crm/kanban-board")>(
+    "@/components/crm/kanban-board",
+  );
+
+  return {
+    ...actual,
+    KanbanBoard: (props: unknown) => {
+      mockedKanbanBoard(props);
+      return actual.KanbanBoard(props as never);
+    },
+  };
+});
+
+vi.mock("@/components/ui/list-table", async () => {
+  const actual = await vi.importActual<typeof import("@/components/ui/list-table")>(
+    "@/components/ui/list-table",
+  );
+
+  return {
+    ...actual,
+    ListTable: (props: unknown) => {
+      mockedListTable(props);
+      return actual.ListTable(props as never);
+    },
   };
 });
 
@@ -162,18 +192,35 @@ describe("DealsPage", () => {
     expect(screen.getByRole("radio", { name: /board view/i })).toBeInTheDocument();
   });
 
-  it("keeps search text when switching from table to board", async () => {
+  it("reuses stable row and board callbacks across rerenders", async () => {
     const user = userEvent.setup();
+    const { rerender } = render(<DealsPage />, { wrapper: createWrapper() });
 
-    render(<DealsPage />, { wrapper: createWrapper() });
+    const firstListProps = mockedListTable.mock.lastCall?.[0];
 
-    await user.type(screen.getByPlaceholderText(/search deals/i), "Bishan");
+    rerender(<DealsPage />);
+
+    const secondListProps = mockedListTable.mock.lastCall?.[0];
+
+    expect(secondListProps.onRowClick).toBe(firstListProps.onRowClick);
+    expect(secondListProps.getRowId).toBe(firstListProps.getRowId);
+    expect(secondListProps.rowActions).toBe(firstListProps.rowActions);
+
+    mockedKanbanBoard.mockClear();
+
     await user.click(screen.getByRole("radio", { name: /board view/i }));
 
-    expect(screen.getByDisplayValue("Bishan")).toBeInTheDocument();
+    const firstBoardProps = mockedKanbanBoard.mock.lastCall?.[0];
+
+    rerender(<DealsPage />);
+
+    const secondBoardProps = mockedKanbanBoard.mock.lastCall?.[0];
+
+    expect(secondBoardProps.groupBy).toBe(firstBoardProps.groupBy);
+    expect(secondBoardProps.getItemId).toBe(firstBoardProps.getItemId);
   });
 
-  it("uses truthful board copy and keeps the sort control", async () => {
+  it("uses truthful board copy", async () => {
     const user = userEvent.setup();
 
     render(<DealsPage />, { wrapper: createWrapper() });
@@ -182,7 +229,6 @@ describe("DealsPage", () => {
 
     expect(screen.getByText("By Stage")).toBeInTheDocument();
     expect(screen.queryByText(/drag them between lanes/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: /sort deals/i })).toBeInTheDocument();
   });
 
   it("only enables the active view query", async () => {

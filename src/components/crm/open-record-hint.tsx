@@ -16,7 +16,8 @@ export function OpenRecordHint() {
   return (
     <span
       aria-hidden
-      className="pointer-events-none ml-2 inline-flex shrink-0 items-center gap-1 rounded-sm border border-app-border-subtle bg-app-surface px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100"
+      data-testid="open-record-hint"
+      className="pointer-events-none ml-auto inline-flex shrink-0 items-center gap-1 rounded-sm border border-app-border-subtle bg-app-surface px-1.5 py-0.5 text-caption font-medium uppercase tracking-[0.12em] text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100"
     >
       <SquareArrowOutUpRight className="size-2.5" />
       Open

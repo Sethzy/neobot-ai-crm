@@ -15,6 +15,7 @@ const mockOpen = vi.fn();
 const mockMutateAsync = vi.fn().mockResolvedValue(undefined);
 const mockCaptureTimelineActivity = vi.fn().mockResolvedValue(true);
 const mockFrom = vi.fn();
+const mockedListTable = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -29,13 +30,19 @@ vi.mock("@/hooks/use-contacts", () => ({
   usePaginatedContacts: vi.fn(),
   contactKeys: {
     all: ["contacts"],
+    lists: () => ["contacts", "list"],
     detail: (contactId: string) => ["contacts", "detail", contactId],
   },
 }));
 
-vi.mock("@/hooks/use-companies", () => ({
-  useCompanies: vi.fn(),
-}));
+vi.mock("@/hooks/use-companies", async () => {
+  const actual = await vi.importActual<typeof import("@/hooks/use-companies")>("@/hooks/use-companies");
+
+  return {
+    ...actual,
+    useCompanies: vi.fn(),
+  };
+});
 
 vi.mock("@/hooks/use-crm-config", () => ({
   useCrmConfig: vi.fn(),
@@ -80,6 +87,20 @@ vi.mock("@/lib/supabase", () => ({
     removeChannel: vi.fn(),
   },
 }));
+
+vi.mock("@/components/ui/list-table", async () => {
+  const actual = await vi.importActual<typeof import("@/components/ui/list-table")>(
+    "@/components/ui/list-table",
+  );
+
+  return {
+    ...actual,
+    ListTable: (props: unknown) => {
+      mockedListTable(props);
+      return actual.ListTable(props as never);
+    },
+  };
+});
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -165,17 +186,30 @@ describe("PeoplePage", () => {
     } as never);
   });
 
-  it("edits phone directly from the list without triggering row navigation", async () => {
+  it("normalizes phone input before saving without triggering row navigation", async () => {
     const user = userEvent.setup();
 
     render(<PeoplePage />, { wrapper: createWrapper() });
 
     await user.click(screen.getByRole("button", { name: /edit phone/i }));
     await user.clear(screen.getByRole("textbox", { name: /phone/i }));
-    await user.type(screen.getByRole("textbox", { name: /phone/i }), "+65 9000 0000{Enter}");
+    await user.type(screen.getByRole("textbox", { name: /phone/i }), "(212) 555-1234{Enter}");
 
-    expect(mockMutateAsync).toHaveBeenCalledWith({ phone: "+65 9000 0000" });
+    expect(mockMutateAsync).toHaveBeenCalledWith({ phone: "+12125551234" });
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("shows a validation error for invalid email edits and does not save", async () => {
+    const user = userEvent.setup();
+
+    render(<PeoplePage />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByRole("button", { name: /edit email/i }));
+    await user.clear(screen.getByRole("textbox", { name: /email/i }));
+    await user.type(screen.getByRole("textbox", { name: /email/i }), "hello{Enter}");
+
+    expect(await screen.findByText("Doesn't look like an email")).toBeInTheDocument();
+    expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
   it("keeps name as button and contact channels as links in read mode", () => {
@@ -203,6 +237,20 @@ describe("PeoplePage", () => {
     expect(screen.getByRole("button", { name: /edit email/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /edit type/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /edit company/i })).toBeInTheDocument();
+  });
+
+  it("reuses stable list callbacks across rerenders", () => {
+    const { rerender } = render(<PeoplePage />, { wrapper: createWrapper() });
+
+    const firstProps = mockedListTable.mock.lastCall?.[0];
+
+    rerender(<PeoplePage />);
+
+    const secondProps = mockedListTable.mock.lastCall?.[0];
+
+    expect(secondProps.onRowClick).toBe(firstProps.onRowClick);
+    expect(secondProps.getRowId).toBe(firstProps.getRowId);
+    expect(secondProps.rowActions).toBe(firstProps.rowActions);
   });
 
   it("captures a created timeline activity when a contact is created from the page", async () => {

@@ -135,16 +135,16 @@ export function DrawerFilesTab({ recordType, recordId }: DrawerFilesTabProps) {
     }
   };
 
-  const addFileButton = (
+  const renderAddFileButton = (variant: "outline" | "ghost") => (
     <Button
       type="button"
-      variant="ghost"
+      variant={variant}
       size="sm"
       disabled={isUploading}
       onClick={() => open()}
     >
       <Plus className="h-3.5 w-3.5" />
-      + Add file
+      Add file
     </Button>
   );
 
@@ -192,7 +192,7 @@ export function DrawerFilesTab({ recordType, recordId }: DrawerFilesTabProps) {
               </EmptyMedia>
               <EmptyTitle>No Files</EmptyTitle>
               <EmptyDescription>There are no associated files with this record.</EmptyDescription>
-              {addFileButton}
+              {renderAddFileButton("outline")}
             </EmptyContent>
           </Empty>
         )
@@ -200,7 +200,7 @@ export function DrawerFilesTab({ recordType, recordId }: DrawerFilesTabProps) {
         <>
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium text-foreground/85">All {attachments.length}</p>
-            {addFileButton}
+            {renderAddFileButton("ghost")}
           </div>
 
           <div className="relative space-y-2">

@@ -19,7 +19,7 @@ import {
   COMPANY_DEFAULT_FIELDS,
   DEAL_DEFAULT_FIELDS,
 } from "@/lib/crm/field-definitions";
-import { normalizeCrmView } from "@/lib/crm/view-state";
+import { normalizeCrmViewState } from "@/lib/crm/view-state";
 
 import type { ManagedAgentTool, ToolContext } from "../types";
 
@@ -270,31 +270,19 @@ function addAffectedView(
 
 function getViewStateFieldReferences(view: {
   entity_type: string;
-  filters?: unknown;
-  is_default?: boolean;
-  sort?: unknown;
   state?: unknown;
 }) {
-  const normalizedView = normalizeCrmView({
-    client_id: "client",
-    created_at: new Date(0).toISOString(),
-    entity_type: view.entity_type,
-    filters: view.filters,
-    is_default: view.is_default ?? false,
-    is_seeded: false,
-    name: "view",
-    sort: view.sort,
+  const normalizedState = normalizeCrmViewState({
+    entityType: view.entity_type,
     state: view.state,
-    updated_at: new Date(0).toISOString(),
-    view_id: "view",
   });
 
   return new Set(
     [
-      ...normalizedView.state.columns,
-      ...normalizedView.state.columnOrder,
-      normalizedView.state.groupBy,
-      normalizedView.state.calendarField,
+      ...normalizedState.columns,
+      ...normalizedState.columnOrder,
+      normalizedState.groupBy,
+      normalizedState.calendarField,
     ].filter((value): value is string => typeof value === "string" && value.length > 0),
   );
 }
@@ -330,7 +318,7 @@ async function checkAffectedViews(
 
     const { data: views } = await context.supabase
       .from("crm_views")
-      .select("view_id, name, entity_type, filters, sort, state, is_default")
+      .select("view_id, name, entity_type, state")
       .eq("client_id", context.clientId)
       .eq("entity_type", mapping.entityType);
 
@@ -339,12 +327,11 @@ async function checkAffectedViews(
     }
 
     for (const view of views) {
-      const filters = view.filters as Record<string, unknown> | null;
-      if (!filters) {
-        continue;
-      }
-
-      const filterValue = filters[mapping.filterKey];
+      const normalizedState = normalizeCrmViewState({
+        entityType: view.entity_type,
+        state: view.state,
+      });
+      const filterValue = normalizedState.filters[mapping.filterKey];
       if (filterValue === undefined) {
         continue;
       }
@@ -379,7 +366,7 @@ async function checkAffectedViews(
 
     const { data: views } = await context.supabase
       .from("crm_views")
-      .select("view_id, name, entity_type, filters, sort, state, is_default")
+      .select("view_id, name, entity_type, state")
       .eq("client_id", context.clientId)
       .eq("entity_type", entityType);
 
@@ -420,7 +407,7 @@ async function checkAffectedViews(
 
     const { data: views } = await context.supabase
       .from("crm_views")
-      .select("view_id, name, entity_type, filters, sort, state, is_default")
+      .select("view_id, name, entity_type, state")
       .eq("client_id", context.clientId)
       .eq("entity_type", entityType);
 
@@ -560,12 +547,11 @@ export const configureCrmTool: ManagedAgentTool<ConfigureCrmInput, ConfigureCrmR
     }
 
     const affectedViews = await checkAffectedViews(context, updates, currentConfig);
-    if (affectedViews.length > 0) {
-      const warnings = affectedViews.map(
-        (view) => `"${view.name}" (${view.entity_type}) filters on ${view.affectedKeys.join(", ")}`,
-      );
-      (updates as Record<string, unknown>).__viewWarnings = warnings;
-    }
+    const viewWarnings = affectedViews.length > 0
+      ? affectedViews.map(
+          (view) => `"${view.name}" (${view.entity_type}) filters on ${view.affectedKeys.join(", ")}`,
+        )
+      : undefined;
 
     if (currentConfig) {
       const { data: currentRow } = await context.supabase
@@ -614,9 +600,6 @@ export const configureCrmTool: ManagedAgentTool<ConfigureCrmInput, ConfigureCrmR
     if (error || !data) {
       return { success: false as const, error: error?.message ?? "Failed to update CRM configuration." };
     }
-
-    const viewWarnings = (updates as Record<string, unknown>).__viewWarnings as string[] | undefined;
-    delete (updates as Record<string, unknown>).__viewWarnings;
 
     return {
       success: true as const,

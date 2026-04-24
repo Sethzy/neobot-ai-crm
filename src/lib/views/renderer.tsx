@@ -21,6 +21,9 @@ import {
 } from "@json-render/react";
 
 import { registry } from "./registry";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 /** Renders a bordered placeholder for component types not in the registry. */
 const fallback: ComponentRenderer = ({ element }) => (

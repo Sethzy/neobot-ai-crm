@@ -59,7 +59,7 @@ describe("ViewPicker", () => {
     expect(onViewChange).toHaveBeenCalledWith("v1");
   });
 
-  it("renders nothing when there are no saved views", () => {
+  it("still renders the All pill when no saved views exist so the toolbar stays stable", () => {
     mockUseCrmViews.mockReturnValue({
       data: [],
       isLoading: false,
@@ -70,7 +70,7 @@ describe("ViewPicker", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: "All Companies" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "All Companies" }),
+    ).toBeInTheDocument();
   });
 });

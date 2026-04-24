@@ -223,12 +223,15 @@ export function FilterOverlay({
   onClear,
 }: FilterOverlayProps) {
   const [draftValues, setDraftValues] = React.useState<FilterValues>(initialValues)
+  const [lastInitialValues, setLastInitialValues] = React.useState(initialValues)
 
-  React.useEffect(() => {
-    setDraftValues((previousValues) =>
-      areFilterValuesEqual(previousValues, initialValues) ? previousValues : initialValues
-    )
-  }, [initialValues])
+  if (lastInitialValues !== initialValues) {
+    if (!areFilterValuesEqual(lastInitialValues, initialValues)) {
+      setDraftValues(initialValues)
+    }
+
+    setLastInitialValues(initialValues)
+  }
 
   const setFilterValue = React.useCallback((filterId: string, nextValue: unknown) => {
     setDraftValues((currentValues) => {

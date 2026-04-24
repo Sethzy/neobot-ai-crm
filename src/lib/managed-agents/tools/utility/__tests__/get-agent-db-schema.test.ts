@@ -18,13 +18,29 @@ function makeContext(client: ReturnType<typeof createMockSupabaseClient>): ToolC
 describe("getAgentDbSchemaTool", () => {
   it("sets chatOnly and returns the client-accessible schema", async () => {
     const client = createMockSupabaseClient({
-      rpcResults: { get_client_accessible_schema: { data: [{ table: "contacts" }], error: null } },
+      rpcResults: {
+        get_client_accessible_schema: {
+          data: [
+            { table: "contacts" },
+            { table: "crm_deals_index_v", kind: "view" },
+            { table: "crm_tasks_index_v", kind: "view" },
+          ],
+          error: null,
+        },
+      },
     });
 
     const result = await getAgentDbSchemaTool.execute({}, makeContext(client));
 
     expect(getAgentDbSchemaTool.chatOnly).toBe(true);
-    expect(result).toEqual({ success: true, schema: [{ table: "contacts" }] });
+    expect(result).toEqual({
+      success: true,
+      schema: [
+        { table: "contacts" },
+        { table: "crm_deals_index_v", kind: "view" },
+        { table: "crm_tasks_index_v", kind: "view" },
+      ],
+    });
     expect(client.calls.rpc).toEqual([
       { fn: "get_client_accessible_schema", args: undefined },
     ]);

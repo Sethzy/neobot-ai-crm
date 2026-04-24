@@ -23,8 +23,6 @@ import {
   type GlobalSearchRecord,
 } from "@/hooks/use-global-search";
 import { useContact } from "@/hooks/use-contacts";
-import { useCompanyDeals } from "@/hooks/use-company-relations";
-import { useCompanyContacts } from "@/hooks/use-company-relations";
 import { useCrmTask } from "@/hooks/use-crm-tasks";
 import { useDeal } from "@/hooks/use-deals";
 import { useCompany as useCompanyDetail } from "@/hooks/use-companies";
@@ -41,6 +39,7 @@ import { cn } from "@/lib/utils";
 
 import { AppIcon, type AppIconName } from "@/components/icons/app-icons";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -85,39 +84,6 @@ function FooterKbd({ children }: { children: React.ReactNode }) {
       {children}
     </kbd>
   );
-}
-
-function FooterHint({
-  keys,
-  label,
-  onClick,
-}: {
-  keys: string[];
-  label: string;
-  onClick?: () => void;
-}) {
-  const content = (
-    <>
-      {keys.map((key) => (
-        <FooterKbd key={key}>{key}</FooterKbd>
-      ))}
-      <span className="text-caption text-muted-foreground">{label}</span>
-    </>
-  );
-
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex items-center gap-1.5 rounded-md px-1 py-0.5 transition-colors hover:text-foreground"
-      >
-        {content}
-      </button>
-    );
-  }
-
-  return <div className="flex items-center gap-1.5 px-1 py-0.5">{content}</div>;
 }
 
 function ResultAvatar({ record }: { record: GlobalSearchRecord }) {
@@ -210,11 +176,6 @@ function SearchResultItem({
             {record.badgeLabel}
           </Badge>
         </div>
-        {record.meta ? (
-          <div className="mt-0.5 truncate text-caption text-muted-foreground/90">
-            {record.meta}
-          </div>
-        ) : null}
       </div>
     </CommandPrimitive.Item>
   );
@@ -312,14 +273,7 @@ function PreviewShell({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        <div className="mb-2 type-table-heading text-muted-foreground">
-          Details
-        </div>
         <div className="space-y-1.5">{children}</div>
-      </div>
-
-      <div className="border-t border-border/60 px-5 py-3 type-row-meta text-muted-foreground">
-        Updated {formatCrmDate(record.updatedAt)}
       </div>
     </div>
   );
@@ -327,8 +281,6 @@ function PreviewShell({
 
 function CompanyPreview({ record }: { record: GlobalSearchRecord }) {
   const { data: company, isLoading } = useCompanyDetail(record.id);
-  const { data: contacts = [] } = useCompanyContacts(record.id);
-  const { data: deals = [] } = useCompanyDeals(record.id);
 
   if (isLoading || !company) {
     return <PreviewSkeleton />;
@@ -347,8 +299,6 @@ function CompanyPreview({ record }: { record: GlobalSearchRecord }) {
               {formatCrmEnumLabel(company.industry)}
             </PreviewChip>
           ) : null}
-          <PreviewChip>{contacts.length} contacts</PreviewChip>
-          <PreviewChip>{deals.length} deals</PreviewChip>
         </>
       }
     >
@@ -375,9 +325,6 @@ function CompanyPreview({ record }: { record: GlobalSearchRecord }) {
       ) : null}
       {record.meta && (!company.industry || record.meta !== formatCrmEnumLabel(company.industry)) ? (
         <PreviewMetaRow iconName="note">{record.meta}</PreviewMetaRow>
-      ) : null}
-      {!company.website && !company.email && !company.phone && !company.address && !record.meta ? (
-        <PreviewMetaRow iconName="note">No additional company details yet.</PreviewMetaRow>
       ) : null}
     </PreviewShell>
   );
@@ -757,7 +704,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
           loop
           className="flex h-full min-h-0 flex-col"
         >
-          <div className="flex items-center gap-3 border-b border-border/60 bg-background px-4 py-3">
+          <div className="flex items-center gap-3 border-b border-border/60 bg-background pl-4 pr-3 py-3">
             <CommandPrimitive.Input
               autoFocus
               value={query}
@@ -765,11 +712,19 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
               placeholder="Search records..."
               className="min-w-0 flex-1 border-0 bg-transparent text-base font-normal text-foreground outline-none placeholder:text-muted-foreground"
             />
+            <button
+              type="button"
+              onClick={handleAskSunder}
+              className="flex shrink-0 items-center gap-2 rounded-md px-2 py-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <span>Ask AI</span>
+              <FooterKbd>Tab</FooterKbd>
+            </button>
           </div>
 
           <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.03fr)_minmax(0,0.97fr)]">
             <div className="flex min-h-0 flex-col border-r border-border/60 bg-background">
-              <div className="px-4 pb-2 pt-3 text-caption font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              <div className="px-4 pb-2 pt-3 text-caption font-medium text-muted-foreground">
                 Records
               </div>
 
@@ -811,8 +766,28 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
           </div>
         </CommandPrimitive>
 
-        <div className="flex items-center justify-end border-t border-border/60 bg-background px-4 py-2.5 text-muted-foreground">
-          <FooterHint keys={["Tab"]} label="Ask AI" onClick={handleAskSunder} />
+        <div className="flex items-center justify-between border-t border-border/60 bg-background px-4 py-2.5">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <FooterKbd>↑</FooterKbd>
+            <FooterKbd>↓</FooterKbd>
+            <span className="ml-1 text-caption">Navigate</span>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!selectedRecord}
+            onClick={() => {
+              if (selectedRecord) {
+                handleSelect(selectedRecord);
+              }
+            }}
+            className="pl-3 pr-1.5"
+          >
+            <span>Open record</span>
+            <span className="ml-1 inline-flex size-4 items-center justify-center rounded bg-primary-foreground/15 text-caption font-medium leading-none">
+              ↵
+            </span>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

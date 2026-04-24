@@ -2,7 +2,7 @@
  * Read-only badge for CRM task status.
  * @module components/crm/task-status-badge
  */
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/crm/status-badge";
 import type { CrmTask } from "@/lib/crm/schemas";
 
 export const crmTaskStatusLabelMap: Record<CrmTask["status"], string> = {
@@ -25,5 +25,11 @@ interface TaskStatusBadgeProps {
  * Renders a status-specific badge for CRM task rows.
  */
 export function TaskStatusBadge({ status }: TaskStatusBadgeProps) {
-  return <Badge variant={crmTaskStatusVariantMap[status]}>{crmTaskStatusLabelMap[status]}</Badge>;
+  return (
+    <StatusBadge
+      label={crmTaskStatusLabelMap[status]}
+      value={status}
+      variantMap={crmTaskStatusVariantMap}
+    />
+  );
 }
