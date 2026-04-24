@@ -85,6 +85,7 @@ describe("useMeetingRecording", () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.stubGlobal("fetch", mockFetch);
+    localStorage.clear();
 
     mockGetUserMedia.mockResolvedValue({
       getTracks: () => [{ stop: mockStopTrack }],

@@ -105,18 +105,15 @@ export function TelegramConnectRow({
   const [now, setNow] = useState<number>(() => Date.now());
 
   const connectionKey = chatId ?? "__none__";
-  const [previousConnectionKey, setPreviousConnectionKey] = useState(connectionKey);
-  if (connectionKey !== previousConnectionKey) {
-    setPreviousConnectionKey(connectionKey);
-    if (botUsername || displayCode || linkExpiresAt || openUrl || errorText) {
-      setBotUsername(null);
-      setDisplayCode(null);
-      setLinkExpiresAt(null);
-      setOpenUrl(null);
-      setErrorText(null);
-      setDidCopyCode(false);
-    }
-  }
+
+  useEffect(() => {
+    setBotUsername(null);
+    setDisplayCode(null);
+    setLinkExpiresAt(null);
+    setOpenUrl(null);
+    setErrorText(null);
+    setDidCopyCode(false);
+  }, [connectionKey]);
 
   useEffect(() => {
     if (!openUrl || linkExpiresAt === null) {

@@ -60,24 +60,31 @@ export const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(
     ),
     [messages],
   );
+  const deferredCutoff = Math.max(0, uniqueMessages.length - 20);
 
   return (
     <Conversation className="relative flex-1 min-h-0">
       <MessageListScroller ref={ref} />
       <ConversationContent className="mx-auto max-w-3xl gap-0 px-4 py-6">
         {uniqueMessages.map((message, index) => {
+          const isDeferredMessage = index < deferredCutoff;
           const isLastMessage = index === uniqueMessages.length - 1;
           const isLastAssistantMessage = isLastMessage && message.role === "assistant";
 
           return (
-            <MessageBubble
+            <div
               key={message.id}
-              message={message}
-              isStreaming={isStreaming && isLastAssistantMessage}
-              isLast={isLastMessage}
-              onToolApproval={onToolApproval}
-              onManagedApprovalSubmitted={onManagedApprovalSubmitted}
-            />
+              data-testid={isDeferredMessage ? "chat-message-deferred" : undefined}
+              className={isDeferredMessage ? "chat-message-deferred" : undefined}
+            >
+              <MessageBubble
+                message={message}
+                isStreaming={isStreaming && isLastAssistantMessage}
+                isLast={isLastMessage}
+                onToolApproval={onToolApproval}
+                onManagedApprovalSubmitted={onManagedApprovalSubmitted}
+              />
+            </div>
           );
         })}
 

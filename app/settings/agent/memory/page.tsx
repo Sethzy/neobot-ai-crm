@@ -1,6 +1,7 @@
 /**
- * Settings → Agent → Memory. Edits the durable client profile + user preferences
- * that are injected into every managed-agent kickoff.
+ * Settings → Agent → Personality. Edits the durable client profile + user preferences
+ * that are injected into every managed-agent kickoff. Route stays `/settings/agent/memory`
+ * for backwards compatibility; only the user-facing label changed.
  * @module app/(dashboard)/settings/agent/memory/page
  */
 import { AgentContextForm } from "@/components/settings/agent-context-form";
@@ -45,8 +46,9 @@ export default async function AgentMemoryPage() {
   return (
     <PageCanvas variant="content" contentClassName="max-w-6xl">
         <PageHeader
-          title="Memory"
+          title="Personality"
           description="These two fields are injected into every managed-agent kickoff. Keep them stable, durable, and high-signal."
+          titleClassName="type-page-title"
           descriptionClassName="max-w-3xl"
         />
 

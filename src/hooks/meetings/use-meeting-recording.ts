@@ -17,18 +17,31 @@ import {
   DEFAULT_STT_LANGUAGE,
   isSupportedSttLanguage,
 } from "@/lib/transcription/languages";
+import {
+  readVersionedJSON,
+  writeVersionedJSON,
+} from "@/lib/storage/versioned-local";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 const LANGUAGE_STORAGE_KEY = "sunder.meetings.language";
 const MAX_BROWSER_WAV_TRANSCODE_SECONDS = 25 * 60;
+const languageStorageVersion = 1;
 
 function readStoredLanguage(): string {
   if (typeof window === "undefined") return DEFAULT_STT_LANGUAGE;
-  try {
-    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (stored && isSupportedSttLanguage(stored)) return stored;
-  } catch {
-    // localStorage may be unavailable in private browsing / SSR edge cases
+
+  const storedLanguage = readVersionedJSON<string | null>(
+    LANGUAGE_STORAGE_KEY,
+    languageStorageVersion,
+    null,
+  );
+
+  if (storedLanguage && isSupportedSttLanguage(storedLanguage)) {
+    return storedLanguage;
   }
+
   return DEFAULT_STT_LANGUAGE;
 }
 
@@ -197,11 +210,8 @@ export function useMeetingRecording(): UseMeetingRecordingReturn {
   const setLanguage = useCallback((code: string) => {
     if (!isSupportedSttLanguage(code)) return;
     setLanguageState(code);
-    try {
-      window.localStorage.setItem(LANGUAGE_STORAGE_KEY, code);
-    } catch {
-      // ignore storage failures; in-memory state still wins
-    }
+
+    writeVersionedJSON(LANGUAGE_STORAGE_KEY, languageStorageVersion, code);
   }, []);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);

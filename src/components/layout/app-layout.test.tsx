@@ -8,6 +8,38 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import { AppLayout } from "./app-layout";
 
+vi.mock("next/dynamic", async () => {
+  const React = await import("react");
+
+  return {
+    default: (
+      loader: () => Promise<{ default: React.ComponentType<Record<string, unknown>> }>,
+    ) => {
+      return function DynamicComponent(props: Record<string, unknown>) {
+        const [LoadedComponent, setLoadedComponent] = React.useState<
+          React.ComponentType<Record<string, unknown>> | null
+        >(null);
+
+        React.useEffect(() => {
+          let isMounted = true;
+
+          void loader().then((module) => {
+            if (isMounted) {
+              setLoadedComponent(() => module.default);
+            }
+          });
+
+          return () => {
+            isMounted = false;
+          };
+        }, []);
+
+        return LoadedComponent ? <LoadedComponent {...props} /> : null;
+      };
+    },
+  };
+});
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
@@ -32,7 +64,11 @@ vi.mock("@/components/command-menu", () => ({
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-  }) => (open ? <input aria-label="Global search" placeholder="Search records..." /> : null),
+  }) => (
+    <div data-testid="command-menu-root">
+      {open ? <input aria-label="Global search" placeholder="Search records..." /> : null}
+    </div>
+  ),
 }));
 
 describe("AppLayout", () => {
@@ -47,7 +83,17 @@ describe("AppLayout", () => {
     expect(screen.getByText("Page Content")).toBeInTheDocument();
   });
 
-  it("opens command menu when pressing Cmd+K", () => {
+  it("does not mount the command menu before it is requested", () => {
+    render(
+      <AppLayout>
+        <div>Page Content</div>
+      </AppLayout>,
+    );
+
+    expect(screen.queryByTestId("command-menu-root")).not.toBeInTheDocument();
+  });
+
+  it("opens command menu when pressing Cmd+K", async () => {
     render(
       <AppLayout>
         <div>Page Content</div>
@@ -56,10 +102,11 @@ describe("AppLayout", () => {
 
     fireEvent.keyDown(document, { key: "k", metaKey: true });
 
-    expect(screen.getByPlaceholderText("Search records...")).toBeInTheDocument();
+    expect(await screen.findByTestId("command-menu-root")).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText("Search records...")).toBeInTheDocument();
   });
 
-  it("opens command menu when pressing Ctrl+K", () => {
+  it("opens command menu when pressing Ctrl+K", async () => {
     render(
       <AppLayout>
         <div>Page Content</div>
@@ -68,10 +115,10 @@ describe("AppLayout", () => {
 
     fireEvent.keyDown(document, { key: "k", ctrlKey: true });
 
-    expect(screen.getByPlaceholderText("Search records...")).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText("Search records...")).toBeInTheDocument();
   });
 
-  it("opens command menu when sidebar triggers search", () => {
+  it("opens command menu when sidebar triggers search", async () => {
     render(
       <AppLayout>
         <div>Page Content</div>
@@ -80,7 +127,7 @@ describe("AppLayout", () => {
 
     fireEvent.click(screen.getByTestId("sidebar-open-search"));
 
-    expect(screen.getByPlaceholderText("Search records...")).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText("Search records...")).toBeInTheDocument();
   });
 
   it("does not open command menu when shortcut is pressed inside an input field", () => {

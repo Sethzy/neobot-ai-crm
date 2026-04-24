@@ -5,7 +5,7 @@
 "use client";
 
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { cleanStopWords, formatRecordingTime } from "@/lib/meetings/format-helpers";
 
 /**
  * Cycles through Flexoki semantic accent tokens, one per unique speaker.
@@ -28,8 +28,6 @@ function getSpeakerColor(speaker: string): string {
   return SPEAKER_COLOR_CYCLE[index];
 }
 
-import { cleanStopWords, formatRecordingTime } from "@/lib/meetings/format-helpers";
-
 export interface TranscriptSegment {
   start: number;
   end: number;
@@ -42,24 +40,41 @@ interface TranscriptSectionProps {
   transcriptText?: string;
   /** Segment-level transcript rows with timestamps. */
   segments?: TranscriptSegment[];
+  /** Whether the meeting has a transcript available to open. */
+  hasTranscript: boolean;
+  /** Whether at least one transcript load attempt has completed. */
+  hasResolvedTranscript?: boolean;
+  /** Whether transcript content is currently being fetched. */
+  isLoading?: boolean;
+  /** Current accordion state. */
+  isOpen: boolean;
+  /** Called when the transcript accordion is toggled. */
+  onOpenChange: (isOpen: boolean) => void;
 }
 
-export function TranscriptSection({ transcriptText, segments }: TranscriptSectionProps) {
-  const [isOpen, setIsOpen] = useState(false);
-
+export function TranscriptSection({
+  transcriptText,
+  segments,
+  hasTranscript,
+  hasResolvedTranscript = false,
+  isLoading = false,
+  isOpen,
+  onOpenChange,
+}: TranscriptSectionProps) {
   const hasContent = (segments && segments.length > 0)
     || (transcriptText && transcriptText.trim().length > 0);
 
-  if (!hasContent) {
+  if (!hasTranscript) {
     return null;
   }
 
   return (
-    <div className="border-t pt-3">
+    <div className="pt-3">
       <button
         type="button"
-        onClick={() => setIsOpen((currentState) => !currentState)}
+        onClick={() => onOpenChange(!isOpen)}
         className="flex w-full items-center gap-1.5 text-left type-control text-muted-foreground transition-colors hover:text-foreground"
+        aria-expanded={isOpen}
       >
         {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         Transcript
@@ -67,7 +82,9 @@ export function TranscriptSection({ transcriptText, segments }: TranscriptSectio
 
       {isOpen ? (
         <div className="mt-3 space-y-2">
-          {segments && segments.length > 0
+          {isLoading ? (
+            <p className="type-control-muted text-muted-foreground">Loading transcript...</p>
+          ) : segments && segments.length > 0
             ? segments.map((segment, index) => (
               <div key={index} className="flex gap-2 text-meta">
                 <span className="mt-0.5 shrink-0 font-mono text-caption text-muted-foreground">
@@ -85,7 +102,11 @@ export function TranscriptSection({ transcriptText, segments }: TranscriptSectio
             ))
             : transcriptText
               ? <p className="whitespace-pre-wrap text-meta text-foreground">{transcriptText}</p>
-              : null}
+              : hasContent
+                ? null
+                : hasResolvedTranscript
+                  ? <p className="type-control-muted text-muted-foreground">Transcript unavailable.</p>
+                  : null}
         </div>
       ) : null}
     </div>

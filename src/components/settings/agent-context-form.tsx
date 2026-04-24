@@ -107,7 +107,7 @@ export function AgentContextForm({
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4 pb-1">
             <div className="space-y-1">
-              <CardDescription className="type-row-meta">Agent personality</CardDescription>
+              <CardDescription className="type-kicker">Agent personality</CardDescription>
               <CardTitle className="type-toolbar-title">Client profile</CardTitle>
             </div>
             <span className="shrink-0 rounded-full border border-app-border-subtle bg-app-surface-muted px-3 py-1.5 text-caption font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
@@ -121,6 +121,7 @@ export function AgentContextForm({
             </p>
             <MarkdownEditor
               ariaLabel="Client profile"
+              compact
               disabled={isPending}
               editorClassName="min-h-[360px]"
               maxLength={MAX_CONTEXT_LENGTH}
@@ -137,7 +138,7 @@ export function AgentContextForm({
         <Card>
           <CardHeader className="flex flex-row items-start justify-between gap-4 pb-1">
             <div className="space-y-1">
-              <CardDescription className="type-row-meta">User profile</CardDescription>
+              <CardDescription className="type-kicker">User profile</CardDescription>
               <CardTitle className="type-toolbar-title">User preferences</CardTitle>
             </div>
             <span className="shrink-0 rounded-full border border-app-border-subtle bg-app-surface-muted px-3 py-1.5 text-caption font-medium leading-none tracking-[0.02em] text-muted-foreground shadow-sm">
@@ -151,6 +152,7 @@ export function AgentContextForm({
             </p>
             <MarkdownEditor
               ariaLabel="User preferences"
+              compact
               disabled={isPending}
               editorClassName="min-h-[360px]"
               maxLength={MAX_CONTEXT_LENGTH}
@@ -165,10 +167,17 @@ export function AgentContextForm({
         </Card>
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-app-border-subtle pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <p className="type-toolbar-description">
-          Markdown-friendly text is fine. Each field is capped at {MAX_CONTEXT_LENGTH.toLocaleString()} characters.
-        </p>
+      <div className="sticky bottom-4 z-10 flex flex-col gap-3 rounded-2xl border border-app-border-subtle bg-background/85 px-4 py-3 shadow-sm backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex flex-col gap-1 min-w-0">
+          <p className="type-toolbar-description">
+            Markdown-friendly text is fine. Each field is capped at {MAX_CONTEXT_LENGTH.toLocaleString()} characters.
+          </p>
+          {message ? (
+            <p className={message.isError ? "type-row-meta text-destructive" : "type-row-meta"}>
+              {message.text}
+            </p>
+          ) : null}
+        </div>
         <Button
           disabled={isPending || !hasChanges}
           onClick={handleSave}
@@ -177,12 +186,6 @@ export function AgentContextForm({
           {isPending ? "Saving..." : "Save"}
         </Button>
       </div>
-
-      {message ? (
-        <p className={message.isError ? "type-row-meta text-destructive" : "type-row-meta"}>
-          {message.text}
-        </p>
-      ) : null}
     </div>
   );
 }

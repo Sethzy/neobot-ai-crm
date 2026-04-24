@@ -33,6 +33,14 @@ function withQueryClient(ui: React.ReactElement) {
   );
 }
 
+function hasRenderPhaseWarning(errorSpy: ReturnType<typeof vi.spyOn>) {
+  return errorSpy.mock.calls.some((call) =>
+    call.some((value) =>
+      String(value).includes("Cannot update a component while rendering a different component")
+    )
+  );
+}
+
 describe("TelegramConnectRow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -227,5 +235,62 @@ describe("TelegramConnectRow", () => {
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith("GW-22E14A");
     });
+  });
+
+  it("resets pairing state when the connection key changes without render-phase warnings", async () => {
+    const fetchMock = vi.mocked(fetch);
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          botUsername: "GooseworksBot",
+          displayCode: "GW-22E14A",
+          expiresInSeconds: 600,
+          openUrl: "https://t.me/gooseworks_bot?start=abc123",
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <TelegramConnectRow
+          initialConnection={null}
+          isAvailable
+          realtimeUserId="user-1"
+        />
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Connect" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("GW-22E14A")).toBeInTheDocument();
+    });
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <TelegramConnectRow
+          initialConnection={{
+            chatId: "987654321",
+            targetThreadId: "thread-1",
+          }}
+          isAvailable
+          realtimeUserId="user-2"
+        />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Disconnect" })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("GW-22E14A")).not.toBeInTheDocument();
+    expect(hasRenderPhaseWarning(consoleErrorSpy)).toBe(false);
+    consoleErrorSpy.mockRestore();
   });
 });
