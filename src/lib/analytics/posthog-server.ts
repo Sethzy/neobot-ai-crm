@@ -5,6 +5,9 @@
 import { PostHog, type EventMessage } from "posthog-node";
 
 import { getAnalyticsEnvironment } from "@/lib/analytics/posthog-context";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 let client: PostHog | null = null;
 

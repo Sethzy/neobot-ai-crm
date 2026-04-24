@@ -2,6 +2,8 @@
  * Supabase server-side client factories for user-session and admin contexts.
  * @module lib/supabase/server
  */
+import "server-only";
+
 import { createServerClient } from "@supabase/ssr";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";

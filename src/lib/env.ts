@@ -1,3 +1,5 @@
+import "server-only";
+
 /** Centralized environment validation for critical server-side env vars. */
 import { z } from "zod";
 

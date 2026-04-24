@@ -1,5 +1,10 @@
+import "server-only";
+
 /** Redis fixed-window rate limiter. Fail-open when Redis is unavailable. */
 import { getRedisClient } from "@/lib/redis";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 export interface RateLimitResult {
   allowed: boolean;

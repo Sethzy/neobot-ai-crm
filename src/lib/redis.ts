@@ -2,9 +2,14 @@
  * Redis helpers for chat stream resumption state.
  * @module lib/redis
  */
+import "server-only";
+
 import { createClient } from "redis";
 
 import { getServerEnv } from "@/lib/env";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 type RedisClient = ReturnType<typeof createClient>;
 

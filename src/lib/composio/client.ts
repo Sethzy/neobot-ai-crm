@@ -2,6 +2,8 @@
  * Singleton Composio client configured for Vercel AI SDK tools.
  * @module lib/composio/client
  */
+import "server-only";
+
 import { Composio } from "@composio/core";
 import { VercelProvider } from "@composio/vercel";
 

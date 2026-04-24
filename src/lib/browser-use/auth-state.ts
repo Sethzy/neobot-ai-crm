@@ -2,6 +2,8 @@
  * Signed browser auth state tokens for verify and cleanup routes.
  * @module lib/browser-use/auth-state
  */
+import "server-only";
+
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const TOKEN_MAX_AGE_MS = 30 * 60 * 1000;

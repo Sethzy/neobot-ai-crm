@@ -2,6 +2,8 @@
  * Server-side Stripe billing helpers for Checkout, Customer Portal, and webhook sync.
  * @module lib/stripe/stripe
  */
+import "server-only";
+
 import { unstable_cache } from "next/cache";
 import { redirect } from "next/navigation";
 import Stripe from "stripe";
