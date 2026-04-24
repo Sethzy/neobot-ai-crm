@@ -10,6 +10,9 @@ import { InputFile } from "grammy";
 import { lookup } from "mime-types";
 
 import { markdownToTelegramHtml, sanitizeTelegramHtml } from "./format";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 const MSG_LIMIT = 4000;
 

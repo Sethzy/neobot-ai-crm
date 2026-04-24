@@ -7,6 +7,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Api } from "grammy";
 
 import type { Database } from "@/types/database";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 const TELEGRAM_UPLOAD_BUCKET = "agent-files";
 const TELEGRAM_UPLOAD_URL_EXPIRY_SECONDS = 60 * 60;

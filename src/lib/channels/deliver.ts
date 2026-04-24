@@ -8,6 +8,9 @@ import { TELEGRAM_CHANNEL } from "@/lib/channels/telegram/webhook";
 import type { QuestionOption } from "@/lib/channels/telegram/questions";
 import { extractApprovalPartsFromPersisted, type PersistedPart } from "@/lib/runner/message-utils";
 import type { Database } from "@/types/database";
+import { createConsoleLogger } from "@/lib/logger";
+
+const console = createConsoleLogger();
 
 type AskUserQuestionOption = string | { label?: string; description?: string };
 
