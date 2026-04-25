@@ -25,7 +25,9 @@ export const requestApprovalInputSchema = z.object({
     .describe("Short human-readable summary shown to the user."),
   action_type: z
     .enum(GATED_ACTION_TYPES)
-    .describe("Stable action identifier for the risky action."),
+    .describe(
+      `Stable action identifier for the risky action. Must be exactly one of: ${GATED_ACTION_TYPES.map((v) => `"${v}"`).join(", ")}. The "crm." prefix is required.`,
+    ),
   payload_preview: z
     .record(z.string(), z.unknown())
     .optional()
@@ -45,7 +47,8 @@ export const requestApprovalTool: ManagedAgentTool<
   name: "request_approval",
   description:
     "Ask the user to approve a risky action before continuing. " +
-    "Use this before delete_records or configure_crm. Keep the summary short and specific.",
+    "Use this before delete_records or configure_crm. Keep the summary short and specific. " +
+    `For \`action_type\`, pass exactly one of: ${GATED_ACTION_TYPES.map((v) => `"${v}"`).join(", ")} — the "crm." prefix is required.`,
   inputSchema: requestApprovalInputSchema,
   chatOnly: true,
   execute: async () => ({ success: true, status: "deferred" }),
