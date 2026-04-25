@@ -24,6 +24,7 @@ import {
 } from "@/components/crm/crm-inline-cells";
 import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
 import { DealKanbanCard } from "@/components/crm/deal-kanban-card";
+import { MobileRecordCard } from "@/components/crm/mobile-record-card";
 import { RecordLinkCell } from "@/components/crm/record-link-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
@@ -942,6 +943,28 @@ export default function DealsPage() {
             onColumnResize={handleDealColumnResize}
             selectedRowId={recordId ?? undefined}
             getRowId={getDealRowId}
+            mobileCardRenderer={(deal, helpers) => (
+              <MobileRecordCard
+                title={deal.address}
+                eyebrow={formatDealStageLabel(deal.stage)}
+                meta={formatCompactCurrency(deal.amount)}
+                isSelected={helpers.isSelected}
+                actions={helpers.actions}
+                onOpen={helpers.openRow}
+                fields={[
+                  { label: "Address", value: deal.address },
+                  {
+                    label: "Company",
+                    value: deal.companies?.name ?? <span className="text-muted-foreground">None</span>,
+                  },
+                  {
+                    label: "Contact",
+                    value: getPrimaryContactLabel(deal) || <span className="text-muted-foreground">None</span>,
+                  },
+                  { label: "Updated", value: formatCrmDate(deal.updated_at) },
+                ]}
+              />
+            )}
           />
         ),
       }}

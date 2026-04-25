@@ -133,4 +133,27 @@ describe("ListTable", () => {
     expect(screen.getByText("Name").closest("th")).toHaveStyle({ width: "260px" })
     expect(screen.getByText("Sarah Chen").closest("td")).toHaveStyle({ width: "260px" })
   })
+
+  it("renders mobile cards below md while keeping the desktop table path", () => {
+    render(
+      <ListTable<PersonRow>
+        columns={[...columns]}
+        data={rows}
+        getRowId={(row) => row.id}
+        mobileCardRenderer={(row, helpers) => (
+          <button
+            type="button"
+            data-testid={`mobile-card-${row.id}`}
+            onClick={helpers.openRow}
+          >
+            {row.name}
+          </button>
+        )}
+      />,
+    )
+
+    expect(screen.getByRole("table")).toHaveClass("max-md:hidden")
+    expect(screen.getByTestId("mobile-card-1")).toHaveClass("md:hidden")
+    expect(screen.getByTestId("mobile-card-2")).toHaveTextContent("Adam Tan")
+  })
 })

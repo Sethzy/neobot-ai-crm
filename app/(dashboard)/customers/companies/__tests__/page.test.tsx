@@ -159,7 +159,7 @@ describe("CompaniesPage", () => {
     render(<CompaniesPage />, { wrapper: createWrapper() });
 
     expect(screen.getByRole("button", { name: "Acme Realty" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "+6591234567" })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "+6591234567" }).at(-1)).toHaveAttribute(
       "href",
       "tel:+6591234567",
     );
@@ -190,6 +190,7 @@ describe("CompaniesPage", () => {
     expect(secondProps.onRowClick).toBe(firstProps.onRowClick);
     expect(secondProps.getRowId).toBe(firstProps.getRowId);
     expect(secondProps.rowActions).toBe(firstProps.rowActions);
+    expect(secondProps.mobileCardRenderer).toEqual(expect.any(Function));
   });
 
   it("normalizes phone edits before saving without triggering row navigation", async () => {
@@ -313,7 +314,7 @@ describe("CompaniesPage", () => {
 
     render(<CompaniesPage />, { wrapper: createWrapper() });
 
-    await user.click(screen.getByRole("button", { name: "Open row actions" }));
+    await user.click(screen.getAllByRole("button", { name: "Open row actions" }).at(-1)!);
     await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
 
     await waitFor(() => {

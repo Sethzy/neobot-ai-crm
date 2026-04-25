@@ -20,6 +20,7 @@ import {
   SelectQuickEditCell,
 } from "@/components/crm/crm-inline-cells";
 import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
+import { MobileRecordCard } from "@/components/crm/mobile-record-card";
 import { RecordLinkCell } from "@/components/crm/record-link-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
@@ -717,6 +718,39 @@ export default function PeoplePage() {
             onColumnResize={handleContactColumnResize}
             selectedRowId={recordId ?? undefined}
             getRowId={getContactRowId}
+            mobileCardRenderer={(contact, helpers) => (
+              <MobileRecordCard
+                title={formatContactFullName(contact)}
+                eyebrow={formatCrmEnumLabel(contact.type)}
+                meta={contact.companies?.name ?? "No company"}
+                isSelected={helpers.isSelected}
+                actions={helpers.actions}
+                onOpen={helpers.openRow}
+                fields={[
+                  {
+                    label: "Phone",
+                    value: contact.phone ? (
+                      <a href={`tel:${contact.phone}`} className="block truncate hover:underline">
+                        {contact.phone}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">None</span>
+                    ),
+                  },
+                  {
+                    label: "Email",
+                    value: contact.email ? (
+                      <a href={`mailto:${contact.email}`} className="block truncate hover:underline">
+                        {contact.email}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">None</span>
+                    ),
+                  },
+                  { label: "Updated", value: formatCrmDate(contact.updated_at) },
+                ]}
+              />
+            )}
           />
         ),
       }}

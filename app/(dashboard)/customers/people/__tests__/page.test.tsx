@@ -216,11 +216,11 @@ describe("PeoplePage", () => {
     render(<PeoplePage />, { wrapper: createWrapper() });
 
     expect(screen.getByRole("button", { name: /sarah chen/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /sarah@example.com/i })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /sarah@example.com/i }).at(-1)).toHaveAttribute(
       "href",
       "mailto:sarah@example.com",
     );
-    expect(screen.getByRole("link", { name: /\+65 9123 4567/i })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: /\+65 9123 4567/i }).at(-1)).toHaveAttribute(
       "href",
       "tel:+65 9123 4567",
     );
@@ -251,6 +251,7 @@ describe("PeoplePage", () => {
     expect(secondProps.onRowClick).toBe(firstProps.onRowClick);
     expect(secondProps.getRowId).toBe(firstProps.getRowId);
     expect(secondProps.rowActions).toBe(firstProps.rowActions);
+    expect(secondProps.mobileCardRenderer).toEqual(expect.any(Function));
   });
 
   it("captures a created timeline activity when a contact is created from the page", async () => {
@@ -336,7 +337,7 @@ describe("PeoplePage", () => {
 
     render(<PeoplePage />, { wrapper: createWrapper() });
 
-    await user.click(screen.getByRole("button", { name: "Open row actions" }));
+    await user.click(screen.getAllByRole("button", { name: "Open row actions" }).at(-1)!);
     await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
 
     await waitFor(() => {

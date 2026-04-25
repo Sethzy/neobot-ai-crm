@@ -39,6 +39,13 @@ export interface ListTablePagination {
   onPageChange: (page: number) => void;
 }
 
+export interface ListTableMobileCardHelpers {
+  actions: React.ReactNode;
+  isSelected: boolean;
+  openRow: () => void;
+  rowId?: string;
+}
+
 export interface ListTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
@@ -56,6 +63,7 @@ export interface ListTableProps<TData> {
   pinFirstColumn?: boolean;
   /** Called after a config-backed column finishes resizing. */
   onColumnResize?: (columnId: string, width: number) => void;
+  mobileCardRenderer?: (row: TData, helpers: ListTableMobileCardHelpers) => React.ReactNode;
   className?: string;
 }
 
@@ -130,6 +138,19 @@ function renderTableState(state: React.ReactNode, colSpan: number, className?: s
   );
 }
 
+function renderMobileState(state: React.ReactNode, className?: string) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border border-dashed border-app-border-subtle p-4 text-center text-muted-foreground md:hidden",
+        className,
+      )}
+    >
+      {state}
+    </div>
+  );
+}
+
 function getSkeletonCellWidth(columnId: string, rowIndex: number): string {
   const id = columnId.toLowerCase();
   if (id === "__row_actions") return "ml-auto w-5";
@@ -157,6 +178,7 @@ export function ListTable<TData>({
   initialSorting,
   pinFirstColumn = false,
   onColumnResize,
+  mobileCardRenderer,
   className,
 }: ListTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>(initialSorting ?? []);
@@ -227,12 +249,83 @@ export function ListTable<TData>({
     pagination && pagination.total > 0
       ? Math.min(pagination.page * pagination.pageSize, pagination.total)
       : 0;
+  const mobileRows = table.getRowModel().rows;
+
+  const renderMobileCards = () => {
+    if (!mobileCardRenderer) {
+      return null;
+    }
+
+    if (isLoading) {
+      return (
+        <div className="space-y-2 md:hidden" data-testid="list-table-mobile-loading">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={index}
+              className="rounded-md border border-app-border-subtle bg-app-surface p-3"
+            >
+              <Skeleton className="mb-3 h-4 w-2/3" />
+              <Skeleton className="mb-2 h-3 w-1/2" />
+              <Skeleton className="h-3 w-3/4" />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (error) {
+      return renderMobileState(error, "border-solid border-destructive/20 text-destructive");
+    }
+
+    if (mobileRows.length === 0) {
+      return renderMobileState(emptyState ?? "No results.");
+    }
+
+    return (
+      <div className="space-y-2 md:hidden" data-testid="list-table-mobile-cards">
+        {mobileRows.map((row) => {
+          const rowId = getRowId?.(row.original);
+          const isSelected = Boolean(selectedRowId && rowId === selectedRowId);
+          const actions = rowActions ? (
+            <RowActions
+              items={rowActions(row.original)}
+              triggerClassName="touch-target text-muted-foreground"
+            />
+          ) : null;
+          const card = mobileCardRenderer(row.original, {
+            actions,
+            isSelected,
+            rowId,
+            openRow: () => onRowClick?.(row.original),
+          });
+
+          if (React.isValidElement<{ className?: string }>(card)) {
+            return React.cloneElement(card, {
+              key: row.id,
+              className: cn(card.props.className, "md:hidden"),
+            });
+          }
+
+          return (
+            <div key={row.id} className="md:hidden">
+              {card}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className={cn("min-w-0", className)}>
-      <div className="overflow-x-auto">
+      {renderMobileCards()}
+      <div className={cn("overflow-x-auto", mobileCardRenderer && "max-md:hidden")}>
         <table
-          className={cn("w-full", isColumnResizeEnabled && "min-w-full table-fixed")}
+          className={cn(
+            "w-full",
+            mobileCardRenderer && "max-md:hidden",
+            isColumnResizeEnabled && "min-w-full table-fixed",
+          )}
           style={isColumnResizeEnabled ? { width: table.getTotalSize() } : undefined}
         >
           <thead className="border-b border-app-border-subtle">

@@ -16,6 +16,7 @@ const mockUseMutation = vi.fn();
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
 const mockTaskCalendarView = vi.fn(() => <div>Mock Calendar View</div>);
+const mockedListTable = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -56,7 +57,10 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 vi.mock("@/components/ui/list-table", () => ({
-  ListTable: () => <div>CRM Tasks Table</div>,
+  ListTable: (props: unknown) => {
+    mockedListTable(props);
+    return <div>CRM Tasks Table</div>;
+  },
 }));
 
 vi.mock("@/components/crm/task-calendar-view", () => ({
@@ -167,6 +171,40 @@ describe("TasksPage", () => {
     render(<TasksPage />);
 
     expect(mockTaskCalendarView).not.toHaveBeenCalled();
+  });
+
+  it("passes a mobile card renderer to the tasks table", async () => {
+    const { useCrmTasks } = await import("@/hooks/use-crm-tasks");
+
+    vi.mocked(useCrmTasks).mockReturnValue({
+      data: [
+        {
+          task_id: "task-1",
+          client_id: "client-1",
+          title: "Follow up",
+          status: "todo",
+          description: null,
+          due_date: null,
+          contact_id: null,
+          deal_id: null,
+          custom_fields: {},
+          created_at: "2026-04-05T10:00:00+08:00",
+          updated_at: "2026-04-05T10:00:00+08:00",
+          contacts: null,
+          deals: null,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    } as never);
+
+    render(<TasksPage />);
+
+    const listProps = mockedListTable.mock.lastCall?.[0] as {
+      mobileCardRenderer?: unknown;
+    };
+
+    expect(listProps.mobileCardRenderer).toEqual(expect.any(Function));
   });
 
   it("captures a created timeline activity when a task is created from the page", async () => {

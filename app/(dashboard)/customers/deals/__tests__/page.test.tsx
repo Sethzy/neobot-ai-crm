@@ -205,6 +205,7 @@ describe("DealsPage", () => {
     expect(secondListProps.onRowClick).toBe(firstListProps.onRowClick);
     expect(secondListProps.getRowId).toBe(firstListProps.getRowId);
     expect(secondListProps.rowActions).toBe(firstListProps.rowActions);
+    expect(secondListProps.mobileCardRenderer).toEqual(expect.any(Function));
 
     mockedKanbanBoard.mockClear();
 
@@ -343,7 +344,7 @@ describe("DealsPage", () => {
 
     render(<DealsPage />, { wrapper: createWrapper() });
 
-    await user.click(screen.getByRole("button", { name: "Open row actions" }));
+    await user.click(screen.getAllByRole("button", { name: "Open row actions" }).at(-1)!);
     await user.click(await screen.findByRole("menuitem", { name: "Delete" }));
 
     await waitFor(() => {

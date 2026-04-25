@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { AppIcon } from "@/components/icons/app-icons";
 import { applyViewColumns } from "@/components/crm/apply-view-columns";
 import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
+import { MobileRecordCard } from "@/components/crm/mobile-record-card";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
 import { useCrmListRouteState } from "@/components/crm/use-crm-list-route-state";
@@ -38,7 +39,7 @@ import {
   getCustomFieldFilterKeys,
   pickBooleanCustomFieldFilters,
 } from "@/lib/crm/custom-field-filters";
-import { formatCrmEnumLabel } from "@/lib/crm/display";
+import { formatContactFullName, formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
 import { supabase } from "@/lib/supabase";
@@ -278,6 +279,33 @@ export default function TasksPage() {
             data={tasks}
             initialSorting={[{ id: "due_date", desc: false }]}
             onRowClick={handleRowClick}
+            getRowId={(task) => task.task_id}
+            selectedRowId={recordId ?? undefined}
+            mobileCardRenderer={(task, helpers) => (
+              <MobileRecordCard
+                title={task.title}
+                eyebrow={formatCrmEnumLabel(task.status)}
+                meta={task.due_date ? formatCrmDate(task.due_date) : "No due date"}
+                isSelected={helpers.isSelected}
+                actions={helpers.actions}
+                onOpen={helpers.openRow}
+                fields={[
+                  {
+                    label: "Contact",
+                    value: task.contacts ? (
+                      formatContactFullName(task.contacts)
+                    ) : (
+                      <span className="text-muted-foreground">None</span>
+                    ),
+                  },
+                  {
+                    label: "Deal",
+                    value: task.deals?.address ?? <span className="text-muted-foreground">None</span>,
+                  },
+                  { label: "Updated", value: formatCrmDate(task.updated_at) },
+                ]}
+              />
+            )}
           />
         ),
         calendar: isLoading ? (

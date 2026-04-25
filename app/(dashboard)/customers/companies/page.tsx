@@ -20,6 +20,7 @@ import {
   WebsiteQuickEditCell,
 } from "@/components/crm/crm-inline-cells";
 import { CrmWorkspaceShell } from "@/components/crm/crm-workspace-shell";
+import { MobileRecordCard } from "@/components/crm/mobile-record-card";
 import { RecordLinkCell } from "@/components/crm/record-link-cell";
 import { RecordDrawer } from "@/components/crm/record-drawer";
 import { useActiveCrmViewState } from "@/components/crm/use-active-crm-view-state";
@@ -666,6 +667,30 @@ export default function CompaniesPage() {
             onColumnResize={handleCompanyColumnResize}
             selectedRowId={recordId ?? undefined}
             getRowId={getCompanyRowId}
+            mobileCardRenderer={(company, helpers) => (
+              <MobileRecordCard
+                title={company.name}
+                meta={company.website ? getWebsiteDisplayValue(company.website) : "No website"}
+                isSelected={helpers.isSelected}
+                actions={helpers.actions}
+                onOpen={helpers.openRow}
+                fields={[
+                  { label: "People", value: company.contact_count },
+                  { label: "Deals", value: company.deal_count },
+                  {
+                    label: "Phone",
+                    value: company.phone ? (
+                      <a href={`tel:${company.phone}`} className="block truncate hover:underline">
+                        {company.phone}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">None</span>
+                    ),
+                  },
+                  { label: "Updated", value: formatCrmDate(company.updated_at) },
+                ]}
+              />
+            )}
           />
         ),
       }}

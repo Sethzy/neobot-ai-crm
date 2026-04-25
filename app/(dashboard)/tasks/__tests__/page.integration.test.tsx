@@ -170,9 +170,9 @@ describe("TasksPage integration", () => {
 
     render(<TasksPage />);
 
-    expect(screen.getByText("Follow up with John")).toBeInTheDocument();
+    expect(screen.getAllByText("Follow up with John").length).toBeGreaterThan(0);
     expect(screen.getByText("To do")).toBeInTheDocument();
-    expect(screen.getByText("John Smith")).toBeInTheDocument();
+    expect(screen.getAllByText("John Smith").length).toBeGreaterThan(0);
   });
 
   it("switches between table, board, and calendar views", async () => {
@@ -222,6 +222,6 @@ describe("TasksPage integration", () => {
     fireEvent.click(screen.getByRole("radio", { name: "Calendar view" }));
     expect(screen.getByText(/scheduled tasks/i)).toBeInTheDocument();
     expect(screen.getByText("March 2026")).toBeInTheDocument();
-    expect(screen.getByText("Follow up with John")).toBeInTheDocument();
+    expect(screen.getAllByText("Follow up with John").length).toBeGreaterThan(0);
   });
 });

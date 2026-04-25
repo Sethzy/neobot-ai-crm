@@ -25,6 +25,7 @@ export interface RowActionItem {
 
 interface RowActionsProps {
   items?: RowActionItem[]
+  triggerClassName?: string
 }
 
 const HOVER_CLOSE_DELAY_MS = 150
@@ -32,7 +33,7 @@ const HOVER_CLOSE_DELAY_MS = 150
 /**
  * Renders the trailing row action trigger and its portal-based menu.
  */
-export function RowActions({ items = [] }: RowActionsProps) {
+export function RowActions({ items = [], triggerClassName }: RowActionsProps) {
   const [isMounted, setIsMounted] = React.useState(false)
   const [isOpen, setIsOpen] = React.useState(false)
   const [anchorRect, setAnchorRect] = React.useState<DOMRect | null>(null)
@@ -168,7 +169,8 @@ export function RowActions({ items = [] }: RowActionsProps) {
         aria-label="Open row actions"
         className={cn(
           "inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground/60 transition-colors",
-          "hover:bg-muted hover:text-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          "hover:bg-muted hover:text-foreground/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+          triggerClassName
         )}
         onClick={(event) => {
           event.stopPropagation()
