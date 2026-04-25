@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import { applyViewColumns } from "@/components/crm/apply-view-columns";
 import {
+  BooleanQuickEditCell,
   EmailQuickEditCell,
   PhoneQuickEditCell,
   SelectQuickEditCell,
@@ -39,6 +40,12 @@ import { useUpdateFieldWidth } from "@/hooks/use-update-field-width";
 import { useUpdateContact } from "@/hooks/use-update-contact";
 import { captureRecordCacheSnapshot, removeCachedRecord, restoreRecordCacheSnapshot } from "@/hooks/crm-cache-updates";
 import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
+import type { CustomFieldDefinition } from "@/lib/crm/config";
+import {
+  getBooleanCustomFields,
+  getCustomFieldFilterKeys,
+  pickBooleanCustomFieldFilters,
+} from "@/lib/crm/custom-field-filters";
 import { CONTACT_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { buildCrmSelectOptions, formatContactFullName, formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
@@ -62,6 +69,12 @@ interface ContactCompanyCellProps {
   companies: CompanyWithCounts[];
 }
 
+interface ContactBooleanCustomFieldCellProps {
+  contactId: string;
+  definition: Pick<CustomFieldDefinition, "key" | "label">;
+  value: unknown;
+}
+
 function getDateRangeValue(value: unknown): DateRangeFilterValue | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return undefined;
@@ -74,7 +87,7 @@ function getDateRangeValue(value: unknown): DateRangeFilterValue | undefined {
 /**
  * Converts quick-edit payloads to the nullable text shape expected by contact updates.
  */
-function toNullableTextValue(nextValue: string | number | null): string | null {
+function toNullableTextValue(nextValue: string | number | boolean | null): string | null {
   return typeof nextValue === "string" ? nextValue : null;
 }
 
@@ -118,7 +131,7 @@ const ContactPhoneCell = memo(function ContactPhoneCell({
 }) {
   const { mutateAsync: updateContactAsync } = useUpdateContact(contactId);
   const handleSavePhone = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       const val = nextValue != null ? String(nextValue) : null;
       await updateContactAsync({ phone: val });
     },
@@ -147,7 +160,7 @@ const ContactEmailCell = memo(function ContactEmailCell({
 }) {
   const { mutateAsync: updateContactAsync } = useUpdateContact(contactId);
   const handleSaveEmail = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       const val = nextValue != null ? String(nextValue) : null;
       await updateContactAsync({ email: val });
     },
@@ -176,7 +189,7 @@ const ContactTypeCell = memo(function ContactTypeCell({
   const options = useMemo(() => buildCrmSelectOptions(contactTypes, type), [contactTypes, type]);
   const displayValue = useMemo(() => formatCrmEnumLabel(type), [type]);
   const handleSaveType = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       const nextType = toNullableTextValue(nextValue);
 
       if (!nextType) {
@@ -233,7 +246,7 @@ const ContactCompanyCell = memo(function ContactCompanyCell({
     );
   }, [companyId, companyLabel]);
   const handleSaveCompany = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       const nextCompanyId = typeof nextValue === "string" && nextValue !== noCompanyOptionValue
         ? nextValue
         : null;
@@ -253,6 +266,35 @@ const ContactCompanyCell = memo(function ContactCompanyCell({
     >
       {linkContent}
     </SelectQuickEditCell>
+  );
+});
+
+/**
+ * Lets boolean custom fields toggle directly from the people list table.
+ */
+const ContactBooleanCustomFieldCell = memo(function ContactBooleanCustomFieldCell({
+  contactId,
+  definition,
+  value,
+}: ContactBooleanCustomFieldCellProps) {
+  const { mutateAsync: updateContactAsync } = useUpdateContact(contactId);
+  const handleSaveValue = useCallback(
+    async (nextValue: string | number | boolean | null) => {
+      await updateContactAsync({
+        custom_fields: {
+          [definition.key]: typeof nextValue === "boolean" ? nextValue : null,
+        },
+      });
+    },
+    [definition.key, updateContactAsync],
+  );
+
+  return (
+    <BooleanQuickEditCell
+      ariaLabel={definition.label}
+      value={typeof value === "boolean" ? value : null}
+      onSave={handleSaveValue}
+    />
   );
 });
 
@@ -292,6 +334,15 @@ export default function PeoplePage() {
     openDrawer: open,
     openMode,
   });
+  const crmConfig = crmConfigResult?.config;
+  const contactBooleanCustomFields = useMemo(
+    () => getBooleanCustomFields(crmConfig?.contact_custom_fields),
+    [crmConfig?.contact_custom_fields],
+  );
+  const contactCustomFieldFilterKeys = useMemo(
+    () => getCustomFieldFilterKeys(crmConfig?.contact_custom_fields),
+    [crmConfig?.contact_custom_fields],
+  );
 
   const filters = useMemo<FilterDef[]>(
     () => [
@@ -319,8 +370,13 @@ export default function PeoplePage() {
         label: "Created At",
         type: "dateRange",
       },
+      ...contactBooleanCustomFields.map((field) => ({
+        id: field.key,
+        label: field.label,
+        type: "checkbox" as const,
+      })),
     ],
-    [crmConfigResult?.config.contact_types],
+    [contactBooleanCustomFields, crmConfigResult?.config.contact_types],
   );
 
   const queryFilters = useMemo(
@@ -329,17 +385,20 @@ export default function PeoplePage() {
         ? {
             viewFilters: activeState?.filters ?? {},
             viewSort: activeState?.sort ?? undefined,
+            customFieldFilterKeys: contactCustomFieldFilterKeys,
           }
         : {
             type: typeof filterValues.type === "string" ? (filterValues.type as ContactType) : undefined,
             hasEmail: typeof filterValues.hasEmail === "boolean" ? filterValues.hasEmail : undefined,
             hasPhone: typeof filterValues.hasPhone === "boolean" ? filterValues.hasPhone : undefined,
             createdAt: getDateRangeValue(filterValues.createdAt),
+            viewFilters: pickBooleanCustomFieldFilters(filterValues, contactBooleanCustomFields),
+            customFieldFilterKeys: contactCustomFieldFilterKeys,
           }),
       page,
       pageSize,
     }),
-    [activeState?.filters, activeState?.sort, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.type, isSavedViewActive, page],
+    [activeState?.filters, activeState?.sort, contactBooleanCustomFields, contactCustomFieldFilterKeys, filterValues, isSavedViewActive, page],
   );
 
   const contactTypes = crmConfigResult?.config.contact_types ?? contactTypeValues;
@@ -501,12 +560,12 @@ export default function PeoplePage() {
    * override reads from `row.original` directly instead of relying on the base
    * accessorFn.
    */
-  const crmConfig = crmConfigResult?.config;
   const columns = useMemo<ColumnDef<ContactWithCompany>[]>(() => {
     const contactFields = crmConfig?.contact_fields ?? CONTACT_DEFAULT_FIELDS;
     const base = buildColumnsFromConfig<ContactWithCompany>(contactFields, "contacts");
 
     return base.map((col) => {
+      const field = contactFields.find((candidate) => candidate.key === col.id);
       switch (col.id) {
         case "name":
           return {
@@ -570,6 +629,19 @@ export default function PeoplePage() {
             ),
           };
         default:
+          if (field?.source === "custom" && field.type === "boolean") {
+            return {
+              ...col,
+              cell: ({ row }: { row: { original: ContactWithCompany } }) => (
+                <ContactBooleanCustomFieldCell
+                  contactId={row.original.contact_id}
+                  definition={field}
+                  value={(row.original.custom_fields as Record<string, unknown> | null | undefined)?.[field.key]}
+                />
+              ),
+            };
+          }
+
           return col;
       }
     });

@@ -134,6 +134,27 @@ export const ENTITY_ALLOWED_COLUMNS: Record<
   },
 };
 
+interface CustomFieldFilterOptions {
+  /** Configured custom-field keys that should filter through the JSONB document. */
+  customFieldKeys?: Iterable<string>;
+}
+
+function getCustomFieldKeySet(options?: CustomFieldFilterOptions): Set<string> {
+  return new Set(options?.customFieldKeys ?? []);
+}
+
+function toPostgrestFilterValue(value: unknown, isCustomField: boolean): unknown {
+  if (!isCustomField) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => String(entry));
+  }
+
+  return String(value);
+}
+
 /**
  * Validates that filter keys and sort column are allowed for the given entity type.
  * Returns an error string if validation fails, or null if valid.
@@ -142,15 +163,20 @@ export function validateViewFilters(
   entityType: string,
   filters: Record<string, unknown>,
   sort?: { column: string; ascending: boolean } | null,
+  options?: CustomFieldFilterOptions,
 ): string | null {
   const allowed = ENTITY_ALLOWED_COLUMNS[entityType];
   if (!allowed) return `Unknown entity type: ${entityType}`;
 
+  const customFieldKeys = getCustomFieldKeySet(options);
   const invalidKeys = Object.keys(filters).filter(
-    (key) => !allowed.filterKeys.has(key),
+    (key) => !allowed.filterKeys.has(key) && !customFieldKeys.has(key),
   );
   if (invalidKeys.length > 0) {
-    return `Invalid filter keys for ${entityType}: ${invalidKeys.join(", ")}. Allowed: ${[...allowed.filterKeys].join(", ")}`;
+    return `Invalid filter keys for ${entityType}: ${invalidKeys.join(", ")}. Allowed: ${[
+      ...allowed.filterKeys,
+      ...customFieldKeys,
+    ].join(", ")}`;
   }
 
   if (sort && !allowed.sortColumns.has(sort.column)) {
@@ -173,6 +199,7 @@ export function validateViewFilters(
 export function applyViewFilters<Q>(
   query: Q,
   filters: Record<string, unknown>,
+  options?: CustomFieldFilterOptions,
 ): Q {
   const queryBuilder = query as {
     eq: (column: string, value: unknown) => unknown;
@@ -181,22 +208,27 @@ export function applyViewFilters<Q>(
     lte: (column: string, value: unknown) => unknown;
   };
   let q: unknown = queryBuilder;
+  const customFieldKeys = getCustomFieldKeySet(options);
 
   for (const [key, value] of Object.entries(filters)) {
     if (value === null || value === undefined) {
       continue;
     }
 
+    const isCustomField = customFieldKeys.has(key);
+    const column = isCustomField ? `custom_fields->>${key}` : key;
+    const filterValue = toPostgrestFilterValue(value, isCustomField);
+
     if (key.endsWith("_before")) {
-      const column = key.slice(0, -"_before".length);
-      q = (q as typeof queryBuilder).lte(column, value);
+      const rangeColumn = key.slice(0, -"_before".length);
+      q = (q as typeof queryBuilder).lte(rangeColumn, value);
     } else if (key.endsWith("_after")) {
-      const column = key.slice(0, -"_after".length);
-      q = (q as typeof queryBuilder).gte(column, value);
+      const rangeColumn = key.slice(0, -"_after".length);
+      q = (q as typeof queryBuilder).gte(rangeColumn, value);
     } else if (Array.isArray(value)) {
-      q = (q as typeof queryBuilder).in(key, value);
+      q = (q as typeof queryBuilder).in(column, filterValue as unknown[]);
     } else {
-      q = (q as typeof queryBuilder).eq(key, value);
+      q = (q as typeof queryBuilder).eq(column, filterValue);
     }
   }
 

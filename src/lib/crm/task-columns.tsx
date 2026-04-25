@@ -10,11 +10,14 @@
 import { createColumnHelper, type ColumnDef } from "@tanstack/react-table";
 import { formatDistanceToNow } from "date-fns";
 
+import { BooleanQuickEditCell } from "@/components/crm/crm-inline-cells";
 import { QuickEditCell } from "@/components/crm/quick-edit-cell";
 import { TaskStatusBadge } from "@/components/crm/task-status-badge";
 import { useUpdateCrmTask } from "@/hooks/use-update-crm-task";
 import type { CrmTaskWithRelations } from "@/hooks/use-crm-tasks";
+import type { CustomFieldDefinition } from "@/lib/crm/config";
 import { formatContactFullName, formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
+import { renderFieldCell } from "@/lib/crm/field-renderers";
 import { crmTaskStatusValues, type CrmTask } from "@/lib/crm/schemas";
 
 const columnHelper = createColumnHelper<CrmTaskWithRelations>();
@@ -60,6 +63,31 @@ function TaskDueDateCell({ taskId, dueDate }: { taskId: string; dueDate: string 
   );
 }
 
+function TaskBooleanCustomFieldCell({
+  taskId,
+  definition,
+  value,
+}: {
+  taskId: string;
+  definition: CustomFieldDefinition;
+  value: unknown;
+}) {
+  const updateTask = useUpdateCrmTask(taskId);
+  return (
+    <BooleanQuickEditCell
+      ariaLabel={definition.label}
+      value={typeof value === "boolean" ? value : null}
+      onSave={async (nextValue) => {
+        await updateTask.mutateAsync({
+          custom_fields: {
+            [definition.key]: typeof nextValue === "boolean" ? nextValue : null,
+          },
+        });
+      }}
+    />
+  );
+}
+
 export const taskColumns: ColumnDef<CrmTaskWithRelations, unknown>[] = [
   columnHelper.accessor("title", {
     header: "Title",
@@ -96,3 +124,33 @@ export const taskColumns: ColumnDef<CrmTaskWithRelations, unknown>[] = [
     ),
   }),
 ] as ColumnDef<CrmTaskWithRelations, unknown>[];
+
+/**
+ * Extends the base task table with configured custom fields.
+ */
+export function buildTaskColumns(
+  customFields: CustomFieldDefinition[] = [],
+): ColumnDef<CrmTaskWithRelations, unknown>[] {
+  if (customFields.length === 0) {
+    return taskColumns;
+  }
+
+  const customColumns = customFields.map((field): ColumnDef<CrmTaskWithRelations, unknown> => ({
+    id: field.key,
+    header: field.label,
+    accessorFn: (row) =>
+      (row.custom_fields as Record<string, unknown> | null | undefined)?.[field.key],
+    cell: ({ row, getValue }) =>
+      field.type === "boolean" ? (
+        <TaskBooleanCustomFieldCell
+          taskId={row.original.task_id}
+          definition={field}
+          value={getValue()}
+        />
+      ) : (
+        renderFieldCell(field.type, getValue())
+      ),
+  }));
+
+  return [...taskColumns, ...customColumns];
+}

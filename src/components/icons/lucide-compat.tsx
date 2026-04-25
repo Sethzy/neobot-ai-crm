@@ -59,6 +59,7 @@ export {
   SparkleIcon as Sparkle,
   SparklesIcon as Sparkles,
   SquareTerminalIcon as SquareTerminal,
+  ToggleLeftIcon as ToggleLeft,
   Trash2Icon as Trash2,
   UploadIcon as Upload,
   XIcon as X,

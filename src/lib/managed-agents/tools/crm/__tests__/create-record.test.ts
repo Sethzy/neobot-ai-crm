@@ -369,4 +369,59 @@ describe("createRecordTool", () => {
       reason: "possible_duplicates",
     });
   });
+
+  it("passes native boolean custom fields through on contact create", async () => {
+    const inserted = {
+      contact_id: "c1",
+      first_name: "Jane",
+      last_name: "Doe",
+      custom_fields: { vip: true },
+    };
+    const { client, builderHistory } = createMockSupabase({
+      contacts: [
+        { data: [], error: null },
+        { data: inserted, error: null },
+      ],
+    });
+
+    const result = await createRecordTool.execute(
+      {
+        entity: "contacts",
+        records: [{ first_name: "Jane", last_name: "Doe", custom_fields: { vip: true } }],
+      },
+      makeContext(client),
+    );
+
+    expect(result.success).toBe(true);
+    expect(builderHistory.contacts[1]?.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ custom_fields: { vip: true } }),
+    );
+  });
+
+  it("passes native false boolean custom fields through on company create", async () => {
+    const inserted = {
+      company_id: "co1",
+      name: "Acme",
+      custom_fields: { newsletter_opt_in: false },
+    };
+    const { client, builderHistory } = createMockSupabase({
+      companies: [
+        { data: [], error: null },
+        { data: inserted, error: null },
+      ],
+    });
+
+    const result = await createRecordTool.execute(
+      {
+        entity: "companies",
+        records: [{ name: "Acme", custom_fields: { newsletter_opt_in: false } }],
+      },
+      makeContext(client),
+    );
+
+    expect(result.success).toBe(true);
+    expect(builderHistory.companies[1]?.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ custom_fields: { newsletter_opt_in: false } }),
+    );
+  });
 });

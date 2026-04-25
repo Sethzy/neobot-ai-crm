@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
 
-import { getFieldValue, formatFieldDisplay } from "../field-renderers";
+import { getFieldValue, formatFieldDisplay, renderFieldCell } from "../field-renderers";
 
 describe("getFieldValue", () => {
   it("reads column source from row directly", () => {
@@ -59,5 +60,17 @@ describe("formatFieldDisplay", () => {
 
   it("formats number values with separators", () => {
     expect(formatFieldDisplay("number", 1234567)).toBe("1,234,567");
+  });
+});
+
+describe("renderFieldCell", () => {
+  it("renders boolean cells as Yes and No", () => {
+    const { rerender } = render(renderFieldCell("boolean", true));
+
+    expect(screen.getByText("Yes")).toBeInTheDocument();
+
+    rerender(renderFieldCell("boolean", false));
+
+    expect(screen.getByText("No")).toBeInTheDocument();
   });
 });

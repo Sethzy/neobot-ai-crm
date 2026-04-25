@@ -23,7 +23,7 @@ interface SharedInlineCellProps {
   ariaLabel: string;
   displayValue?: string | null;
   children?: ReactNode;
-  onSave: (value: string | number | null) => Promise<void> | void;
+  onSave: (value: string | number | boolean | null) => Promise<void> | void;
 }
 
 interface TextQuickEditCellProps extends SharedInlineCellProps {
@@ -39,6 +39,10 @@ interface NumberQuickEditCellProps extends SharedInlineCellProps {
 interface SelectQuickEditCellProps extends SharedInlineCellProps {
   value: string | null;
   options: CrmInlineCellOption[];
+}
+
+interface BooleanQuickEditCellProps extends SharedInlineCellProps {
+  value: boolean | null;
 }
 
 interface LinkQuickEditCellProps extends SharedInlineCellProps {
@@ -118,6 +122,29 @@ export function SelectQuickEditCell({
       displayValue={displayValue}
       type="select"
       options={options}
+      onSave={onSave}
+    >
+      {children}
+    </QuickEditCell>
+  );
+}
+
+/**
+ * Shared boolean inline editor for CRM list cells.
+ */
+export function BooleanQuickEditCell({
+  ariaLabel,
+  value,
+  displayValue,
+  children,
+  onSave,
+}: BooleanQuickEditCellProps) {
+  return (
+    <QuickEditCell
+      ariaLabel={ariaLabel}
+      value={value}
+      displayValue={displayValue}
+      type="boolean"
       onSave={onSave}
     >
       {children}

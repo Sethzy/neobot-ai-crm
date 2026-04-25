@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { applyViewColumns } from "@/components/crm/apply-view-columns";
 import {
+  BooleanQuickEditCell,
   EmailQuickEditCell,
   PhoneQuickEditCell,
   SelectQuickEditCell,
@@ -36,7 +37,12 @@ import { useUpdateFieldWidth } from "@/hooks/use-update-field-width";
 import { companyKeys, type CompanyWithCounts, usePaginatedCompanies } from "@/hooks/use-companies";
 import { useUpdateCompany } from "@/hooks/use-update-company";
 import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
-import { CRM_DEFAULTS } from "@/lib/crm/config";
+import { CRM_DEFAULTS, type CustomFieldDefinition } from "@/lib/crm/config";
+import {
+  getBooleanCustomFields,
+  getCustomFieldFilterKeys,
+  pickBooleanCustomFieldFilters,
+} from "@/lib/crm/custom-field-filters";
 import { COMPANY_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { formatCrmDate, formatCrmEnumLabel } from "@/lib/crm/display";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
@@ -51,6 +57,12 @@ interface CompanyIndustryCellProps {
   companyId: string;
   industry: Company["industry"];
   industryOptions: string[];
+}
+
+interface CompanyBooleanCustomFieldCellProps {
+  companyId: string;
+  definition: Pick<CustomFieldDefinition, "key" | "label">;
+  value: unknown;
 }
 
 /**
@@ -68,7 +80,7 @@ function getDateRangeValue(value: unknown): DateRangeFilterValue | undefined {
 /**
  * Converts QuickEditCell payloads to the nullable text shape expected by company updates.
  */
-function toNullableTextValue(nextValue: string | number | null): string | null {
+function toNullableTextValue(nextValue: string | number | boolean | null): string | null {
   return typeof nextValue === "string" ? nextValue : null;
 }
 
@@ -91,7 +103,7 @@ const CompanyPhoneCell = memo(function CompanyPhoneCell({
 }) {
   const { mutateAsync: updateCompanyAsync } = useUpdateCompany(companyId);
   const handleSavePhone = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       const val = nextValue != null ? String(nextValue) : null;
       await updateCompanyAsync({ phone: val });
     },
@@ -120,7 +132,7 @@ const CompanyEmailCell = memo(function CompanyEmailCell({
 }) {
   const { mutateAsync: updateCompanyAsync } = useUpdateCompany(companyId);
   const handleSaveEmail = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       const val = nextValue != null ? String(nextValue) : null;
       await updateCompanyAsync({ email: val });
     },
@@ -149,7 +161,7 @@ const CompanyWebsiteCell = memo(function CompanyWebsiteCell({
 }) {
   const { mutateAsync: updateCompanyAsync } = useUpdateCompany(companyId);
   const handleSaveWebsite = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       const val = nextValue != null ? String(nextValue) : null;
       await updateCompanyAsync({ website: val });
     },
@@ -189,7 +201,7 @@ const CompanyIndustryCell = memo(function CompanyIndustryCell({
     [industry],
   );
   const handleSaveIndustry = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       await updateCompanyAsync({
         industry: toNullableTextValue(nextValue) as Company["industry"],
       });
@@ -204,6 +216,35 @@ const CompanyIndustryCell = memo(function CompanyIndustryCell({
       displayValue={displayValue}
       options={options}
       onSave={handleSaveIndustry}
+    />
+  );
+});
+
+/**
+ * Lets boolean custom fields toggle directly from the companies list table.
+ */
+const CompanyBooleanCustomFieldCell = memo(function CompanyBooleanCustomFieldCell({
+  companyId,
+  definition,
+  value,
+}: CompanyBooleanCustomFieldCellProps) {
+  const { mutateAsync: updateCompanyAsync } = useUpdateCompany(companyId);
+  const handleSaveValue = useCallback(
+    async (nextValue: string | number | boolean | null) => {
+      await updateCompanyAsync({
+        custom_fields: {
+          [definition.key]: typeof nextValue === "boolean" ? nextValue : null,
+        },
+      });
+    },
+    [definition.key, updateCompanyAsync],
+  );
+
+  return (
+    <BooleanQuickEditCell
+      ariaLabel={definition.label}
+      value={typeof value === "boolean" ? value : null}
+      onSave={handleSaveValue}
     />
   );
 });
@@ -243,6 +284,15 @@ export default function CompaniesPage() {
     openDrawer: open,
     openMode,
   });
+  const crmConfig = crmConfigResult?.config;
+  const companyBooleanCustomFields = useMemo(
+    () => getBooleanCustomFields(crmConfig?.company_custom_fields),
+    [crmConfig?.company_custom_fields],
+  );
+  const companyCustomFieldFilterKeys = useMemo(
+    () => getCustomFieldFilterKeys(crmConfig?.company_custom_fields),
+    [crmConfig?.company_custom_fields],
+  );
 
   const industryOptions = crmConfigResult?.config.company_industries?.length
     ? crmConfigResult.config.company_industries
@@ -262,8 +312,13 @@ export default function CompaniesPage() {
       { id: "hasEmail", label: "Has Email", type: "checkbox" },
       { id: "hasPhone", label: "Has Phone", type: "checkbox" },
       { id: "createdAt", label: "Created At", type: "dateRange" },
+      ...companyBooleanCustomFields.map((field) => ({
+        id: field.key,
+        label: field.label,
+        type: "checkbox" as const,
+      })),
     ],
-    [industryOptions],
+    [companyBooleanCustomFields, industryOptions],
   );
 
   const queryFilters = useMemo(
@@ -272,17 +327,20 @@ export default function CompaniesPage() {
         ? {
             viewFilters: activeState?.filters ?? {},
             viewSort: activeState?.sort ?? undefined,
+            customFieldFilterKeys: companyCustomFieldFilterKeys,
           }
         : {
             industry: typeof filterValues.industry === "string" ? filterValues.industry : undefined,
             hasEmail: typeof filterValues.hasEmail === "boolean" ? filterValues.hasEmail : undefined,
             hasPhone: typeof filterValues.hasPhone === "boolean" ? filterValues.hasPhone : undefined,
             createdAt: getDateRangeValue(filterValues.createdAt),
+            viewFilters: pickBooleanCustomFieldFilters(filterValues, companyBooleanCustomFields),
+            customFieldFilterKeys: companyCustomFieldFilterKeys,
           }),
       page,
       pageSize,
     }),
-    [activeState?.filters, activeState?.sort, filterValues.createdAt, filterValues.hasEmail, filterValues.hasPhone, filterValues.industry, isSavedViewActive, page],
+    [activeState?.filters, activeState?.sort, companyBooleanCustomFields, companyCustomFieldFilterKeys, filterValues, isSavedViewActive, page],
   );
 
   const { data, isLoading, isError } = usePaginatedCompanies(queryFilters);
@@ -438,12 +496,12 @@ export default function CompaniesPage() {
    * CRM fields; columns not covered by field definitions (contact_count,
    * deal_count) are appended as static columns after the config-driven set.
    */
-  const crmConfig = crmConfigResult?.config;
   const columns = useMemo<ColumnDef<CompanyWithCounts>[]>(() => {
     const companyFields = crmConfig?.company_fields ?? COMPANY_DEFAULT_FIELDS;
     const base = buildColumnsFromConfig<CompanyWithCounts>(companyFields, "companies");
 
     const configured = base.map((col) => {
+      const field = companyFields.find((candidate) => candidate.key === col.id);
       switch (col.id) {
         case "name":
           return {
@@ -497,6 +555,19 @@ export default function CompaniesPage() {
             ),
           };
         default:
+          if (field?.source === "custom" && field.type === "boolean") {
+            return {
+              ...col,
+              cell: ({ row }: { row: { original: CompanyWithCounts } }) => (
+                <CompanyBooleanCustomFieldCell
+                  companyId={row.original.company_id}
+                  definition={field}
+                  value={(row.original.custom_fields as Record<string, unknown> | null | undefined)?.[field.key]}
+                />
+              ),
+            };
+          }
+
           return col;
       }
     });

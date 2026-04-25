@@ -71,6 +71,33 @@ describe("FilterOverlay", () => {
     expect(screen.getByRole("textbox", { name: "Search term" })).toHaveValue("")
   })
 
+  it("emits boolean checkbox filter values and removes blank selections", async () => {
+    const user = userEvent.setup()
+    const applySpy = vi.fn()
+
+    render(
+      <FilterOverlay
+        open
+        onOpenChange={vi.fn()}
+        onApply={applySpy}
+        filters={[{ id: "vip", label: "VIP", type: "checkbox" }]}
+        initialValues={{}}
+      />,
+    )
+
+    await user.selectOptions(screen.getByLabelText("VIP"), "true")
+    await user.click(screen.getAllByRole("button", { name: "Apply" })[0])
+    expect(applySpy).toHaveBeenLastCalledWith({ vip: true })
+
+    await user.selectOptions(screen.getByLabelText("VIP"), "false")
+    await user.click(screen.getAllByRole("button", { name: "Apply" })[0])
+    expect(applySpy).toHaveBeenLastCalledWith({ vip: false })
+
+    await user.selectOptions(screen.getByLabelText("VIP"), "")
+    await user.click(screen.getAllByRole("button", { name: "Apply" })[0])
+    expect(applySpy).toHaveBeenLastCalledWith({})
+  })
+
   it("preserves in-progress draft state when the parent re-renders with equal initial values", async () => {
     const user = userEvent.setup()
     const { rerender } = render(

@@ -28,6 +28,7 @@ export interface DealFilters {
   createdAt?: DealDateRangeFilter;
   viewFilters?: Record<string, unknown>;
   viewSort?: { column: string; ascending: boolean };
+  customFieldFilterKeys?: string[];
 }
 
 export interface DealDateRangeFilter {
@@ -97,6 +98,7 @@ async function fetchPaginatedDeals({
   createdAt,
   viewFilters,
   viewSort,
+  customFieldFilterKeys,
   page = 1,
   pageSize = 20,
 }: PaginatedDealFilters): Promise<PaginatedDealsResult> {
@@ -116,7 +118,7 @@ async function fetchPaginatedDeals({
     query = query.order("updated_at", { ascending: false });
   }
 
-  query = applyDealFilters(query, { search, stage, createdAt, viewFilters, viewSort });
+  query = applyDealFilters(query, { search, stage, createdAt, viewFilters, viewSort, customFieldFilterKeys });
 
   const { data, count, error } = await query;
 
@@ -314,7 +316,7 @@ function applyDealFilters<TQuery>(
 
   if (filters.viewFilters && Object.keys(filters.viewFilters).length > 0) {
     const resolved = resolveSymbolicDates(filters.viewFilters);
-    nextQuery = applyViewFilters(nextQuery, resolved);
+    nextQuery = applyViewFilters(nextQuery, resolved, { customFieldKeys: filters.customFieldFilterKeys });
   }
 
   return nextQuery as TQuery;

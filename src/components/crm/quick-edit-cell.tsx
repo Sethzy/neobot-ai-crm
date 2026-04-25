@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { Check, Loader2, Pencil } from "@/components/icons/lucide-compat";
+import { Check, Loader2, Pencil, ToggleLeft } from "@/components/icons/lucide-compat";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,9 +41,10 @@ import { format } from "date-fns";
 import * as React from "react";
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type QuickEditCellType = "text" | "number" | "select" | "date";
+type QuickEditCellType = "text" | "number" | "select" | "date" | "boolean";
 
-type ParsedQuickEditValue = CrmSaveValidationResult | { ok: true; value: number | null };
+type QuickEditValue = string | number | boolean | null;
+type ParsedQuickEditValue = CrmSaveValidationResult | { ok: true; value: number | boolean | null };
 
 interface QuickEditOption {
   value: string;
@@ -54,7 +55,7 @@ interface QuickEditCellProps {
   /** Accessible field label used for the editor and edit button. */
   ariaLabel: string;
   /** Persisted value used for display and editor initialization. */
-  value: string | number | null;
+  value: QuickEditValue;
   /** Optional display value when the rendered label differs from the stored value. */
   displayValue?: string | null;
   /** Hides the read-mode value when the parent renders it separately. */
@@ -68,7 +69,7 @@ interface QuickEditCellProps {
   /** Optional parser used before saving. */
   parseValue?: (draft: string) => ParsedQuickEditValue;
   /** Called after a parsed value is ready to persist. */
-  onSave: (value: string | number | null) => Promise<void> | void;
+  onSave: (value: QuickEditValue) => Promise<void> | void;
   /**
    * Custom read-mode content (e.g. a link or badge) rendered by the parent.
    * When provided, this replaces the default display span and is hidden during edit mode
@@ -79,6 +80,11 @@ interface QuickEditCellProps {
 
 const savedIndicatorDurationMs = 1500;
 const EMPTY_OPTIONS: QuickEditOption[] = [];
+const booleanOptions = [
+  { value: "true", label: "Yes" },
+  { value: "false", label: "No" },
+  { value: "", label: "Clear" },
+] as const;
 
 function parseDateValue(value: string): Date | null {
   const parsedDate = new Date(value);
@@ -103,7 +109,7 @@ function toLocalIsoMidnight(date: Date): string {
   return `${year}-${month}-${day}T00:00:00${sign}${offsetHours}:${offsetMinutes}`;
 }
 
-function toDateInputValue(value: string | number | null): string {
+function toDateInputValue(value: QuickEditValue): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     return "";
   }
@@ -117,9 +123,21 @@ function toDateInputValue(value: string | number | null): string {
   return format(parsedDate, "yyyy-MM-dd");
 }
 
-function toDraftValue(value: string | number | null, type: QuickEditCellType): string {
+function toDraftValue(value: QuickEditValue, type: QuickEditCellType): string {
   if (type === "date") {
     return toDateInputValue(value);
+  }
+
+  if (type === "boolean") {
+    if (value === true || value === "true") {
+      return "true";
+    }
+
+    if (value === false || value === "false") {
+      return "false";
+    }
+
+    return "";
   }
 
   if (value == null) {
@@ -130,7 +148,7 @@ function toDraftValue(value: string | number | null, type: QuickEditCellType): s
 }
 
 function resolveDisplayValue(
-  value: string | number | null,
+  value: QuickEditValue,
   displayValue: string | null | undefined,
   type: QuickEditCellType,
   options: QuickEditOption[],
@@ -151,6 +169,12 @@ function resolveDisplayValue(
   if (type === "date" && typeof value === "string") {
     const parsedDate = parseDateValue(value);
     return parsedDate ? format(parsedDate, "d MMM yyyy") : value;
+  }
+
+  if (type === "boolean") {
+    if (value === true || value === "true") return "Yes";
+    if (value === false || value === "false") return "No";
+    return "";
   }
 
   return String(value);
@@ -185,6 +209,22 @@ function defaultParseValue(type: QuickEditCellType, draft: string): ParsedQuickE
     }
 
     return { ok: true, value: toLocalIsoMidnight(parsedDate) };
+  }
+
+  if (type === "boolean") {
+    if (normalizedDraft.length === 0) {
+      return { ok: true, value: null };
+    }
+
+    if (normalizedDraft === "true") {
+      return { ok: true, value: true };
+    }
+
+    if (normalizedDraft === "false") {
+      return { ok: true, value: false };
+    }
+
+    return { ok: false, message: "Choose Yes, No, or Clear" };
   }
 
   return { ok: true, value: normalizedDraft.length > 0 ? normalizedDraft : null };
@@ -346,6 +386,58 @@ function QuickEditCellImpl({
   );
 
   const renderEditor = (isDialogEditor: boolean) => {
+    if (type === "boolean") {
+      const optionButtons = (
+        <div
+          className={cn("grid gap-1", isDialogEditor ? "grid-cols-3" : "")}
+          onClick={stopEventPropagation}
+        >
+          {booleanOptions.map((option) => (
+            <Button
+              key={option.label}
+              type="button"
+              variant={draft === option.value ? "secondary" : "ghost"}
+              size={isDialogEditor ? "sm" : "xs"}
+              className={cn(
+                "justify-between",
+                !isDialogEditor && "w-full px-2.5",
+              )}
+              disabled={isSaving}
+              onClick={(event) => {
+                event.stopPropagation();
+                setDraft(option.value);
+                void commitValue(option.value);
+              }}
+            >
+              <span>{option.label}</span>
+              {draft === option.value ? <Check className="h-3.5 w-3.5" aria-hidden /> : null}
+            </Button>
+          ))}
+        </div>
+      );
+
+      if (isDialogEditor) {
+        return optionButtons;
+      }
+
+      return (
+        <Popover open onOpenChange={(nextOpen) => !nextOpen && cancelEditing()}>
+          <PopoverTrigger asChild>
+            <span className="block w-full" />
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-[var(--radix-popover-trigger-width)] min-w-[160px] p-1"
+            align="start"
+            sideOffset={-20}
+            onClick={stopEventPropagation}
+            onOpenAutoFocus={(event) => event.preventDefault()}
+          >
+            {optionButtons}
+          </PopoverContent>
+        </Popover>
+      );
+    }
+
     if (type === "select") {
       if (isDialogEditor) {
         return (
@@ -530,10 +622,14 @@ function QuickEditCellImpl({
             <span
               className={cn(
                 "min-w-0 flex-1 truncate text-meta",
+                type === "boolean" && resolvedDisplayValue && "inline-flex items-center gap-1.5",
                 !resolvedDisplayValue ? "text-muted-foreground" : "text-foreground",
               )}
               title={resolvedDisplayValue || undefined}
             >
+              {type === "boolean" && resolvedDisplayValue ? (
+                <ToggleLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" aria-hidden />
+              ) : null}
               {resolvedDisplayValue}
             </span>
           ) : null}
@@ -572,20 +668,22 @@ function QuickEditCellImpl({
               <p className="type-control text-destructive">{errorMessage}</p>
             ) : null}
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={cancelEditing}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={() => void commitValue(draft)}
-              disabled={isSaving}
-              aria-label={`Save ${ariaLabel}`}
-            >
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Save
-            </Button>
-          </DialogFooter>
+          {type === "boolean" ? null : (
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={cancelEditing}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void commitValue(draft)}
+                disabled={isSaving}
+                aria-label={`Save ${ariaLabel}`}
+              >
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Save
+              </Button>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -20,6 +20,7 @@ export const customFieldTypeValues = [
   "number",
   "currency",
   "date",
+  "boolean",
   "select",
 ] as const;
 
@@ -233,6 +234,8 @@ function buildConfiguredFieldSchema(
         return z.number();
       case "date":
         return z.string().date();
+      case "boolean":
+        return z.boolean();
       default:
         return z.string();
     }

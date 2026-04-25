@@ -14,13 +14,14 @@ const definitions: CustomFieldDefinition[] = [
   { key: "priority", label: "Priority", type: "select", options: ["low", "high"], required: false },
   { key: "close_date", label: "Close Date", type: "date", required: false },
   { key: "score", label: "Score", type: "number", required: false },
+  { key: "vip", label: "VIP", type: "boolean", required: false },
   { key: "notes", label: "Notes", type: "text", required: false },
 ];
 
 describe("validateCustomFields", () => {
   it("accepts valid values", () => {
     const result = validateCustomFields(
-      { priority: "high", score: 42, close_date: "2026-04-10", notes: "hello" },
+      { priority: "high", score: 42, close_date: "2026-04-10", vip: false, notes: "hello" },
       definitions,
     );
 
@@ -46,6 +47,15 @@ describe("validateCustomFields", () => {
     const result = validateCustomFields({ close_date: "banana" }, definitions);
 
     expect(result.ok).toBe(false);
+  });
+
+  it("rejects non-boolean values for boolean fields", () => {
+    const result = validateCustomFields({ vip: "true" }, definitions);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/true or false/i);
+    }
   });
 
   it("accepts unknown keys", () => {

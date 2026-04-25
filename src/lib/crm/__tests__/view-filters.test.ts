@@ -99,6 +99,20 @@ describe("applyViewFilters", () => {
       { method: "eq", args: ["type", "buyer"] },
     ]);
   });
+
+  it("applies configured custom field filters through JSONB text paths", () => {
+    const { proxy, calls } = createMockQuery();
+    applyViewFilters(
+      proxy as never,
+      { vip: true, newsletter: false },
+      { customFieldKeys: ["vip", "newsletter"] },
+    );
+
+    expect(calls).toEqual([
+      { method: "eq", args: ["custom_fields->>vip", "true"] },
+      { method: "eq", args: ["custom_fields->>newsletter", "false"] },
+    ]);
+  });
 });
 
 describe("validateViewFilters", () => {
@@ -120,6 +134,17 @@ describe("validateViewFilters", () => {
     const error = validateViewFilters("tasks", { hasEmail: true });
     expect(error).toContain("Invalid filter keys");
     expect(error).toContain("hasEmail");
+  });
+
+  it("accepts configured custom field filter keys", () => {
+    const error = validateViewFilters(
+      "contacts",
+      { vip: true },
+      null,
+      { customFieldKeys: ["vip"] },
+    );
+
+    expect(error).toBeNull();
   });
 
   it("rejects unknown sort columns", () => {

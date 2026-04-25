@@ -22,15 +22,22 @@ import { PageSurface } from "@/components/layout/page-canvas";
 import { Button } from "@/components/ui/button";
 import type { FilterDef, FilterValues } from "@/components/ui/filter-overlay";
 import { ListTable } from "@/components/ui/list-table";
-import { taskColumns } from "@/lib/crm/task-columns";
+import { buildTaskColumns } from "@/lib/crm/task-columns";
+import type { CustomFieldDefinition } from "@/lib/crm/config";
 import { crmTaskKeys } from "@/hooks/use-crm-tasks";
 import { useCrmTasks } from "@/hooks/use-crm-tasks";
 import { useClientId } from "@/hooks/use-client-id";
+import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useCrmViews } from "@/hooks/use-crm-views";
 import { useRecordDrawer } from "@/hooks/use-record-drawer";
 import { useUpdateCrmTaskMutation } from "@/hooks/use-update-crm-task";
 import { useViewPreference } from "@/hooks/use-view-preference";
 import { crmTaskStatusValues, type CrmTask } from "@/lib/crm/schemas";
+import {
+  getBooleanCustomFields,
+  getCustomFieldFilterKeys,
+  pickBooleanCustomFieldFilters,
+} from "@/lib/crm/custom-field-filters";
 import { formatCrmEnumLabel } from "@/lib/crm/display";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
 import { timelineActivityKeys } from "@/hooks/use-unified-timeline";
@@ -52,6 +59,8 @@ const TaskCalendarView = dynamic(
   { loading: () => <TaskViewLoading /> },
 );
 
+const EMPTY_TASK_CUSTOM_FIELDS: CustomFieldDefinition[] = [];
+
 export default function TasksPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -61,6 +70,7 @@ export default function TasksPage() {
   const queryClient = useQueryClient();
   const { data: clientId } = useClientId();
   const updateTask = useUpdateCrmTaskMutation();
+  const { data: crmConfigResult } = useCrmConfig();
   const {
     savedViewId,
     handleSavedViewChange: handleSavedViewRouteChange,
@@ -87,6 +97,15 @@ export default function TasksPage() {
     openDrawer: open,
     openMode,
   });
+  const taskCustomFields = crmConfigResult?.config.task_custom_fields ?? EMPTY_TASK_CUSTOM_FIELDS;
+  const taskBooleanCustomFields = useMemo(
+    () => getBooleanCustomFields(taskCustomFields),
+    [taskCustomFields],
+  );
+  const taskCustomFieldFilterKeys = useMemo(
+    () => getCustomFieldFilterKeys(taskCustomFields),
+    [taskCustomFields],
+  );
 
   const createTask = useMutation({
     mutationFn: async () => {
@@ -155,8 +174,13 @@ export default function TasksPage() {
           label: formatCrmEnumLabel(status),
         })),
       },
+      ...taskBooleanCustomFields.map((field) => ({
+        id: field.key,
+        label: field.label,
+        type: "checkbox" as const,
+      })),
     ],
-    [],
+    [taskBooleanCustomFields],
   );
 
   const filters = useMemo(() => {
@@ -164,6 +188,7 @@ export default function TasksPage() {
       return {
         viewFilters: activeState?.filters ?? {},
         viewSort: activeState?.sort ?? undefined,
+        customFieldFilterKeys: taskCustomFieldFilterKeys,
       };
     }
 
@@ -172,15 +197,21 @@ export default function TasksPage() {
         typeof filterValues.status === "string"
           ? (filterValues.status as CrmTask["status"])
           : undefined,
+      viewFilters: pickBooleanCustomFieldFilters(filterValues, taskBooleanCustomFields),
+      customFieldFilterKeys: taskCustomFieldFilterKeys,
     };
-  }, [activeState?.filters, activeState?.sort, filterValues.status, isSavedViewActive]);
+  }, [activeState?.filters, activeState?.sort, filterValues, isSavedViewActive, taskBooleanCustomFields, taskCustomFieldFilterKeys]);
 
   const { data: tasks = [], isLoading, isError, refetch } = useCrmTasks(filters);
   const hasLocalFilters = Object.keys(filterValues).length > 0;
   const hasActiveFiltering = isSavedViewActive || hasLocalFilters;
+  const tableColumns = useMemo(
+    () => buildTaskColumns(taskCustomFields),
+    [taskCustomFields],
+  );
   const visibleTableColumns = useMemo(
-    () => applyViewColumns(taskColumns, activeState),
-    [activeState],
+    () => applyViewColumns(tableColumns, activeState),
+    [activeState, tableColumns],
   );
   const handleRowClick = useCallback(
     (task: (typeof tasks)[number]) => {

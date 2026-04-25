@@ -27,6 +27,10 @@ function toInlineEditType(type: CustomFieldDefinition["type"]) {
     return "date" as const;
   }
 
+  if (type === "boolean") {
+    return "boolean" as const;
+  }
+
   if (type === "number" || type === "currency") {
     return "number" as const;
   }

@@ -54,10 +54,10 @@ const inputSchema = z.object({
   company_industries: vocabularyFieldSchema.optional().describe("Available company classifications such as developer, bank, or law_firm."),
   interaction_types: vocabularyFieldSchema.optional().describe("Available interaction types such as call, meeting, email, note."),
   deal_contact_roles: vocabularyFieldSchema.optional().describe("Roles a contact can hold on a deal such as buyer, seller, agent."),
-  deal_custom_fields: dealCustomFieldsSchema.optional().describe("Custom field definitions for deals."),
-  contact_custom_fields: contactCustomFieldsSchema.optional().describe("Custom field definitions for contacts."),
-  company_custom_fields: companyCustomFieldsSchema.optional().describe("Custom field definitions for companies."),
-  task_custom_fields: taskCustomFieldsSchema.optional().describe("Custom field definitions for CRM tasks."),
+  deal_custom_fields: dealCustomFieldsSchema.optional().describe("Custom field definitions for deals. Supported types: text, number, currency, date, boolean, select."),
+  contact_custom_fields: contactCustomFieldsSchema.optional().describe("Custom field definitions for contacts. Supported types: text, number, currency, date, boolean, select."),
+  company_custom_fields: companyCustomFieldsSchema.optional().describe("Custom field definitions for companies. Supported types: text, number, currency, date, boolean, select."),
+  task_custom_fields: taskCustomFieldsSchema.optional().describe("Custom field definitions for CRM tasks. Supported types: text, number, currency, date, boolean, select."),
   contact_fields: z.array(fieldDefinitionSchema).optional().describe("Full contact field definitions array. Include ALL fields (defaults + custom). Omitting a custom field removes it."),
   company_fields: z.array(fieldDefinitionSchema).optional().describe("Full company field definitions array."),
   deal_fields: z.array(fieldDefinitionSchema).optional().describe("Full deal field definitions array."),
@@ -460,6 +460,7 @@ export const configureCrmTool: ManagedAgentTool<ConfigureCrmInput, ConfigureCrmR
   name: "configure_crm",
   description:
     "Update CRM vocabulary and custom field definitions for the current client. " +
+    "Custom field types are text, number, currency, date, boolean, and select. " +
     "Accepts partial updates and always returns the fully resolved resulting config. " +
     "If requested removals would affect existing records, it returns a warning instead. " +
     "Re-call with confirm_removals: true to proceed. " +

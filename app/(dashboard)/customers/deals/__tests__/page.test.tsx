@@ -210,6 +210,10 @@ describe("DealsPage", () => {
 
     await user.click(screen.getByRole("radio", { name: /board view/i }));
 
+    await waitFor(() => {
+      expect(mockedKanbanBoard).toHaveBeenCalled();
+    });
+
     const firstBoardProps = mockedKanbanBoard.mock.lastCall?.[0];
 
     rerender(<DealsPage />);
@@ -227,7 +231,7 @@ describe("DealsPage", () => {
 
     await user.click(screen.getByRole("radio", { name: /board view/i }));
 
-    expect(screen.getByText("By Stage")).toBeInTheDocument();
+    expect(await screen.findByText("By Stage")).toBeInTheDocument();
     expect(screen.queryByText(/drag them between lanes/i)).not.toBeInTheDocument();
   });
 

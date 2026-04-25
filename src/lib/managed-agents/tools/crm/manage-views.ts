@@ -6,6 +6,7 @@
 import { z } from "zod";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
+import { CRM_DEFAULTS, type CrmVocabConfig } from "@/lib/crm/config";
 import { crmViewEntityTypes } from "@/lib/crm/schemas";
 import { validateViewFilters } from "@/lib/crm/view-filters";
 import {
@@ -46,6 +47,24 @@ const inputSchema = z.object({
 
 type ManageViewsInput = z.infer<typeof inputSchema>;
 
+function getCustomFilterKeysForEntity(
+  entityType: string,
+  config: CrmVocabConfig,
+): string[] {
+  switch (entityType) {
+    case "contacts":
+      return config.contact_custom_fields.map((field) => field.key);
+    case "companies":
+      return config.company_custom_fields.map((field) => field.key);
+    case "deals":
+      return config.deal_custom_fields.map((field) => field.key);
+    case "tasks":
+      return config.task_custom_fields.map((field) => field.key);
+    default:
+      return [];
+  }
+}
+
 export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
   name: "manage_views",
   description:
@@ -53,10 +72,13 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
     "A view is a named saved workspace that can remember layout, filters, sort, columns, and record open behavior. " +
     "Only create views when the user explicitly asks. " +
     "Filter keys match CRM columns: stage, status, type, industry, company_id, contact_id, deal_id. " +
+    "Configured custom field keys are also valid filter keys. " +
     "For date ranges use column_after/column_before (e.g. due_date_before, close_date_after). " +
     "Use symbolic tokens for dynamic dates: $today, $week_start, $week_end, $month_start, $month_end.",
   inputSchema,
   execute: async (input, context) => {
+    const config = context.crmConfig ?? CRM_DEFAULTS;
+
     switch (input.operation) {
       case "create": {
         if (!input.name || !input.entity_type || !input.state) {
@@ -70,6 +92,7 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           input.entity_type,
           input.state.filters ?? {},
           input.state.sort ?? null,
+          { customFieldKeys: getCustomFilterKeysForEntity(input.entity_type, config) },
         );
         if (validationError) {
           return { success: false as const, error: validationError };
@@ -163,6 +186,7 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
             existing.entity_type,
             mergedState.filters ?? {},
             mergedState.sort ?? null,
+            { customFieldKeys: getCustomFilterKeysForEntity(existing.entity_type, config) },
           );
           if (validationError) {
             return { success: false as const, error: validationError };

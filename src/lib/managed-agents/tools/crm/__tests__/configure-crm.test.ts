@@ -133,4 +133,55 @@ describe("configureCrmTool", () => {
       (builderHistory.crm_config[2]?.upsert.mock.calls[0]?.[0] as Record<string, unknown>).__viewWarnings,
     ).toBeUndefined();
   });
+
+  it("accepts boolean custom field definitions", async () => {
+    const updatedRow = {
+      config_id: "cfg-1",
+      client_id: CLIENT_ID,
+      deal_label: "Deal",
+      company_label: "Company",
+      deal_stages: null,
+      contact_types: null,
+      interaction_types: null,
+      deal_contact_roles: null,
+      company_industries: null,
+      deal_custom_fields: [],
+      contact_custom_fields: [{ key: "vip", label: "VIP", type: "boolean" }],
+      company_custom_fields: [],
+      task_custom_fields: [],
+      contact_fields: [],
+      company_fields: [],
+      deal_fields: [],
+    };
+    const { client, builderHistory } = createMockSupabase({
+      crm_config: [
+        { data: null, error: null },
+        { data: null, error: null },
+        { data: updatedRow, error: null },
+      ],
+    });
+
+    const result = await configureCrmTool.execute(
+      {
+        contact_custom_fields: [
+          { key: "vip", label: "VIP", type: "boolean" },
+        ],
+      },
+      makeContext(client),
+    );
+
+    expect(builderHistory.crm_config[2]?.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client_id: CLIENT_ID,
+        contact_custom_fields: [{ key: "vip", label: "VIP", type: "boolean" }],
+      }),
+      { onConflict: "client_id" },
+    );
+    expect(result).toMatchObject({
+      success: true,
+      resolved_config: {
+        contact_custom_fields: [{ key: "vip", label: "VIP", type: "boolean" }],
+      },
+    });
+  });
 });

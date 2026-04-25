@@ -174,6 +174,29 @@ describe("InlineEditField", () => {
     expect(screen.getByRole("spinbutton")).toHaveValue(1850000);
   });
 
+  it("autosaves boolean values from the popover picker", async () => {
+    const user = userEvent.setup();
+
+    const { rerender } = render(
+      <InlineEditField label="VIP" value="true" type="boolean" onSave={onSave} />,
+    );
+
+    expect(screen.getByText("Yes")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Yes"));
+    await user.click(screen.getByRole("button", { name: "No" }));
+
+    expect(onSave).toHaveBeenCalledWith("false");
+
+    onSave.mockClear();
+    rerender(<InlineEditField label="VIP" value="false" type="boolean" onSave={onSave} />);
+
+    await user.click(screen.getByText("No"));
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(onSave).toHaveBeenCalledWith("");
+  });
+
   it("does not truncate hide-label title fields", () => {
     render(
       <InlineEditField

@@ -20,6 +20,7 @@ export interface CompanyFilters {
   industry?: NonNullable<Company["industry"]>;
   viewFilters?: Record<string, unknown>;
   viewSort?: { column: string; ascending: boolean };
+  customFieldFilterKeys?: string[];
 }
 
 export const EMPTY_COMPANY_FILTERS: CompanyFilters = {};
@@ -91,7 +92,7 @@ async function fetchCompanies(filters: CompanyFilters): Promise<CompanyWithCount
 
   if (filters.viewFilters && Object.keys(filters.viewFilters).length > 0) {
     const resolved = resolveSymbolicDates(filters.viewFilters);
-    query = applyViewFilters(query, resolved);
+    query = applyViewFilters(query, resolved, { customFieldKeys: filters.customFieldFilterKeys });
   }
 
   const { data, error } = await query;
@@ -125,6 +126,7 @@ async function fetchPaginatedCompanies({
   createdAt,
   viewFilters,
   viewSort,
+  customFieldFilterKeys,
   page = 1,
   pageSize = 20,
 }: PaginatedCompanyFilters): Promise<PaginatedCompaniesResult> {
@@ -180,7 +182,7 @@ async function fetchPaginatedCompanies({
 
   if (viewFilters && Object.keys(viewFilters).length > 0) {
     const resolved = resolveSymbolicDates(viewFilters);
-    query = applyViewFilters(query, resolved);
+    query = applyViewFilters(query, resolved, { customFieldKeys: customFieldFilterKeys });
   }
 
   const { data, count, error } = await query;

@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { applyViewColumns } from "@/components/crm/apply-view-columns";
 import type { KanbanBoardProps } from "@/components/crm/kanban-board";
 import {
+  BooleanQuickEditCell,
   NumberQuickEditCell,
   SelectQuickEditCell,
   TextQuickEditCell,
@@ -44,7 +45,12 @@ import { dealKeys, type DealWithContact, useDeals, usePaginatedDeals } from "@/h
 import { useUpdateDeal } from "@/hooks/use-update-deal";
 import { useViewPreference, type ViewType } from "@/hooks/use-view-preference";
 import { buildColumnsFromConfig } from "@/lib/crm/build-columns";
-import { matchVocabularyValue } from "@/lib/crm/config";
+import { matchVocabularyValue, type CustomFieldDefinition } from "@/lib/crm/config";
+import {
+  getBooleanCustomFields,
+  getCustomFieldFilterKeys,
+  pickBooleanCustomFieldFilters,
+} from "@/lib/crm/custom-field-filters";
 import { DEAL_DEFAULT_FIELDS } from "@/lib/crm/field-definitions";
 import { dealStageValues, type Deal } from "@/lib/crm/schemas";
 import { captureTimelineActivity } from "@/lib/crm/timeline-capture";
@@ -100,6 +106,12 @@ interface DealCompanyCellProps {
   companyId: string | null;
   company: DealWithContact["companies"];
   companies: CompanyWithCounts[];
+}
+
+interface DealBooleanCustomFieldCellProps {
+  dealId: string;
+  definition: Pick<CustomFieldDefinition, "key" | "label">;
+  value: unknown;
 }
 
 const noCompanyOptionValue = "__none__";
@@ -197,7 +209,7 @@ const DealStageCell = memo(function DealStageCell({ dealId, stage, stages }: Dea
     [stages],
   );
   const handleSaveStage = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       await updateDealAsync({ stage: nextValue as Deal["stage"] });
     },
     [updateDealAsync],
@@ -218,7 +230,7 @@ const DealAmountCell = memo(function DealAmountCell({ dealId, amount }: DealAmou
   const { mutateAsync: updateDealAsync } = useUpdateDeal(dealId);
   const displayValue = useMemo(() => formatCrmPrice(amount), [amount]);
   const handleSaveAmount = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       await updateDealAsync({
         amount: typeof nextValue === "number" ? nextValue : null,
       });
@@ -244,7 +256,7 @@ const DealAmountCell = memo(function DealAmountCell({ dealId, amount }: DealAmou
 const DealAddressCell = memo(function DealAddressCell({ dealId, address }: DealAddressCellProps) {
   const { mutateAsync: updateDealAsync } = useUpdateDeal(dealId);
   const handleSaveAddress = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       const next = typeof nextValue === "string" ? nextValue.trim() : "";
       if (next.length === 0) return;
       await updateDealAsync({ address: next });
@@ -275,7 +287,7 @@ const DealCompanyCell = memo(function DealCompanyCell({
   const options = useMemo(() => buildDealCompanyOptions(companies, company), [companies, company]);
   const displayValue = companyId ? undefined : "";
   const handleSaveCompany = useCallback(
-    async (nextValue: string | number | null) => {
+    async (nextValue: string | number | boolean | null) => {
       const nextCompanyId = typeof nextValue === "string" && nextValue !== noCompanyOptionValue
         ? nextValue
         : null;
@@ -291,6 +303,35 @@ const DealCompanyCell = memo(function DealCompanyCell({
       displayValue={displayValue}
       options={options}
       onSave={handleSaveCompany}
+    />
+  );
+});
+
+/**
+ * Lets boolean custom fields toggle directly from the deals list table.
+ */
+const DealBooleanCustomFieldCell = memo(function DealBooleanCustomFieldCell({
+  dealId,
+  definition,
+  value,
+}: DealBooleanCustomFieldCellProps) {
+  const { mutateAsync: updateDealAsync } = useUpdateDeal(dealId);
+  const handleSaveValue = useCallback(
+    async (nextValue: string | number | boolean | null) => {
+      await updateDealAsync({
+        custom_fields: {
+          [definition.key]: typeof nextValue === "boolean" ? nextValue : null,
+        },
+      });
+    },
+    [definition.key, updateDealAsync],
+  );
+
+  return (
+    <BooleanQuickEditCell
+      ariaLabel={definition.label}
+      value={typeof value === "boolean" ? value : null}
+      onSave={handleSaveValue}
     />
   );
 });
@@ -341,6 +382,15 @@ export default function DealsPage() {
     openDrawer: open,
     openMode,
   });
+  const crmConfig = crmConfigResult?.config;
+  const dealBooleanCustomFields = useMemo(
+    () => getBooleanCustomFields(crmConfig?.deal_custom_fields),
+    [crmConfig?.deal_custom_fields],
+  );
+  const dealCustomFieldFilterKeys = useMemo(
+    () => getCustomFieldFilterKeys(crmConfig?.deal_custom_fields),
+    [crmConfig?.deal_custom_fields],
+  );
 
   useEffect(() => {
     if (isSavedViewActive) {
@@ -377,8 +427,13 @@ export default function DealsPage() {
         })),
       },
       { id: "createdAt", label: "Created At", type: "dateRange" },
+      ...dealBooleanCustomFields.map((field) => ({
+        id: field.key,
+        label: field.label,
+        type: "checkbox" as const,
+      })),
     ],
-    [stages],
+    [dealBooleanCustomFields, stages],
   );
 
   const sharedFilters = useMemo(
@@ -387,13 +442,16 @@ export default function DealsPage() {
         ? {
             viewFilters: activeState?.filters ?? {},
             viewSort: activeState?.sort ?? undefined,
+            customFieldFilterKeys: dealCustomFieldFilterKeys,
           }
         : {
             stage: typeof filterValues.stage === "string" ? (filterValues.stage as Deal["stage"]) : undefined,
             createdAt: getDateRangeValue(filterValues.createdAt),
+            viewFilters: pickBooleanCustomFieldFilters(filterValues, dealBooleanCustomFields),
+            customFieldFilterKeys: dealCustomFieldFilterKeys,
           }),
     }),
-    [activeState?.filters, activeState?.sort, filterValues.createdAt, filterValues.stage, isSavedViewActive],
+    [activeState?.filters, activeState?.sort, dealBooleanCustomFields, dealCustomFieldFilterKeys, filterValues, isSavedViewActive],
   );
 
   const tableFilters = useMemo(
@@ -599,12 +657,12 @@ export default function DealsPage() {
    * - `address`     → plain text (secondary address field)
    * - `updated_at`  → formatted date
    */
-  const crmConfig = crmConfigResult?.config;
   const columns = useMemo<ColumnDef<DealWithContact>[]>(() => {
     const dealFields = crmConfig?.deal_fields ?? DEAL_DEFAULT_FIELDS;
     const base = buildColumnsFromConfig<DealWithContact>(dealFields, "deals");
 
     return base.map((col) => {
+      const field = dealFields.find((candidate) => candidate.key === col.id);
       switch (col.id) {
         case "name":
           /** The deal "name" field renders the address as the primary link. */
@@ -681,6 +739,19 @@ export default function DealsPage() {
             ),
           };
         default:
+          if (field?.source === "custom" && field.type === "boolean") {
+            return {
+              ...col,
+              cell: ({ row }: { row: { original: DealWithContact } }) => (
+                <DealBooleanCustomFieldCell
+                  dealId={row.original.deal_id}
+                  definition={field}
+                  value={(row.original.custom_fields as Record<string, unknown> | null | undefined)?.[field.key]}
+                />
+              ),
+            };
+          }
+
           return col;
       }
     });

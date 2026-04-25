@@ -49,12 +49,22 @@ describe("customFieldDefinitionSchema", () => {
     ).toThrow();
   });
 
+  it("accepts boolean fields without options", () => {
+    const field = {
+      key: "vip",
+      label: "VIP",
+      type: "boolean",
+    } as const;
+
+    expect(customFieldDefinitionSchema.parse(field)).toEqual(field);
+  });
+
   it("rejects invalid field types", () => {
     expect(() =>
       customFieldDefinitionSchema.parse({
         key: "test",
         label: "Test",
-        type: "boolean",
+        type: "checkbox",
       }),
     ).toThrow();
   });
@@ -195,6 +205,7 @@ describe("buildCustomFieldsSchema", () => {
       { key: "coverage", label: "Coverage", type: "number" },
       { key: "priority", label: "Priority", type: "select", options: ["low", "high"] },
       { key: "expiry_date", label: "Expiry Date", type: "date" },
+      { key: "vip", label: "VIP", type: "boolean" },
     ]);
 
     expect(
@@ -203,17 +214,28 @@ describe("buildCustomFieldsSchema", () => {
         coverage: 50000,
         priority: "low",
         expiry_date: "2026-12-31",
+        vip: true,
       }),
     ).toEqual({
       policy_number: "POL-001",
       coverage: 50000,
       priority: "low",
       expiry_date: "2026-12-31",
+      vip: true,
     });
 
+    expect(schema.parse({ policy_number: "POL-001", vip: false })).toEqual({
+      policy_number: "POL-001",
+      vip: false,
+    });
+    expect(schema.parse({ policy_number: "POL-001", vip: null })).toEqual({
+      policy_number: "POL-001",
+      vip: null,
+    });
     expect(() => schema.parse({ coverage: 50000 })).toThrow();
     expect(() => schema.parse({ policy_number: "POL-001", coverage: "50000" })).toThrow();
     expect(() => schema.parse({ policy_number: "POL-001", priority: "urgent" })).toThrow();
+    expect(() => schema.parse({ policy_number: "POL-001", vip: "true" })).toThrow();
   });
 
   it("allows partial updates in update mode", () => {

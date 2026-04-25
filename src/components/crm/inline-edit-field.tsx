@@ -10,7 +10,7 @@
  */
 "use client";
 
-import { Check, CalendarIcon, ChevronDown, Loader2 } from "@/components/icons/lucide-compat";
+import { Check, CalendarIcon, ChevronDown, Loader2, ToggleLeft } from "@/components/icons/lucide-compat";
 import { format } from "date-fns";
 import {
   type KeyboardEvent,
@@ -34,7 +34,7 @@ interface SelectOption {
   label: string;
 }
 
-type InlineEditType = "text" | "textarea" | "select" | "date" | "number";
+type InlineEditType = "text" | "textarea" | "select" | "date" | "number" | "boolean";
 
 interface InlineEditFieldProps {
   /** Optional leading icon rendered before the label (e.g. a lucide icon at h-4 w-4). */
@@ -68,6 +68,11 @@ interface InlineEditFieldProps {
 }
 
 const savedIndicatorDurationMs = 1500;
+const booleanOptions = [
+  { value: "true", label: "Yes" },
+  { value: "false", label: "No" },
+  { value: "", label: "Clear" },
+] as const;
 
 function toLocalIsoMidnight(date: Date): string {
   const year = date.getFullYear();
@@ -292,6 +297,12 @@ export function InlineEditField({
       return format(dateFromValue, "d MMM yyyy");
     }
 
+    if (type === "boolean") {
+      if (value === "true") return "Yes";
+      if (value === "false") return "No";
+      return null;
+    }
+
     const normalized = value?.trim();
     return normalized && normalized.length > 0 ? normalized : null;
   }, [dateFromValue, displayValue, options, type, value]);
@@ -302,6 +313,7 @@ export function InlineEditField({
   const isTextareaField = type === "textarea";
   const isSelectField = type === "select";
   const isDateField = type === "date";
+  const isBooleanField = type === "boolean";
 
   // ---------------------------------------------------------------------------
   // Display value element (shared between display and select-edit modes)
@@ -311,6 +323,7 @@ export function InlineEditField({
     <span
       className={cn(
         "min-w-0 flex-1 text-sm leading-[20px]",
+        isBooleanField && hasValue && "inline-flex items-center gap-1.5",
         hasValue ? "text-foreground/80" : "text-muted-foreground/40",
         isTextareaField
           ? "line-clamp-4 whitespace-pre-wrap break-words"
@@ -320,6 +333,9 @@ export function InlineEditField({
         displayClassName,
       )}
     >
+      {isBooleanField && hasValue ? (
+        <ToggleLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" aria-hidden />
+      ) : null}
       {resolvedDisplayValue ?? label}
     </span>
   );
@@ -373,7 +389,7 @@ export function InlineEditField({
           )}
         >
         {/* --- Text / Number edit: inline chip --- */}
-        {isEditing && !isSelectField && !isDateField && !isTextareaField ? (
+        {isEditing && !isSelectField && !isDateField && !isTextareaField && !isBooleanField ? (
           <div className="-ml-2 flex min-h-[24px] w-full items-center gap-1.5 rounded-md border border-border/50 px-2">
             <input
               ref={inputRef as RefObject<HTMLInputElement>}
@@ -392,6 +408,51 @@ export function InlineEditField({
             />
             {isSaving ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground/50" /> : null}
           </div>
+        ) : null}
+
+        {/* --- Boolean edit: Popover yes/no/clear picker --- */}
+        {isEditing && isBooleanField ? (
+          <Popover
+            open
+            onOpenChange={(nextOpen) => {
+              if (!nextOpen) {
+                setIsEditing(false);
+              }
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="-ml-2 flex min-h-[24px] items-center gap-1.5 rounded-md border border-border/50 px-2 text-sm leading-[20px] text-foreground/80"
+              >
+                <ToggleLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" aria-hidden />
+                {resolvedDisplayValue ?? label}
+                <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" aria-hidden />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" side="bottom" sideOffset={4} className="w-auto min-w-[160px] p-1">
+              {booleanOptions.map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-sm px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-muted/50",
+                    option.value === draft && "bg-muted/40",
+                  )}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDraft(option.value);
+                    void handleCommit(option.value);
+                  }}
+                >
+                  <span>{option.label}</span>
+                  {option.value === currentValue ? (
+                    <Check className="h-4 w-4 shrink-0 text-foreground/60" aria-hidden />
+                  ) : null}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
         ) : null}
 
         {/* --- Textarea edit: inline chip --- */}

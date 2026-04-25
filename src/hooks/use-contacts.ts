@@ -22,6 +22,7 @@ export interface ContactFilters {
   type?: ContactType;
   viewFilters?: Record<string, unknown>;
   viewSort?: { column: string; ascending: boolean };
+  customFieldFilterKeys?: string[];
 }
 
 export interface ContactDateRangeFilter {
@@ -58,7 +59,7 @@ export const contactKeys = {
   detail: (contactId: string) => [...contactKeys.details(), contactId] as const,
 };
 
-async function fetchContacts({ search, type, viewFilters, viewSort }: ContactFilters): Promise<ContactWithCompany[]> {
+async function fetchContacts({ search, type, viewFilters, viewSort, customFieldFilterKeys }: ContactFilters): Promise<ContactWithCompany[]> {
   let query = supabase
     .from("contacts")
     .select("*, companies!contacts_company_id_fkey(company_id, name)");
@@ -79,7 +80,7 @@ async function fetchContacts({ search, type, viewFilters, viewSort }: ContactFil
 
   if (viewFilters && Object.keys(viewFilters).length > 0) {
     const resolved = resolveSymbolicDates(viewFilters);
-    query = applyViewFilters(query, resolved);
+    query = applyViewFilters(query, resolved, { customFieldKeys: customFieldFilterKeys });
   }
 
   const { data, error } = await query;
@@ -99,6 +100,7 @@ async function fetchPaginatedContacts({
   createdAt,
   viewFilters,
   viewSort,
+  customFieldFilterKeys,
   page = 1,
   pageSize = 20,
 }: PaginatedContactFilters): Promise<PaginatedContactsResult> {
@@ -152,7 +154,7 @@ async function fetchPaginatedContacts({
 
   if (viewFilters && Object.keys(viewFilters).length > 0) {
     const resolved = resolveSymbolicDates(viewFilters);
-    query = applyViewFilters(query, resolved);
+    query = applyViewFilters(query, resolved, { customFieldKeys: customFieldFilterKeys });
   }
 
   const { data, count, error } = await query;
@@ -290,7 +292,6 @@ export function useContact(
     ...contactDetailQueryOptions(contactId),
     enabled: Boolean(contactId),
     initialData: options?.initialData,
-    initialDataUpdatedAt: options?.initialData ? Date.now() : undefined,
   });
 }
 

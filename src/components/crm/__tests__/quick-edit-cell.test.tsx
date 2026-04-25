@@ -143,6 +143,44 @@ describe("QuickEditCell", () => {
     expect(screen.getByText("To do")).toBeInTheDocument();
   });
 
+  it("autosaves boolean values from the desktop picker", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    const { unmount } = render(
+      <QuickEditCell ariaLabel="VIP" value={true} type="boolean" onSave={onSave} />,
+    );
+
+    expect(screen.getByText("Yes")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /edit vip/i }));
+    await user.click(screen.getByRole("button", { name: "No" }));
+
+    expect(onSave).toHaveBeenCalledWith(false);
+
+    unmount();
+    onSave.mockClear();
+    render(<QuickEditCell ariaLabel="VIP" value={false} type="boolean" onSave={onSave} />);
+
+    await user.click(screen.getByRole("button", { name: /edit vip/i }));
+    await user.click(screen.getByRole("button", { name: "Clear" }));
+
+    expect(onSave).toHaveBeenCalledWith(null);
+  });
+
+  it("autosaves boolean values from the mobile dialog", async () => {
+    vi.mocked(useIsMobile).mockReturnValue(true);
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    render(<QuickEditCell ariaLabel="VIP" value={true} type="boolean" onSave={onSave} />);
+
+    await user.click(screen.getByRole("button", { name: /edit vip/i }));
+    await user.click(screen.getByRole("button", { name: "No" }));
+
+    expect(onSave).toHaveBeenCalledWith(false);
+  });
+
   it("does not rerender when the parent rerenders with identical props", () => {
     const childRenderSpy = vi.fn();
     const onSave = vi.fn();

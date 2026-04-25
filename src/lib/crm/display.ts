@@ -154,6 +154,10 @@ export function formatCustomFieldValue(
     return String(value).trim();
   }
 
+  if (type === "boolean" && typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+
   return String(value);
 }
 
@@ -175,6 +179,24 @@ export function parseCustomFieldInputValue(
     }
 
     return parsedValue;
+  }
+
+  if (type === "boolean") {
+    const normalizedValue = value.trim().toLowerCase();
+
+    if (normalizedValue.length === 0) {
+      return null;
+    }
+
+    if (["true", "yes", "1"].includes(normalizedValue)) {
+      return true;
+    }
+
+    if (["false", "no", "0"].includes(normalizedValue)) {
+      return false;
+    }
+
+    throw new Error("Value must be true or false.");
   }
 
   return toNullableValue(value);

@@ -302,4 +302,72 @@ describe("updateRecordTool", () => {
       error: "Record not found.",
     });
   });
+
+  it("merges native boolean custom fields on contact update", async () => {
+    const existing = {
+      contact_id: "c1",
+      client_id: CLIENT_ID,
+      custom_fields: { source: "referral", vip: false },
+    };
+    const updated = {
+      ...existing,
+      custom_fields: { source: "referral", vip: true },
+    };
+    const { client, builderHistory } = createMockSupabase({
+      contacts: [
+        { data: existing, error: null },
+        { data: { custom_fields: existing.custom_fields }, error: null },
+        { data: updated, error: null },
+      ],
+    });
+
+    const result = await updateRecordTool.execute(
+      {
+        entity: "contacts",
+        updates: [{ id: "c1", fields: { custom_fields: { vip: true } } }],
+      },
+      makeContext(client),
+    );
+
+    expect(result.success).toBe(true);
+    expect(builderHistory.contacts[2]?.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        custom_fields: { source: "referral", vip: true },
+      }),
+    );
+  });
+
+  it("merges false boolean custom fields on deal update", async () => {
+    const existing = {
+      deal_id: "d1",
+      client_id: CLIENT_ID,
+      custom_fields: { urgent: true, owner: "Sarah" },
+    };
+    const updated = {
+      ...existing,
+      custom_fields: { urgent: false, owner: "Sarah" },
+    };
+    const { client, builderHistory } = createMockSupabase({
+      deals: [
+        { data: existing, error: null },
+        { data: { custom_fields: existing.custom_fields }, error: null },
+        { data: updated, error: null },
+      ],
+    });
+
+    const result = await updateRecordTool.execute(
+      {
+        entity: "deals",
+        updates: [{ id: "d1", fields: { custom_fields: { urgent: false } } }],
+      },
+      makeContext(client),
+    );
+
+    expect(result.success).toBe(true);
+    expect(builderHistory.deals[2]?.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        custom_fields: { urgent: false, owner: "Sarah" },
+      }),
+    );
+  });
 });

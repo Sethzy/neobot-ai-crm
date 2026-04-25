@@ -8,8 +8,10 @@ import { AVATAR_COLORS } from "@/lib/ui/color-maps";
 
 import {
   avatarColorFor,
+  formatCustomFieldValue,
   getDealStageToneClass,
   getDealStageTopBorderClass,
+  parseCustomFieldInputValue,
   taskStatusToneClassMap,
   taskStatusTopBorderMap,
 } from "./display";
@@ -39,5 +41,22 @@ describe("CRM display color helpers", () => {
 
   it("returns readable avatar foreground text", () => {
     expect(avatarColorFor("John Tan")).toContain("text-foreground");
+  });
+
+  it("formats boolean custom fields for inline editors", () => {
+    expect(formatCustomFieldValue("boolean", true)).toBe("true");
+    expect(formatCustomFieldValue("boolean", false)).toBe("false");
+    expect(formatCustomFieldValue("boolean", null)).toBeNull();
+  });
+
+  it("parses boolean custom field editor values", () => {
+    expect(parseCustomFieldInputValue("boolean", "true")).toBe(true);
+    expect(parseCustomFieldInputValue("boolean", "yes")).toBe(true);
+    expect(parseCustomFieldInputValue("boolean", "1")).toBe(true);
+    expect(parseCustomFieldInputValue("boolean", "false")).toBe(false);
+    expect(parseCustomFieldInputValue("boolean", "no")).toBe(false);
+    expect(parseCustomFieldInputValue("boolean", "0")).toBe(false);
+    expect(parseCustomFieldInputValue("boolean", "")).toBeNull();
+    expect(() => parseCustomFieldInputValue("boolean", "maybe")).toThrow(/true or false/i);
   });
 });

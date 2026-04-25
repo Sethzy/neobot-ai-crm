@@ -90,6 +90,17 @@ vi.mock("@/hooks/use-crm-views", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-crm-config", () => ({
+  useCrmConfig: () => ({
+    data: {
+      hasConfig: false,
+      config: {
+        task_custom_fields: [],
+      },
+    },
+  }),
+}));
+
 vi.mock("@/lib/crm/timeline-capture", () => ({
   captureTimelineActivity: (...args: unknown[]) => mockCaptureTimelineActivity(...args),
 }));

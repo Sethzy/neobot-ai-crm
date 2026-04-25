@@ -56,6 +56,15 @@ export function validateCustomFields(
         }
         break;
       }
+      case "boolean": {
+        if (typeof value !== "boolean") {
+          return {
+            ok: false,
+            error: `Invalid value for "${definition.label}" (${definition.key}): must be true or false`,
+          };
+        }
+        break;
+      }
       case "text":
       default: {
         if (typeof value !== "string") {

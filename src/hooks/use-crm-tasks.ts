@@ -23,6 +23,7 @@ export interface CrmTaskFilters {
   search?: string;
   viewFilters?: Record<string, unknown>;
   viewSort?: { column: string; ascending: boolean };
+  customFieldFilterKeys?: string[];
 }
 
 /**
@@ -60,7 +61,7 @@ async function fetchCrmTasks(filters: CrmTaskFilters): Promise<CrmTaskWithRelati
 
   if (filters.viewFilters && Object.keys(filters.viewFilters).length > 0) {
     const resolved = resolveSymbolicDates(filters.viewFilters);
-    query = applyViewFilters(query, resolved);
+    query = applyViewFilters(query, resolved, { customFieldKeys: filters.customFieldFilterKeys });
   }
 
   const { data, error } = await query;
