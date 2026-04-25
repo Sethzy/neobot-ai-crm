@@ -63,9 +63,9 @@ export const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(
   const deferredCutoff = Math.max(0, uniqueMessages.length - 20);
 
   return (
-    <Conversation className="relative flex-1 min-h-0">
+    <Conversation className="relative min-h-0 min-w-0 flex-1">
       <MessageListScroller ref={ref} />
-      <ConversationContent className="mx-auto max-w-3xl gap-0 px-4 py-6">
+      <ConversationContent className="mx-auto w-full max-w-3xl gap-0 px-4 py-6">
         {uniqueMessages.map((message, index) => {
           const isDeferredMessage = index < deferredCutoff;
           const isLastMessage = index === uniqueMessages.length - 1;
@@ -75,7 +75,7 @@ export const MessageList = memo(forwardRef<MessageListHandle, MessageListProps>(
             <div
               key={message.id}
               data-testid={isDeferredMessage ? "chat-message-deferred" : undefined}
-              className={isDeferredMessage ? "chat-message-deferred" : undefined}
+              className={isDeferredMessage ? "chat-message-deferred min-w-0 max-w-full" : "min-w-0 max-w-full"}
             >
               <MessageBubble
                 message={message}

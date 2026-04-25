@@ -119,4 +119,32 @@ describe("AutomationsList", () => {
     expect(screen.getByText("Ready")).toBeInTheDocument();
     expect(screen.queryByText("Busy")).not.toBeInTheDocument();
   });
+
+  it("uses mobile-safe row layout and switch target", () => {
+    render(
+      <AutomationsList
+        triggers={[
+          {
+            id: "trigger-1",
+            thread_id: "thread-1",
+            name: "Daily briefing",
+            trigger_type: "schedule",
+            cron_expression: "0 9 * * *",
+            payload: {},
+            enabled: true,
+            next_fire_at: "2026-04-25T00:00:00.000Z",
+            last_fired_at: null,
+            last_status: "completed",
+            isRunning: false,
+            invocation_message: null,
+            instruction_path: "state/triggers/daily-briefing.md",
+          },
+        ]}
+        onToggleEnabled={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("automation-row-trigger-1")).toHaveClass("max-sm:items-start");
+    expect(screen.getByRole("switch")).toHaveClass("max-sm:after:-inset-3");
+  });
 });

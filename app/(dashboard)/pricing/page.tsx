@@ -148,7 +148,7 @@ export default async function PricingPage({
           </Alert>
         ) : null}
 
-        <div className="mt-8 grid gap-4 lg:grid-cols-3">
+        <div className="mt-8 grid gap-3 md:grid-cols-3">
           {billingPlanNames.map((planName) => {
             const planDefinition = billingPlanCatalog[planName];
             const isFreePlan = planDefinition.isFree;

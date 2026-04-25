@@ -58,7 +58,7 @@ export function AutomationLauncherComposer() {
   }, [router]);
 
   return (
-    <div className="pointer-events-none sticky bottom-0 z-10 mt-8 pb-4 [&>*]:pointer-events-auto">
+    <div className="pointer-events-none sticky bottom-0 z-10 mt-8 pb-[max(env(safe-area-inset-bottom),0.75rem)] [&>*]:pointer-events-auto">
       <div className="shimmer-border mx-auto max-w-[44rem] rounded-2xl p-[2px] shadow-lg shadow-primary/15">
         <ChatComposer
           status="ready"

@@ -71,8 +71,8 @@ export function ChatWelcome({
   );
 
   return (
-    <div className="flex flex-1 flex-col items-center overflow-y-auto px-4 pt-24 pb-8">
-      <div className="w-full max-w-[780px]">
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center overflow-y-auto px-4 py-6 sm:py-10">
+      <div className="w-full">
         <h1 className="type-hero-title text-center text-foreground">
           What can I do for you?
         </h1>
@@ -85,7 +85,7 @@ export function ChatWelcome({
         ) : null}
 
         {/* Centered composer — the hero action */}
-        <div className="mt-10">
+        <div className="mt-8 sm:mt-10">
           <ChatComposer
             status={status}
             selectedChatModel={selectedChatModel}
@@ -102,9 +102,9 @@ export function ChatWelcome({
         </div>
 
         {/* Template section — generous separation from composer */}
-        <div className="mt-12">
+        <div className="mt-10 sm:mt-12">
           {/* Category tabs with underline indicator */}
-          <div className="flex items-center justify-center gap-6 border-b border-border/40">
+          <div className="flex w-full gap-2 overflow-x-auto border-b border-border/40 pb-1 sm:justify-center sm:gap-6">
             {CATEGORIES.map((category) => {
               const isActive = activeCategory === category;
               return (
@@ -113,7 +113,7 @@ export function ChatWelcome({
                   type="button"
                   onClick={() => setActiveCategory(category)}
                   className={cn(
-                    "-mb-px border-b-2 py-2.5 type-control transition-all",
+                    "-mb-px min-h-11 shrink-0 border-b-2 py-2.5 type-control transition-all",
                     isActive
                       ? "text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground",

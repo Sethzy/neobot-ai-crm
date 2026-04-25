@@ -118,6 +118,13 @@ describe("ChatComposer", () => {
     );
   });
 
+  it("renders phone-safe composer controls", () => {
+    renderComposer(<ChatComposer {...baseProps} />);
+
+    expect(screen.getByRole("button", { name: /attach files/i })).toHaveClass("max-sm:size-11");
+    expect(screen.getByRole("button", { name: /submit/i })).toHaveClass("max-sm:size-11");
+  });
+
   it("lets the user switch the selected chat model", async () => {
     const onSelectedChatModelChange = vi.fn();
     const user = userEvent.setup();

@@ -529,7 +529,7 @@ export function ChatComposer({
             />
           </div>
 
-          <PromptInputFooter className="items-center">
+          <PromptInputFooter className="flex-wrap items-center">
             <PromptInputTools className="text-foreground">
               <ModelSelector
                 disabled={isGenerating || disabled}
@@ -550,6 +550,7 @@ export function ChatComposer({
               {allowAttachments ? (
                 <PromptInputButton
                   aria-label="Attach files"
+                  className="max-sm:size-11"
                   disabled={isGenerating || disabled}
                   onClick={() => fileInputRef.current?.click()}
                   variant="ghost"
@@ -561,12 +562,13 @@ export function ChatComposer({
               <PromptInputSubmit
                 status={status}
                 disabled={isSubmitDisabled}
+                className="max-sm:size-11"
               />
 
               {onStop ? (
                 <PromptInputButton
                   aria-label="Stop"
-                  className="rounded-full"
+                  className="rounded-full max-sm:size-11"
                   onClick={onStop}
                   size="icon-sm"
                   variant="destructive"

@@ -130,26 +130,28 @@ function AutomationRow({
   onToggleEnabled: (triggerId: string, enabled: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 transition-colors hover:bg-app-hover/60">
+    <div
+      data-testid={`automation-row-${trigger.id}`}
+      className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-app-hover/60 max-sm:items-start max-sm:py-3"
+    >
       <Link
         href={`/automations/${trigger.id}`}
         className="flex min-w-0 flex-1 items-center gap-3"
       >
         <div className="min-w-0">
-          <span className="type-row-title text-foreground/90">{trigger.name}</span>
-          <Badge
-            variant={getStatusVariant(trigger)}
-            className="ml-3 align-middle"
-          >
-            {getStatusLabel(trigger)}
-          </Badge>
-          <span className="ml-3 type-row-meta text-muted-foreground">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="type-row-title text-foreground/90">{trigger.name}</span>
+            <Badge variant={getStatusVariant(trigger)}>
+              {getStatusLabel(trigger)}
+            </Badge>
+          </div>
+          <span className="mt-1 block type-row-meta text-muted-foreground">
             {cronToHuman(trigger.cron_expression)}
           </span>
         </div>
       </Link>
 
-      <div className="flex shrink-0 items-center gap-4">
+      <div className="flex shrink-0 items-center gap-4 max-sm:flex-col max-sm:items-end max-sm:gap-2">
         {trigger.enabled && trigger.next_fire_at && (
           <span className="type-row-meta text-muted-foreground">
             {formatCountdown(trigger.next_fire_at)}
