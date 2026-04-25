@@ -7,7 +7,6 @@ import { z } from "zod";
 
 import { createMessage } from "@/lib/chat/messages";
 import { toAutomationInstructionRuntimePath } from "@/lib/automations/instruction-paths";
-import { spawnTriggerRun } from "@/lib/managed-agents/spawn-trigger-run";
 import { computeNextFireAt, normalizeTriggerTimezone } from "@/lib/triggers/cron-utils";
 import { DEFAULT_RSS_POLLING_INTERVAL_MINUTES, deriveRssCronExpression } from "@/lib/triggers/rss-schedule";
 import { CRON_RUN_NUDGE, type triggerTypeValues } from "@/lib/triggers/schemas";
@@ -293,6 +292,7 @@ export const manageActiveTriggersTool: ManagedAgentTool<ManageActiveTriggersInpu
           triggerPayload: input.payload,
         });
 
+        const { spawnTriggerRun } = await import("@/lib/managed-agents/spawn-trigger-run");
         const runResult = await spawnTriggerRun(
           context.supabase,
           {
