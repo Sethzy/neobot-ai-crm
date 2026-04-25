@@ -49,9 +49,9 @@ export function ViewPicker({ entityType, activeViewId, onViewChange, count }: Vi
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1.5 rounded-md px-2.5 font-medium text-foreground ring-1 ring-transparent transition-colors hover:bg-app-hover/60 hover:ring-app-border-subtle"
+          className="max-w-full gap-1.5 rounded-md px-2.5 font-medium text-foreground ring-1 ring-transparent transition-colors hover:bg-app-hover/60 hover:ring-app-border-subtle max-sm:h-11"
         >
-          <span>{triggerLabel}</span>
+          <span className="min-w-0 truncate">{triggerLabel}</span>
           <span className="flex items-center gap-1 text-muted-foreground" aria-hidden={formattedCount === null}>
             <span>·</span>
             {formattedCount !== null ? (

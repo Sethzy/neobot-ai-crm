@@ -126,4 +126,21 @@ describe("FilterOverlay", () => {
 
     expect(screen.getByRole("textbox", { name: "Search term" })).toHaveValue("typing")
   })
+
+  it("uses a bottom-sheet frame on phones and side-panel frame on larger screens", () => {
+    render(
+      <FilterOverlay
+        open
+        onOpenChange={vi.fn()}
+        onApply={vi.fn()}
+        filters={[{ id: "query", label: "Search term", type: "text" }]}
+        initialValues={{}}
+      />,
+    )
+
+    const dialog = screen.getByRole("dialog")
+    expect(dialog).toHaveClass("bottom-0")
+    expect(dialog).toHaveClass("sm:inset-y-0")
+    expect(dialog).toHaveClass("max-h-[90dvh]")
+  })
 })

@@ -130,13 +130,12 @@ export function RecordDetailPanelShell<TId extends string = string>({
   }
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col">
-      {/* Scrollable area: header + tabs + content */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="space-y-4 p-5">
-          {/* Compact header row — right padding reserves space for the Sheet's
+    <div className="flex h-full max-h-[90dvh] min-h-0 min-w-0 flex-col sm:max-h-none">
+      <header className="shrink-0 border-b border-app-border-subtle bg-background">
+        <div className="space-y-4 p-5 pb-0">
+          {/* Compact header row: right padding reserves space for the Sheet's
               absolute-positioned close button so the meta text doesn't collide. */}
-          <header className={cn("space-y-2", reserveTrailingSpace && "pr-10")}>
+          <div className={cn("space-y-2", reserveTrailingSpace && "pr-10")}>
             <div className="flex items-center gap-2.5">
               {avatar ? (
                 <div className="shrink-0">{avatar}</div>
@@ -180,7 +179,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
               ) : null}
             </div>
             {badge ? <div>{badge}</div> : null}
-          </header>
+          </div>
 
           {/* Tab bar */}
           <div className="-mx-5 border-b border-border/60 px-5">
@@ -196,7 +195,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
                   role="tab"
                   aria-selected={activeTab === tab.id}
                   className={cn(
-                    "inline-flex h-10 items-center gap-1.5 border-b-2 px-0 text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-hover)]",
+                    "inline-flex h-11 items-center gap-1.5 border-b-2 px-0 text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-hover)] sm:h-10",
                     activeTab === tab.id
                       ? "border-foreground text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground",
@@ -214,7 +213,7 @@ export function RecordDetailPanelShell<TId extends string = string>({
                     <button
                       type="button"
                       className={cn(
-                        "inline-flex h-10 items-center gap-1 border-b-2 px-0 text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-hover)]",
+                        "inline-flex h-11 items-center gap-1 border-b-2 px-0 text-sm font-medium whitespace-nowrap transition-colors duration-[var(--duration-hover)] sm:h-10",
                         isOverflowTabActive
                           ? "border-foreground text-foreground"
                           : "border-transparent text-muted-foreground hover:text-foreground",
@@ -244,10 +243,12 @@ export function RecordDetailPanelShell<TId extends string = string>({
               ) : null}
             </nav>
           </div>
-
-          {/* Active tab content */}
-          <div className="min-h-0 min-w-0">{children}</div>
         </div>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* Active tab content */}
+        <div className="min-h-0 min-w-0 p-5">{children}</div>
       </div>
 
       {/* Pinned footer */}

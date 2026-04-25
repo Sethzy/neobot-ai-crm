@@ -53,8 +53,8 @@ export function ViewToggle({ current, views, onChange, disabled = false }: ViewT
           disabled={isLocked}
           className={isLocked ? "cursor-default opacity-100" : undefined}
         >
-          <AppIcon name={viewIconMap[view]} className="size-3.5" />
-          <span>{viewLabelMap[view]}</span>
+          <AppIcon name={viewIconMap[view]} className="size-4 sm:size-3.5" />
+          <span className="sr-only sm:not-sr-only">{viewLabelMap[view]}</span>
         </ToggleGroupItem>
       ))}
     </ToggleGroup>

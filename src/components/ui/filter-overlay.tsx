@@ -269,7 +269,7 @@ export function FilterOverlay({
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/30 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
-          className="fixed inset-y-0 left-0 z-50 flex w-full flex-col border-r border-border/40 bg-background shadow-xl outline-none data-open:animate-in data-open:slide-in-from-left-10 data-closed:animate-out data-closed:slide-out-to-left-10 sm:max-w-[380px]"
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] w-full flex-col rounded-t-xl border-t border-border/40 bg-background shadow-xl outline-none data-open:animate-in data-open:slide-in-from-bottom-10 data-closed:animate-out data-closed:slide-out-to-bottom-10 sm:inset-y-0 sm:left-0 sm:bottom-auto sm:max-h-none sm:max-w-[380px] sm:rounded-none sm:border-r sm:border-t-0 sm:data-open:slide-in-from-left-10 sm:data-closed:slide-out-to-left-10"
         >
           <div className="flex items-center justify-between border-b border-border/40 px-4 py-4">
             <DialogPrimitive.Title className="type-toolbar-title">

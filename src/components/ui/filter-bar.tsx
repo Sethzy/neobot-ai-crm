@@ -46,6 +46,7 @@ interface FilterBarProps {
    * trailing cluster so Filter and Sort read as a matched refinement group.
    */
   filterPosition?: "leading" | "trailing"
+  mobileStacked?: boolean
 }
 
 /**
@@ -63,6 +64,7 @@ export function FilterBar({
   leadingSlot,
   trailingSlot,
   filterPosition = "leading",
+  mobileStacked = false,
 }: FilterBarProps) {
   const [isOverlayOpen, setIsOverlayOpen] = React.useState(false)
   const [searchDraft, setSearchDraft] = React.useState(searchValue ?? "")
@@ -170,7 +172,15 @@ export function FilterBar({
 
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      <div className="flex flex-wrap items-center gap-1 w-full">
+      <div
+        data-testid={mobileStacked ? "crm-toolbar-stack" : undefined}
+        className={cn(
+          "w-full",
+          mobileStacked
+            ? "grid gap-2 sm:flex sm:flex-wrap sm:items-center"
+            : "flex flex-wrap items-center gap-1",
+        )}
+      >
         {leadingSlot}
         {filterPosition === "leading" ? filterButton : null}
         {onSearchChange ? (
@@ -180,12 +190,17 @@ export function FilterBar({
               value={searchDraft}
               onChange={(event) => setSearchDraft(event.target.value)}
               placeholder={searchPlaceholder}
-              className="h-10 border-app-border-subtle bg-app-surface pl-8 pr-2 shadow-none"
+              className="h-11 border-app-border-subtle bg-app-surface pl-8 pr-2 shadow-none sm:h-10"
             />
           </div>
         ) : null}
         {filterPosition === "trailing" || trailingSlot ? (
-          <div className="ml-auto flex flex-wrap items-center gap-1">
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-1",
+              mobileStacked ? "w-full sm:ml-auto sm:w-auto sm:justify-end" : "ml-auto",
+            )}
+          >
             {filterPosition === "trailing" ? filterButton : null}
             {trailingSlot}
           </div>
