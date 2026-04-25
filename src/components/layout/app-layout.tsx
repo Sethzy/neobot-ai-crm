@@ -66,7 +66,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <AppSidebar onOpenCommandMenu={openCommandMenu} />
         <SidebarInset className="min-h-0 bg-app-canvas">
           {/* Mobile header — visible only below md breakpoint */}
-          <header className="flex items-center gap-2 border-b border-app-border-subtle bg-app-canvas px-3 py-2 md:hidden">
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-app-border-subtle bg-background px-2 md:hidden">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-4" />
             <Logo />

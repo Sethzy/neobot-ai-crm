@@ -460,6 +460,11 @@
 }
 
 @layer utilities {
+  .touch-target {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
   .type-kicker {
     @apply text-caption font-medium uppercase text-muted-foreground;
     letter-spacing: 0.12em;

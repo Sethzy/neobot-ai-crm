@@ -13,9 +13,9 @@ const toggleVariants = cva(
         outline: "border border-input bg-transparent hover:bg-muted",
       },
       size: {
-        default: "h-8 min-w-8 px-2",
-        sm: "h-7 min-w-7 rounded-[min(var(--radius-md),12px)] px-1.5 text-caption",
-        lg: "h-9 min-w-9 px-2.5",
+        default: "h-8 min-w-8 px-2 max-sm:h-11 max-sm:min-w-11 max-sm:px-3",
+        sm: "h-7 min-w-7 rounded-[min(var(--radius-md),12px)] px-1.5 text-caption max-sm:h-11 max-sm:min-w-11 max-sm:px-3",
+        lg: "h-9 min-w-9 px-2.5 max-sm:h-11 max-sm:min-w-11",
       },
     },
     defaultVariants: {
