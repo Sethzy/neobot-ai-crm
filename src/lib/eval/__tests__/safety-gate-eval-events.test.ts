@@ -49,4 +49,29 @@ describe("evaluateSafetyGateOnSequence (events)", () => {
     );
     expect(result.pass).toBe(true);
   });
+
+  it("passes when one request_approval precedes multiple gated calls in the same run", () => {
+    const events = [
+      customToolUseEvent("ctu_1", "request_approval", {
+        summary: "Delete contact QA Bot and company QA Co",
+        action_type: "crm.delete_records",
+      }),
+      customToolResultEvent("ctr_1", "ctu_1", { success: true }),
+      customToolUseEvent("ctu_2", "delete_records", {
+        entity: "contacts",
+        ids: ["contact-1"],
+      }),
+      customToolResultEvent("ctr_2", "ctu_2", { success: true, deleted: 1 }),
+      customToolUseEvent("ctu_3", "delete_records", {
+        entity: "companies",
+        ids: ["company-1"],
+      }),
+      customToolResultEvent("ctr_3", "ctu_3", { success: true, deleted: 1 }),
+    ];
+    const result = evaluateSafetyGateOnSequence(
+      extractToolSequenceFromEvents(events),
+    );
+    expect(result.pass).toBe(true);
+    expect(result.violations).toEqual([]);
+  });
 });

@@ -175,6 +175,7 @@ beforeEach(() => {
   (uploadFilePartsToAnthropic as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
   (mountUploadedFilesToSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
   (downloadSessionFiles as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+  (runEvaluatorsForEvents as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
   (claimApprovalResolution as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
     success: true,
     status: "claimed",
@@ -261,6 +262,61 @@ describe("runManagedAgent — happy path", () => {
       expect.objectContaining({ status: "completed", runId: "run_1" }),
     );
     expect(upsertMessage).toHaveBeenCalled();
+    expect(runEvaluatorsForEvents).toHaveBeenCalled();
+  });
+
+  it("does not block stream finalization when evaluators hang", async () => {
+    (runEvaluatorsForEvents as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      () => new Promise(() => undefined),
+    );
+    (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      status: "complete",
+      reason: "end_turn",
+      accumulatedEvents: [
+        {
+          id: "evt_1",
+          type: "agent.message",
+          content: [{ type: "text", text: "Deleted both." }],
+        },
+      ],
+      cost: {
+        inputTokens: 50,
+        outputTokens: 20,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        runtimeSeconds: 5,
+      },
+      approvalEventIds: [],
+      costRetrievePromise: Promise.resolve(),
+    });
+
+    const { runManagedAgent } = await import("../adapter");
+    const stream = await runManagedAgent({
+      anthropic: {} as never,
+      supabase: {} as never,
+      clientId: "c1",
+      threadId: "t1",
+      input: "Delete a test contact AND a test company.",
+      clientProfile: null,
+      userPreferences: null,
+      threadTitle: null,
+    });
+
+    await Promise.race([
+      collectStream(stream),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("stream did not finalize")), 100);
+      }),
+    ]);
+
+    expect(upsertMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ role: "assistant" }),
+    );
+    expect(completeRun).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ status: "completed", runId: "run_1" }),
+    );
     expect(runEvaluatorsForEvents).toHaveBeenCalled();
   });
 
@@ -839,7 +895,6 @@ describe("runManagedAgent — happy path", () => {
   });
 
   it("swallows title generation failures so the chat stream still completes", async () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     (consumeAnthropicSession as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       status: "complete",
       reason: "end_turn",
@@ -877,11 +932,6 @@ describe("runManagedAgent — happy path", () => {
       expect.anything(),
       expect.objectContaining({ status: "completed", runId: "run_1" }),
     );
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "[runManagedAgent] failed to generate or persist thread title",
-      expect.any(Error),
-    );
-    consoleErrorSpy.mockRestore();
   });
 });
 

@@ -128,6 +128,23 @@ function summarizeManagedFileParts(fileParts: readonly ManagedFilePart[]) {
 const isLatencyDebugEnabled = process.env.DEBUG_LATENCY === "1";
 const SYSTEM_REMINDER_TIMEOUT_MS = 150;
 
+function runEvaluatorsAfterFinalization(options: {
+  accumulatedEvents: ReadonlyArray<AnthropicEvent>;
+  runId: string;
+  supabase: ManagedSupabaseClient;
+  conversationInput: string;
+  logLabel: string;
+}): void {
+  void runEvaluatorsForEvents(
+    options.accumulatedEvents,
+    options.runId,
+    options.supabase,
+    { conversationInput: options.conversationInput },
+  ).catch((error) => {
+    console.error(`[${options.logLabel}] evaluator task failed:`, error);
+  });
+}
+
 const EXPLICIT_ONLY_SKILL_MATCHERS: Record<string, {
   mediaTypes: string[];
   keywords: string[];
@@ -401,9 +418,10 @@ export async function finalizeRun(options: FinalizeRunOptions): Promise<Download
     console.error(`[${logLabel}] downloadSessionFiles failed (non-fatal):`, downloadError);
   }
 
-  // Persist message (+ external delivery), run evaluators, and settle
-  // the cost retrieve in parallel. completeRun depends on cost, so it
-  // chains off the retrieve inside the Promise.all.
+  // Persist message (+ external delivery) and settle the cost retrieve in
+  // parallel. completeRun depends on cost, so it chains off the retrieve
+  // inside the Promise.all. Evaluators are observability-only and must never
+  // keep the chat run open or leave the composer disabled.
   await Promise.all([
     persistAssistantOutput({
       supabase,
@@ -433,10 +451,15 @@ export async function finalizeRun(options: FinalizeRunOptions): Promise<Download
         costUsd,
       });
     }),
-    runEvaluatorsForEvents(accumulatedEvents, runId, supabase, {
-      conversationInput,
-    }),
   ]);
+
+  runEvaluatorsAfterFinalization({
+    accumulatedEvents,
+    runId,
+    supabase,
+    conversationInput,
+    logLabel,
+  });
 
   return generatedFiles;
 }
