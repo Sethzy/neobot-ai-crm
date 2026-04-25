@@ -12,13 +12,15 @@ import type { ContactWithCompany } from "@/lib/crm/contact-record";
 import { getSingleQueryParam, resolveCrmRecordBackHref } from "@/lib/crm/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+type CrmRecordSearchParams = {
+  from?: string | string[];
+};
+
 interface ContactDetailPageProps {
   params: Promise<{
     contactId: string;
   }>;
-  searchParams?: Promise<{
-    from?: string | string[];
-  }>;
+  searchParams?: Promise<CrmRecordSearchParams>;
 }
 
 /**
@@ -48,9 +50,9 @@ export default async function ContactDetailPage({
   params,
   searchParams,
 }: ContactDetailPageProps) {
-  const [{ contactId }, resolvedSearchParams] = await Promise.all([
+  const [{ contactId }, resolvedSearchParams]: [{ contactId: string }, CrmRecordSearchParams] = await Promise.all([
     params,
-    searchParams ? searchParams : Promise.resolve({}),
+    searchParams ? searchParams : Promise.resolve<CrmRecordSearchParams>({}),
   ]);
   const initialContact = await loadInitialContact(contactId);
   const backHref = resolveCrmRecordBackHref(

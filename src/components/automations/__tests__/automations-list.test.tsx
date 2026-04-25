@@ -145,6 +145,6 @@ describe("AutomationsList", () => {
     );
 
     expect(screen.getByTestId("automation-row-trigger-1")).toHaveClass("max-sm:items-start");
-    expect(screen.getByRole("switch")).toHaveClass("max-sm:after:-inset-3");
+    expect(screen.getByRole("switch")).toHaveClass("max-sm:after:-inset-3.5");
   });
 });

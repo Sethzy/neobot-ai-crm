@@ -13,6 +13,7 @@
     "lint": "eslint . && pnpm lint:typography",
     "lint:typography": "tsx scripts/lint-typography.ts",
     "lint:tenant-filter": "tsx scripts/lint-tool-tenant-filter.ts",
+    "qa:responsive": "tsx scripts/qa/responsive-matrix.ts",
     "smoke:property": "bash scripts/smoke-property-routes.sh",
     "test": "vitest",
     "test:run": "vitest run",

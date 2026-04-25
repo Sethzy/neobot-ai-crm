@@ -497,7 +497,7 @@ export function ListTable<TData>({
           <div className="flex items-center gap-2 self-start sm:self-auto">
             <button
               type="button"
-              className="rounded-md border border-app-border-subtle bg-app-surface px-3 py-1.5 text-foreground transition-colors duration-[var(--duration-hover)] hover:bg-app-hover disabled:pointer-events-none disabled:opacity-50"
+              className="min-h-11 rounded-md border border-app-border-subtle bg-app-surface px-3 py-1.5 text-foreground transition-colors duration-[var(--duration-hover)] hover:bg-app-hover disabled:pointer-events-none disabled:opacity-50 sm:min-h-0"
               disabled={pagination.page <= 1}
               onClick={() => pagination.onPageChange(pagination.page - 1)}
             >
@@ -508,7 +508,7 @@ export function ListTable<TData>({
             </span>
             <button
               type="button"
-              className="rounded-md border border-app-border-subtle bg-app-surface px-3 py-1.5 text-foreground transition-colors duration-[var(--duration-hover)] hover:bg-app-hover disabled:pointer-events-none disabled:opacity-50"
+              className="min-h-11 rounded-md border border-app-border-subtle bg-app-surface px-3 py-1.5 text-foreground transition-colors duration-[var(--duration-hover)] hover:bg-app-hover disabled:pointer-events-none disabled:opacity-50 sm:min-h-0"
               disabled={pagination.page >= pagination.totalPages}
               onClick={() => pagination.onPageChange(pagination.page + 1)}
             >

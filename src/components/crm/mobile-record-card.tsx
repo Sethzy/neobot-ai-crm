@@ -67,7 +67,9 @@ export function MobileRecordCard({
           {fields.map((field) => (
             <div key={field.label} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-2">
               <dt className="text-muted-foreground">{field.label}</dt>
-              <dd className="min-w-0 text-foreground">{field.value}</dd>
+              <dd className="min-w-0 text-foreground [&_a]:inline-flex [&_a]:min-h-11 [&_a]:min-w-11 [&_a]:items-center">
+                {field.value}
+              </dd>
             </div>
           ))}
         </dl>

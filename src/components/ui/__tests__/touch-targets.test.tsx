@@ -38,6 +38,6 @@ describe("mobile touch target contract", () => {
   it("expands switch hit area on phones without changing the visual track", () => {
     render(<Switch aria-label="Enable automation" />);
 
-    expect(screen.getByRole("switch", { name: "Enable automation" })).toHaveClass("max-sm:after:-inset-3");
+    expect(screen.getByRole("switch", { name: "Enable automation" })).toHaveClass("max-sm:after:-inset-3.5");
   });
 });

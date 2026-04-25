@@ -35,7 +35,7 @@ export function MessageQuotaPill({ quota, className }: MessageQuotaPillProps) {
       <span className="text-muted-foreground/40">·</span>
       <Link
         className={cn(
-          "type-control",
+          "inline-flex min-h-11 items-center type-control sm:min-h-0",
           isExhausted ? "text-destructive" : "text-primary",
         )}
         href="/pricing"

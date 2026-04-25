@@ -136,7 +136,7 @@ function AutomationRow({
     >
       <Link
         href={`/automations/${trigger.id}`}
-        className="flex min-w-0 flex-1 items-center gap-3"
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-3 sm:min-h-0"
       >
         <div className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-center gap-2">

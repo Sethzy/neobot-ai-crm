@@ -28,6 +28,15 @@
 - [ ] No layout overflow or horizontal scroll issues on tables
 - [ ] Sidebar nav has CRM section with correct links
 
+### Mobile responsive checks
+
+- [ ] At 390px, `/customers/people` has no document-level horizontal overflow.
+- [ ] At 390px, `/customers/companies` has no document-level horizontal overflow.
+- [ ] At 390px, `/customers/deals` has no document-level horizontal overflow.
+- [ ] At 390px, CRM list rows render as cards, not horizontally scrolled tables.
+- [ ] Mobile card tap opens the record detail sheet.
+- [ ] Mobile row action menu opens from a 44px target.
+
 ---
 
 ## Manual QA Scenarios

@@ -25,6 +25,13 @@
 - [ ] Enable/disable toggle is visible and works
 - [ ] Automations page works on mobile
 
+### Mobile responsive checks
+
+- [ ] At 390px, `/automations` has no document-level horizontal overflow.
+- [ ] Automation rows stack metadata below the automation name.
+- [ ] Enable/disable switch can be toggled from a 44px hit area.
+- [ ] Sticky launcher composer respects safe-area padding.
+
 ---
 
 ## Manual QA Scenarios

@@ -27,6 +27,14 @@
 - [ ] Responsive: views degrade gracefully on mobile (375px)
 - [ ] `/customers/deals/pipeline` redirects to `/customers/deals?view=kanban`
 
+### Mobile responsive checks
+
+- [ ] At 390px, CRM filter overlay opens as a bottom sheet.
+- [ ] Filter Apply and Clear controls remain visible or reachable after scrolling options.
+- [ ] Record detail opens as a bottom sheet with content scrolling inside the sheet.
+- [ ] Deals board can move a deal by explicit stage selector, without requiring drag-and-drop.
+- [ ] Tasks calendar does not require document-level horizontal scrolling.
+
 ---
 
 ## Manual QA Scenarios

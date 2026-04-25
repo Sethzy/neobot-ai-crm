@@ -948,7 +948,7 @@ export default function DealsPage() {
               <MobileRecordCard
                 title={deal.address}
                 eyebrow={formatDealStageLabel(deal.stage)}
-                meta={formatCompactCurrency(deal.amount)}
+                meta={deal.amount === null ? undefined : formatCompactCurrency(deal.amount)}
                 isSelected={helpers.isSelected}
                 actions={helpers.actions}
                 onOpen={helpers.openRow}

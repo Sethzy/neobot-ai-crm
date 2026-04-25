@@ -47,6 +47,17 @@ For surfaces marked "Yes" in Dogfood column, run the `/dogfood` skill against th
 ### Pass 2: Manual QA (you)
 Walk through each "Manual QA Scenario" as a real user. Check boxes as you go. Write notes for any failures.
 
+### Responsive matrix
+
+Run this after UI changes that affect authenticated app layout:
+
+```bash
+pnpm dev
+QA_USER_EMAIL=x QA_USER_PASSWORD=y pnpm qa:responsive
+```
+
+The script checks `/chat`, CRM list pages, tasks, automations, settings profile, and pricing at 390, 768, and 1440 widths. It fails on document-level horizontal overflow and on phone-visible interactive controls below 44px. Failed route screenshots and a JSON manifest are written to `scripts/qa/output/`.
+
 ### Tips
 - **Surfaces 1-2 are gates:** If auth or chat core is broken, nothing else works. Fix those first.
 - **Surface 3 seeds data for Surfaces 4 + 16:** Run CRM tool tests via chat first, then check CRM pages and working surfaces.

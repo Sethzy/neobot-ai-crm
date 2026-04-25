@@ -10,13 +10,15 @@ import { PageCanvas, PageSurface } from "@/components/layout/page-canvas";
 import { Button } from "@/components/ui/button";
 import { getSingleQueryParam, resolveCrmRecordBackHref } from "@/lib/crm/navigation";
 
+type CrmRecordSearchParams = {
+  from?: string | string[];
+};
+
 interface CompanyDetailPageProps {
   params: Promise<{
     companyId: string;
   }>;
-  searchParams?: Promise<{
-    from?: string | string[];
-  }>;
+  searchParams?: Promise<CrmRecordSearchParams>;
 }
 
 export default async function CompanyDetailPage({
@@ -24,7 +26,7 @@ export default async function CompanyDetailPage({
   searchParams,
 }: CompanyDetailPageProps) {
   const { companyId } = await params;
-  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const resolvedSearchParams = searchParams ? await searchParams : ({} satisfies CrmRecordSearchParams);
   const backHref = resolveCrmRecordBackHref(
     "company",
     getSingleQueryParam(resolvedSearchParams.from),

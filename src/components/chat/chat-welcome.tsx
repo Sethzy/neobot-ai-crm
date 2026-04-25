@@ -113,7 +113,7 @@ export function ChatWelcome({
                   type="button"
                   onClick={() => setActiveCategory(category)}
                   className={cn(
-                    "-mb-px min-h-11 shrink-0 border-b-2 py-2.5 type-control transition-all",
+                    "-mb-px min-h-11 min-w-11 shrink-0 border-b-2 px-1 py-2.5 type-control transition-all",
                     isActive
                       ? "text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground",
