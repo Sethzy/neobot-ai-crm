@@ -461,7 +461,9 @@ export const configureCrmTool: ManagedAgentTool<ConfigureCrmInput, ConfigureCrmR
   description:
     "Update CRM vocabulary and custom field definitions for the current client. " +
     "Custom field types are text, number, currency, date, boolean, and select. " +
-    "Accepts partial updates and always returns the fully resolved resulting config. " +
+    "Pass changed fields directly at the top level (e.g. `contact_custom_fields`, `deal_stages`). " +
+    "DO NOT wrap them in an `updates` object — there is no `updates` parameter. " +
+    "Always returns the fully resolved resulting config. " +
     "If requested removals would affect existing records, it returns a warning instead. " +
     "Re-call with confirm_removals: true to proceed. " +
     "Data Modification Warning: Only use this after the user has explicitly asked to configure or reconfigure CRM. " +
