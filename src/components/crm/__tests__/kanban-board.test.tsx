@@ -103,6 +103,8 @@ describe("KanbanBoard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     latestDndContextProps = null;
+    window.innerWidth = 1024;
+    window.dispatchEvent(new Event("resize"));
   });
 
   it("renders column headers with counts", () => {
@@ -330,5 +332,31 @@ describe("KanbanBoard", () => {
     await user.click(screen.getByText("Task A"));
 
     expect(onCardClick).toHaveBeenCalledWith("1");
+  });
+
+  it("renders a one-column mobile board with an explicit move control instead of drag handles", async () => {
+    window.innerWidth = 390;
+    window.dispatchEvent(new Event("resize"));
+
+    const onColumnChange = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <KanbanBoard
+        items={items}
+        columns={columns}
+        groupBy={(item) => item.status}
+        renderCard={(item) => <div>{item.title}</div>}
+        getItemId={(item) => item.id}
+        onColumnChange={onColumnChange}
+        mobileColumnChangeLabel="status"
+      />,
+    );
+
+    expect(await screen.findByTestId("kanban-mobile-board")).toBeInTheDocument();
+    expect(screen.queryByTestId("kanban-desktop-board")).not.toBeInTheDocument();
+
+    await userEvent.selectOptions(screen.getByLabelText("Move Task A to status"), "done");
+
+    expect(onColumnChange).toHaveBeenCalledWith("1", "todo", "done");
   });
 });

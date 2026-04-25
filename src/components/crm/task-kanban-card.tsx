@@ -22,9 +22,9 @@ export function TaskKanbanCard({ task }: TaskKanbanCardProps) {
     : null;
 
   return (
-    <div className="space-y-1.5">
+    <div className="min-w-0 space-y-1.5">
       {/* Title */}
-      <span className="block truncate text-sm font-medium text-foreground">
+      <span className="block min-w-0 truncate text-sm font-medium text-foreground">
         {task.title}
       </span>
 

@@ -185,7 +185,7 @@ export function CalendarMonthGrid({
   };
 
   return (
-    <div className="min-w-[720px]">
+    <div className="min-w-0 sm:min-w-[720px]">
       <DndContext
         collisionDetection={closestCenter}
         onDragCancel={handleDragCancel}

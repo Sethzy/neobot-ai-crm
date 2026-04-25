@@ -911,6 +911,7 @@ export default function DealsPage() {
             onCardClick={handleDealCardClick}
             onColumnChange={handleBoardColumnChange}
             emptyStateMessage="No deals in this stage yet."
+            mobileColumnChangeLabel="stage"
           />
         ),
         table: (

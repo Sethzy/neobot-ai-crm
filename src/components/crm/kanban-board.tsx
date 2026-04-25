@@ -20,6 +20,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 interface KanbanColumn {
@@ -50,6 +51,8 @@ interface KanbanBoardBaseProps<T> {
   getColumnSummary?: (columnKey: string, columnItems: T[]) => string | undefined;
   /** Empty-lane copy shown when a column has no items. */
   emptyStateMessage?: string;
+  /** User-facing destination label for mobile move controls. */
+  mobileColumnChangeLabel?: string;
 }
 
 interface StaticKanbanBoardProps<T> extends KanbanBoardBaseProps<T> {
@@ -323,7 +326,7 @@ function KanbanBoardFrame({
   totalItems: number;
 }) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 max-md:hidden" data-testid="kanban-desktop-board">
       {boardLabel ? (
         <div className="flex items-center gap-1.5 pb-3 type-control">
           <span className="text-foreground">{boardLabel}</span>
@@ -334,6 +337,93 @@ function KanbanBoardFrame({
       <div className="w-full min-w-0 overflow-x-auto pb-2">
         <div className="flex min-h-[60dvh] w-max min-w-full gap-2">{children}</div>
       </div>
+    </div>
+  );
+}
+
+function MobileKanbanBoardContent<T>({
+  columns,
+  emptyStateMessage,
+  getItemId,
+  groupBy,
+  items,
+  mobileColumnChangeLabel = "column",
+  onCardClick,
+  onColumnChange,
+  renderCard,
+}: KanbanBoardProps<T> & {
+  emptyStateMessage: string;
+}) {
+  const [activeColumnKey, setActiveColumnKey] = useState(columns[0]?.key ?? "");
+  const groupedItems = groupItemsByColumn({ columns, getItemId, groupBy, items });
+  const activeColumn = columns.find((column) => column.key === activeColumnKey) ?? columns[0];
+  const activeItems = activeColumn ? groupedItems.get(activeColumn.key) ?? [] : [];
+  const canMove = typeof onColumnChange === "function" && typeof getItemId === "function";
+
+  return (
+    <div className="space-y-3 md:hidden" data-testid="kanban-mobile-board">
+      <label className="grid gap-1.5">
+        <span className="type-control text-muted-foreground">Stage</span>
+        <select
+          className="h-11 rounded-md border border-input bg-background px-3 text-control"
+          value={activeColumn?.key ?? ""}
+          onChange={(event) => setActiveColumnKey(event.target.value)}
+        >
+          {columns.map((column) => (
+            <option key={column.key} value={column.key}>
+              {column.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <section className="space-y-2">
+        {activeItems.length === 0 ? (
+          <p className="rounded-md border border-dashed border-border bg-muted/10 p-4 text-center type-empty-copy text-muted-foreground">
+            {emptyStateMessage}
+          </p>
+        ) : (
+          activeItems.map((item, index) => {
+            const itemId = getItemId?.(item);
+            const currentColumn = groupBy(item);
+            const itemLabel = String((item as { title?: unknown }).title ?? itemId ?? index);
+
+            return (
+              <div key={itemId ?? index} className="space-y-2">
+                <KanbanCardShell
+                  className={onCardClick && itemId ? "cursor-pointer" : ""}
+                  onClick={() => {
+                    if (onCardClick && itemId) onCardClick(itemId);
+                  }}
+                >
+                  {renderCard(item)}
+                </KanbanCardShell>
+                {canMove && itemId ? (
+                  <label className="grid gap-1.5">
+                    <span className="sr-only">
+                      Move {itemLabel} to {mobileColumnChangeLabel}
+                    </span>
+                    <select
+                      aria-label={`Move ${itemLabel} to ${mobileColumnChangeLabel}`}
+                      className="h-11 rounded-md border border-input bg-background px-3 text-control"
+                      value={currentColumn}
+                      onChange={(event) => {
+                        void onColumnChange(itemId, currentColumn, event.target.value);
+                      }}
+                    >
+                      {columns.map((column) => (
+                        <option key={column.key} value={column.key}>
+                          {column.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+              </div>
+            );
+          })
+        )}
+      </section>
     </div>
   );
 }
@@ -658,6 +748,17 @@ export function KanbanBoard<T>({
   emptyStateMessage = "No items yet.",
   ...props
 }: KanbanBoardProps<T>) {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <MobileKanbanBoardContent
+        {...props}
+        emptyStateMessage={emptyStateMessage}
+      />
+    );
+  }
+
   if (props.onColumnChange) {
     return (
       <DraggableKanbanBoardContent

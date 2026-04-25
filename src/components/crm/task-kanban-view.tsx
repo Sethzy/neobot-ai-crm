@@ -51,6 +51,7 @@ export function TaskKanbanView({
       renderCard={renderTaskCard}
       onCardClick={onTaskClick}
       onColumnChange={onTaskStatusChange}
+      mobileColumnChangeLabel="status"
     />
   );
 }

@@ -39,12 +39,12 @@ function CalendarDayCardBody({ task }: { task: CrmTaskWithRelations }) {
   const dueTimeLabel = getDueTimeLabel(task.due_date);
 
   return (
-    <div className="space-y-1">
+    <div className="min-w-0 space-y-1">
       <p className="truncate text-caption font-medium text-foreground">{task.title}</p>
       <div className="flex items-center justify-between gap-2">
         <span
           className={cn(
-            "inline-flex rounded px-1.5 py-0.5 text-caption font-medium",
+            "inline-flex min-w-0 rounded px-1.5 py-0.5 text-caption font-medium",
             taskStatusToneClassMap[task.status],
           )}
         >
@@ -74,7 +74,7 @@ function DraggableCalendarDayCard({
     <div
       ref={setNodeRef}
       className={cn(
-        "rounded-md border border-border/60 bg-card px-2 py-1.5 shadow-sm transition hover:bg-muted/10",
+        "min-h-11 min-w-0 rounded-md border border-border/60 bg-card px-2 py-1.5 shadow-sm transition hover:bg-muted/10",
         onTaskClick ? "cursor-pointer" : "",
         isDragging ? "opacity-30" : "",
       )}

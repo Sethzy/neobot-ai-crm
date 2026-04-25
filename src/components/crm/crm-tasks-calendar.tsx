@@ -103,7 +103,7 @@ export function CrmTasksCalendar({
           ) : null}
         </div>
 
-        <div className="overflow-x-auto p-4">
+        <div className="min-w-0 p-3 sm:overflow-x-auto sm:p-4">
           <CalendarMonthGrid
             month={selectedMonth}
             onTaskClick={onTaskClick}

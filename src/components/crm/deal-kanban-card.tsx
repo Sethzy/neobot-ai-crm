@@ -352,7 +352,7 @@ export function DealKanbanCard({ deal }: DealKanbanCardProps) {
         >
           {initial}
         </span>
-        <span className="type-row-title truncate text-foreground">
+        <span className="min-w-0 type-row-title truncate text-foreground">
           {deal.address}
         </span>
       </div>
