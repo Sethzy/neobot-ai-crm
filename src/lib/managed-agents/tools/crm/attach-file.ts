@@ -22,9 +22,39 @@ const RECORD_TABLE_MAP = {
   deal: "deals",
 } as const;
 
+const SUPPORTED_ATTACHMENT_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+  "text/plain",
+  "text/csv",
+  "text/markdown",
+  "text/html",
+  "text/xml",
+  "application/json",
+] as const;
+
+const SUPPORTED_ATTACHMENT_MIME_TYPE_SET = new Set<string>(
+  SUPPORTED_ATTACHMENT_MIME_TYPES,
+);
+
+const SUPPORTED_ATTACHMENT_MIME_TYPES_DESCRIPTION =
+  SUPPORTED_ATTACHMENT_MIME_TYPES.join(", ");
+
 function resolveAttachmentSourcePath(sourcePath: string): string {
   const workspacePath = sourcePath.replace(/^\/agent\/?/, "");
   return normalizeWorkspacePath(workspacePath, false);
+}
+
+function normalizeAttachmentMimeType(mimeType: string): string {
+  return mimeType.split(";")[0]?.trim().toLowerCase() || "application/octet-stream";
 }
 
 const inputSchema = z.object({
@@ -41,7 +71,8 @@ export const attachFileToRecordTool: ManagedAgentTool<AttachFileInput> = {
   description:
     "Attach a file from the agent workspace to a CRM record. " +
     "This COPIES the file into the record attachments area, so the original workspace file remains unchanged. " +
-    "Use this after generating a file the user should see in the record Files tab.",
+    "Use this after generating a file the user should see in the record Files tab. " +
+    `Supported MIME types: ${SUPPORTED_ATTACHMENT_MIME_TYPES_DESCRIPTION}.`,
   inputSchema,
   execute: async ({ source_path, record_type, record_id, filename }, context) => {
     if (source_path.startsWith("/mnt/session/") || source_path.startsWith("/workspace/")) {
@@ -111,13 +142,24 @@ export const attachFileToRecordTool: ManagedAgentTool<AttachFileInput> = {
 
     const attachmentStoragePath = `attachments/${record_type}/${record_id}/${crypto.randomUUID()}`;
     const attachmentObjectPath = `${context.clientId}/${attachmentStoragePath}`;
-    const contentType = sourceFile.type || "application/octet-stream";
+    const sourceContentType = sourceFile.type || "application/octet-stream";
+    const contentType = normalizeAttachmentMimeType(sourceContentType);
+
+    if (!SUPPORTED_ATTACHMENT_MIME_TYPE_SET.has(contentType)) {
+      return {
+        success: false as const,
+        error:
+          `Unsupported attachment MIME type "${sourceContentType}". ` +
+          `Supported MIME types: ${SUPPORTED_ATTACHMENT_MIME_TYPES_DESCRIPTION}.`,
+      };
+    }
 
     console.info("[attach_file_to_record] copying file into CRM attachments", {
       clientId: context.clientId,
       sourceStoragePath,
       attachmentStoragePath,
       attachmentObjectPath,
+      sourceContentType,
       contentType,
       sizeBytes: sourceFile.size,
     });
