@@ -137,11 +137,11 @@ function buildUpdatedTriggerRow(
 }
 
 const inputSchema = z.object({
-  action: z.enum(TRIGGER_ACTIONS),
-  trigger_instance_id: z.string().uuid().optional(),
-  edit_params: z.record(z.string(), z.unknown()).optional(),
-  invocation_message: z.string().min(1).max(200).nullable().optional(),
-  payload: z.record(z.string(), z.unknown()).optional(),
+  action: z.enum(TRIGGER_ACTIONS).describe("Top-level action: list, view, delete, simulate, or edit."),
+  trigger_instance_id: z.string().uuid().optional().describe("Top-level trigger instance UUID. Required except for list."),
+  edit_params: z.record(z.string(), z.unknown()).optional().describe("Top-level object for edit-only trigger configuration changes."),
+  invocation_message: z.string().min(1).max(200).nullable().optional().describe("Top-level edit-only invocation title override, or null to clear it."),
+  payload: z.record(z.string(), z.unknown()).optional().describe("Top-level simulate-only event data object."),
 });
 
 type ManageActiveTriggersInput = z.infer<typeof inputSchema>;
@@ -149,7 +149,10 @@ type ManageActiveTriggersInput = z.infer<typeof inputSchema>;
 export const manageActiveTriggersTool: ManagedAgentTool<ManageActiveTriggersInput> = {
   name: "manage_active_triggers",
   description:
-    "Manage the agent's active triggers.\n\nActions:\n- list: Returns all active triggers with their IDs, names, titles, invocationMessage, and arguments.\n- view: Shows detailed information for a specific trigger. Requires trigger_instance_id.\n- delete: Removes an active trigger. Requires trigger_instance_id. This is destructive.\n- simulate: Fires a test event on a trigger to test the agent's response. Requires trigger_instance_id and payload.\n- edit: Modifies an existing trigger's configuration. Requires trigger_instance_id. Use edit_params to modify trigger configuration (matching editSchema, not supported by all triggers) and/or invocation_message to set or clear the invocation title override.\n\nUse list first to see available triggers and get their instance IDs.",
+    "Manage the agent's active triggers. " +
+    "Top-level shape: { action, trigger_instance_id?, edit_params?, invocation_message?, payload? }. " +
+    "DO NOT wrap the whole call in a params, body, request, or action object.\n\n" +
+    "Actions:\n- list: Returns all active triggers with their IDs, names, titles, invocationMessage, and arguments.\n- view: Shows detailed information for a specific trigger. Requires trigger_instance_id.\n- delete: Removes an active trigger. Requires trigger_instance_id. This is destructive.\n- simulate: Fires a test event on a trigger to test the agent's response. Requires trigger_instance_id and top-level payload.\n- edit: Modifies an existing trigger's configuration. Requires trigger_instance_id. Use top-level edit_params to modify trigger configuration (matching editSchema, not supported by all triggers) and/or invocation_message to set or clear the invocation title override.\n\nUse list first to see available triggers and get their instance IDs.",
   inputSchema,
   execute: async (input, context) => {
     const action = input.action as TriggerAction;

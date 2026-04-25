@@ -31,7 +31,7 @@ export const requestApprovalInputSchema = z.object({
   payload_preview: z
     .record(z.string(), z.unknown())
     .optional()
-    .describe("Optional sanitized preview of the action payload."),
+    .describe("Optional top-level sanitized preview object for the action."),
 });
 
 export interface RequestApprovalInput {
@@ -47,6 +47,7 @@ export const requestApprovalTool: ManagedAgentTool<
   name: "request_approval",
   description:
     "Ask the user to approve a risky action before continuing. " +
+    "Top-level shape: { summary, action_type, payload_preview? }. DO NOT wrap the whole call in a payload, params, body, or request object. " +
     "Use this before delete_records or configure_crm. Keep the summary short and specific. " +
     `For \`action_type\`, pass exactly one of: ${GATED_ACTION_TYPES.map((v) => `"${v}"`).join(", ")} — the "crm." prefix is required.`,
   inputSchema: requestApprovalInputSchema,

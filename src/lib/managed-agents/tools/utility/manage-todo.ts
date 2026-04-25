@@ -14,14 +14,14 @@ type TodoPayload = NonNullable<Database["public"]["Tables"]["agent_todo"]["Row"]
 const addOperationSchema = z.object({
   op: z.literal("add").describe("The operation to perform: add (create new todo, todo_id must NOT be set)"),
   title: z.string().min(1).describe("The title of the todo (required for add)"),
-  payload: z.record(z.string(), z.unknown()).optional().describe("Optional JSON payload attached to the todo for additional information in addition to the title"),
+  payload: z.record(z.string(), z.unknown()).optional().describe("Optional JSON data attached to this todo operation item."),
 });
 
 const updateOperationSchema = z.object({
   op: z.literal("update").describe("The operation to perform: update (modify existing todo)"),
   todo_id: z.string().uuid().describe("The ID of the todo. REQUIRED for update operations."),
   title: z.string().min(1).optional().describe("The title of the todo (optional for update)"),
-  payload: z.record(z.string(), z.unknown()).optional().describe("Optional JSON payload attached to the todo for additional information in addition to the title"),
+  payload: z.record(z.string(), z.unknown()).optional().describe("Optional JSON data attached to this todo operation item."),
 });
 
 const deleteOperationSchema = z.object({
@@ -54,7 +54,7 @@ type ManageTodoInput = z.infer<typeof inputSchema>;
 export const manageTodoTool: ManagedAgentTool<ManageTodoInput> = {
   name: "manage_todo",
   description:
-    "Manage todo items for this agent. Supports batch operations for efficiency.\n\nOperations:\n- add: Create a new todo with a title and optional payload. todo_id MUST NOT be set.\n- update: Modify an existing todo's title or payload. todo_id is REQUIRED.\n- delete: Remove a todo to mark it as done. todo_id is REQUIRED.\n\nYou can perform multiple operations in a single call (e.g., add multiple todos, update several at once, or mix different operations).\n\nNote: All current todos are visible in the agent's synced state.",
+    "Manage todo items for this agent. Top-level shape: { operations }. DO NOT wrap the whole call in a payload, params, body, or request object.\n\nOperations:\n- add: Create a new todo with a title and optional operation-level payload. todo_id MUST NOT be set.\n- update: Modify an existing todo's title or operation-level payload. todo_id is REQUIRED.\n- delete: Remove a todo to mark it as done. todo_id is REQUIRED.\n\nYou can perform multiple operations in a single call (e.g., add multiple todos, update several at once, or mix different operations).\n\nNote: All current todos are visible in the agent's synced state.",
   inputSchema,
   execute: async ({ operations }, context) => {
     if (!context.threadId) {

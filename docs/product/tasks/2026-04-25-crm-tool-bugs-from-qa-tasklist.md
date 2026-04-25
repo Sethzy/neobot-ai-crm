@@ -17,6 +17,31 @@ Plus one separate area: **contacts search/dedup plumbing** (T03 false-positive d
 
 ---
 
+## Status update — 2026-04-26
+
+A first pass was taken at this tasklist. **3 of 4 PRs are partially done; PR-A still needs the bulk of the work.** Detail:
+
+- **PR-A.1 (boolean type in configure_crm):** ✅ Schema + validator + tool description shipped. Verified end-to-end via T02 retry under Haiku v8. Outstanding: unit test (A.1.4).
+- **PR-A.2 (create_record silent drop):** ⏳ Not started. Still highest priority.
+- **PR-A.3 (update_task missing status):** ⏳ Not started.
+- **PR-A.4 (manage_views allowlist):** ⏳ Not started.
+- **PR-B (search + dedup):** ⏳ Not started.
+- **PR-C (custom-field render + filter):** ⏳ Not started. Boolean renderer is needed even though the type enum is in — there's still no checkbox in the People row inspector.
+- **PR-D.2 (action_type description):** ✅ Shipped via the description-enumeration alternative (commit eba39289). Outstanding: D.1 (Zod accept-both) and D.3 (UI hardening — Allow card should not render when request_approval itself errored).
+- **PR-E (NEW — tool description hardening):** ⏳ Surfaced during the T02 retry. Worth auditing other CRM tools for similar ambiguities.
+
+**Commits that landed:**
+- `eba39289 fix(managed-agents/approvals): enumerate action_type values in tool description` — closes PR-D.2 (alternative path).
+- `a6bf6ecb fix(managed-agents/crm): forbid updates-wrapper in configure_crm description` — closes the new PR-E sub-finding.
+- `6aca4382 refactor(managed-agents/triggers): lazy-import spawnTriggerRun` — pre-req infra so the publish CLI can `import` the tool barrel without pulling `server-only`. Not a bug fix; needed to republish Haiku v7/v8.
+- `d6fcc9da chore(scripts): add server-only shim for tsx CLI scripts` — same pre-req infra for the republish flow.
+- `85501469 docs(qa): record 2026-04-25 tool-sweep run and follow-up plans` — checks in this tasklist + the QA run JSON.
+- (boolean type itself is in `src/lib/crm/config.ts:23` — added in an earlier commit on this branch.)
+
+**One non-blocking eval finding** captured in T02 notes: `[eval] SAFETY GATE BYPASS detected` fires even when `request_approval` did precede the gated call — the eval doesn't recognize the chain across runs. Filed for follow-up, not blocking.
+
+---
+
 ## Suggested PR split
 
 - **PR-A — CRM tool input schema sweep** *(must ship first)*
@@ -41,9 +66,9 @@ Order: PR-A and PR-B in parallel → PR-C after PR-A → PR-D any time. Re-run t
 
 **Symptom:** Adding a `boolean` custom field fails with `Invalid input ... expected one of "text"|"number"|"currency"|"date"|"select"`. Users have to model boolean fields as `select` with options `["true","false"]`.
 
-- [ ] **A.1.1** Locate the `type` enum in `src/lib/managed-agents/tools/crm/configure-crm.ts`. Add `"boolean"` to it.
-- [ ] **A.1.2** Update the runtime field validator (the one that checks values against field definitions) to accept `true` / `false`, and also the strings `"true"` / `"false"` (LLMs will send strings sometimes).
-- [ ] **A.1.3** Update the tool description string so the LLM knows `boolean` is available.
+- [x] **A.1.1** ~~Locate the `type` enum in `src/lib/managed-agents/tools/crm/configure-crm.ts`. Add `"boolean"` to it.~~ Done — added to `customFieldTypeValues` at `src/lib/crm/config.ts:23`.
+- [x] **A.1.2** ~~Update the runtime field validator (the one that checks values against field definitions) to accept `true` / `false`, and also the strings `"true"` / `"false"` (LLMs will send strings sometimes).~~ Done — `case "boolean": return z.boolean()` at `src/lib/crm/config.ts:237`. (Note: only accepts real booleans, not the strings `"true"`/`"false"`. Verify this is acceptable for Haiku — if Haiku sends strings, add a `z.coerce.boolean()` or pre-parse.)
+- [x] **A.1.3** ~~Update the tool description string so the LLM knows `boolean` is available.~~ Done — `configure-crm.ts:463` lists boolean in the tool description; per-field `.describe()` calls at lines 57–60 also list it.
 - [ ] **A.1.4** Unit test: configure_crm accepts `{ type: "boolean", default: false }` and round-trips through `get_crm_config`.
 
 > The matching renderer/UI for the new boolean type lives in **PR-C**.
@@ -147,13 +172,35 @@ Order: PR-A and PR-B in parallel → PR-C after PR-A → PR-D any time. Re-run t
 
 **Symptom (surfaced during T02 retry on 2026-04-26):** Haiku calls `request_approval({ action_type: "configure_crm", summary: "..." })`. Tool errors with `Invalid input for request_approval ... expected one of "crm.delete_records"|"crm.configure_crm"`. The Allow card still renders, user clicks Allow, agent reports "Approved", but the underlying action never fires and the run hangs.
 
-- [ ] **D.1** Open the `request_approval` tool definition (likely in `src/lib/managed-agents/tools/approvals/request-approval.ts`). Find the `action_type` enum.
-- [ ] **D.2** Pick a fix:
-  - **(Recommended) Accept both prefixed and unprefixed:** `z.union([z.enum([...prefixed]), z.enum([...unprefixed]).transform(v => "crm." + v)])`. Internal canonical form stays prefixed, model can send either.
-  - **Alternative:** Update the tool description so the prefix is unmissable and add an explicit example. Riskier — model behaviour is hard to constrain.
-- [ ] **D.3** Either way, fix the UI behaviour: when `request_approval` itself returned an error, the Allow card should NOT render (or should render in an error state with no Allow button). Currently it renders Allow, the user clicks, nothing happens, and the run hangs forever.
-- [ ] **D.4** Unit + integration test: (a) action_type without prefix is accepted and normalised, (b) when request_approval returns an error, no approval card is rendered.
-- [ ] **D.5** Repro reference: see the T02 notes in `checklist.json` (line ~126). The repro file is `/tmp/sunder-qa/issues/T02-retry-approval-action-type-mismatch.md` (created by the dev who attempted the boolean fix on 2026-04-26).
+- [x] **D.1** ~~Open the `request_approval` tool definition (likely in `src/lib/managed-agents/tools/approvals/request-approval.ts`). Find the `action_type` enum.~~ Done — found at `src/lib/managed-agents/tools/approvals/request-approval.ts:25`.
+- [x] **D.2** ~~Pick a fix~~ Shipped via the **Alternative** path in commit `eba39289`: tool description and field-level description now enumerate the exact valid values (`"crm.delete_records"`, `"crm.configure_crm"`) and explicitly state `The "crm." prefix is required.` Verified working — Haiku v7+ formats the input correctly. Recommended path (Zod accept-both with transform) was NOT taken; revisit if a future model still gets it wrong.
+- [ ] **D.3** *(STILL OPEN — UI hardening not done.)* When `request_approval` itself returns an error, the Allow card should NOT render (or should render in an error state with no Allow button). Currently it renders Allow, the user clicks, the agent reports "Approved", the underlying action never fires, and the run hangs forever. This is the bug that blocked the T02 retry until eba39289 fixed the input side. Inputs are now valid most of the time, but D.3 is still a real footgun for any future schema mismatch.
+- [ ] **D.4** Unit + integration test: (a) action_type without prefix is accepted and normalised — *(only relevant if D.1's recommended path is taken later)*, (b) when request_approval returns an error, no approval card is rendered — *(test for D.3)*.
+- [ ] **D.5** Repro reference: see the T02 notes in `checklist.json` (line ~126).
+
+---
+
+## PR-E — Tool description hardening *(NEW — surfaced 2026-04-26)*
+
+### E.1 — `configure_crm` description rewritten to forbid `updates:` wrapper
+
+**Symptom (during T02 retry):** Even after D.2 fixed the approval gate, configure_crm still failed because Haiku wrapped its input in `{ updates: { contact_custom_fields: [...] } }` instead of passing fields flat at the top level. Root cause: the old description said "Accepts partial updates...", and Haiku anchored on the word "updates" and invented the wrapper.
+
+- [x] **E.1.1** ~~Rewrite the configure_crm tool description to make the flat shape explicit and forbid the wrapper.~~ Done in commit `a6bf6ecb`. New description includes: `"Pass changed fields directly at the top level (e.g. contact_custom_fields, deal_stages). DO NOT wrap them in an updates object — there is no updates parameter."`
+
+### E.2 — Audit other tool descriptions for similar ambiguity *(PARTIAL — definition sweep done)*
+
+The configure_crm wrapper bug is a category, not a one-off. Models will anchor on any English word that suggests structure (`updates`, `payload`, `params`, `body`) and invent matching nested shapes. This needs a pre-emptive sweep before more bugs ship.
+
+- [x] **E.2.1** ~~Audit every tool in `src/lib/managed-agents/tools/**` for descriptions containing the words "updates", "payload", "params", "body", "input", "request", "wrapper" — anywhere those words could be misread as a parameter name.~~ Done — swept model-facing descriptions and field descriptions in `src/lib/managed-agents/tools/**`.
+- [x] **E.2.2** ~~For each match, either (a) reword to remove the noun, or (b) add an explicit "DO NOT wrap them in a `<word>` object" sentence like configure_crm now has.~~ Done — added explicit top-level shape / no-wrapper language to `update_record`, `setup_trigger`, `manage_active_triggers`, `manage_todo`, `request_approval`, `execute_composio_tool`, `list_composio_tools`, and `send_message`; rewrote trigger-discovery wording so returned schemas map to `setup_trigger.params` / `manage_active_triggers.edit_params`.
+- [x] **E.2.3** ~~Add a project-wide JSDoc/lint rule (or a comment in `MANAGED_AGENT_TOOL_DECLARATIONS`) reminding future tool authors to describe input shape explicitly and avoid wrapper-suggesting nouns.~~ Done — added a tool-authoring rule in `src/lib/managed-agents/tools/declarations.ts`.
+- [ ] **E.2.4** Re-run a quick sanity spike on Haiku 4.5: pick the 5 most-used CRM tools, send a natural-language prompt for each, confirm none of them get the args wrapped.
+
+### PR-E verification
+
+- [x] **E.3** configure_crm verified working end-to-end via T02 retry under Haiku v8 (see checklist.json T02 notes).
+- [ ] **E.4** Once E.2 sweep is done, re-run T01–T10 of the QA checklist on Haiku to confirm no regressions from description rewords.
 
 ---
 

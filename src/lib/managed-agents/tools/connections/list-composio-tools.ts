@@ -62,7 +62,9 @@ function getRequiredInputFields(inputSchema: unknown): string[] {
 export const listComposioToolsTool: ManagedAgentTool<ListComposioToolsInput> = {
   name: "list_composio_tools",
   description:
-    "Returns the Composio actions available for a connected app. Pass app as the toolkitSlug from list_connections, not the human display name. Call this before execute_composio_tool so you know which action slug to use. If you pass action as well, this also returns that action's input schema so you can construct execute_composio_tool.input correctly.",
+    "Returns the Composio actions available for a connected app. " +
+    "Top-level shape: { app, action? }. DO NOT wrap the whole call in a payload, params, body, request, or input object. " +
+    "Pass app as the toolkitSlug from list_connections, not the human display name. Call this before execute_composio_tool so you know which action slug to use. If you pass action as well, this also returns that action's input schema so you can construct execute_composio_tool.input correctly.",
   inputSchema,
   execute: async ({ app, action }, context) => {
     const toolkitSlug = normalizeComposioAppSlug(app);

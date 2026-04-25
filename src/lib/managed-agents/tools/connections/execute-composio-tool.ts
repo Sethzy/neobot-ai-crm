@@ -34,7 +34,7 @@ const inputSchema = z.object({
     "The toolkitSlug returned by list_connections or used with list_composio_tools.",
   ),
   action: z.string().min(1).describe("The action slug returned by list_composio_tools (e.g., 'GMAIL_SEND_EMAIL')."),
-  input: z.record(z.string(), z.unknown()).describe("Action-specific parameters as a JSON object."),
+  input: z.record(z.string(), z.unknown()).describe("Top-level input object containing action-specific arguments."),
 });
 
 type ExecuteComposioToolInput = z.infer<typeof inputSchema>;
@@ -42,7 +42,10 @@ type ExecuteComposioToolInput = z.infer<typeof inputSchema>;
 export const executeComposioToolTool: ManagedAgentTool<ExecuteComposioToolInput> = {
   name: "execute_composio_tool",
   description:
-    "Executes a Composio action on behalf of the current user. Pass app as the toolkitSlug from list_connections. Call list_composio_tools first to discover available actions, and call it again with app + action when you need that action's input schema before execution. Returns the action's raw output on success, or an error message on failure.",
+    "Executes a Composio action on behalf of the current user. " +
+    "Top-level shape: { app, action, input }. Put the selected action's arguments inside input. " +
+    "DO NOT wrap the whole call in a payload, params, body, request, or arguments object. " +
+    "Pass app as the toolkitSlug from list_connections. Call list_composio_tools first to discover available actions, and call it again with app + action when you need that action's input schema before execution. Returns the action's raw output on success, or an error message on failure.",
   inputSchema,
   execute: async ({ app, action, input }, context) => {
     const toolkitSlug = normalizeComposioAppSlug(app);

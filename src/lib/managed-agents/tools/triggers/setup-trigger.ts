@@ -20,7 +20,7 @@ const inputSchema = z.object({
   trigger_id: z.string().min(1).describe("The ID of the trigger type to set up (e.g., \"schedule\", \"webhook\", \"rss\")"),
   name: z.string().min(1).describe("A human-readable name for this trigger instance."),
   instruction_path: z.string().min(1).describe("Path to the instruction file the agent should follow when this trigger fires."),
-  params: z.record(z.string(), z.unknown()).describe("Setup parameters as defined by the trigger's setupSchema"),
+  params: z.record(z.string(), z.unknown()).describe("Top-level params object whose keys match the trigger's setupSchema."),
   invocation_message: z.string().min(1).max(200).optional().describe("Optional short message that is included each time this trigger runs. Max 200 characters."),
 });
 
@@ -159,7 +159,10 @@ function buildRssInsertRow(args: {
 export const setupTriggerTool: ManagedAgentTool<SetupTriggerInput> = {
   name: "setup_trigger",
   description:
-    "Set up a new trigger instance. First use search_triggers to find available triggers and their setup schemas, then call this tool with the trigger ID and required parameters.\nOn completion, shows the user a UI card with the trigger details.",
+    "Set up a new trigger instance. First use search_triggers to find available triggers and their setup schemas. " +
+    "Top-level shape: { trigger_id, name, instruction_path, params, invocation_message? }. " +
+    "Put schedule/webhook/rss setup keys inside params only; DO NOT wrap the whole call in a payload, body, request, or setup object.\n" +
+    "On completion, shows the user a UI card with the trigger details.",
   inputSchema,
   execute: async ({ trigger_id, name, instruction_path, params, invocation_message }, context) => {
     if (!context.threadId) {

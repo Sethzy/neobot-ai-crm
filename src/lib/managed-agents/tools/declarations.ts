@@ -6,6 +6,12 @@
  * declaration publishing. H3/H4 should build Anthropic custom-tool payloads
  * from this module instead of maintaining a second handwritten list.
  *
+ * Tool authoring rule: descriptions must make the exact top-level input shape
+ * obvious. Avoid wrapper-suggesting nouns like "payload", "params", "body",
+ * "request", or "updates" unless those are real schema property names. When
+ * such names are real properties, explicitly say not to wrap the whole tool
+ * call in an invented object with that name.
+ *
  * @module lib/managed-agents/tools/declarations
  */
 import {

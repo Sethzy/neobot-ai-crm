@@ -119,7 +119,7 @@ type SearchTriggersInput = z.infer<typeof inputSchema>;
 export const searchTriggersTool: ManagedAgentTool<SearchTriggersInput> = {
   name: "search_triggers",
   description:
-    "Search for available triggers by keywords.\nReturns a list of trigger types that match the search criteria, along with their setup schemas and any prerequisites.\n\nUse this tool to discover what triggers are available before setting one up.\n\nThe setupSchema field of each returned trigger describes the schema of the params object that should be passed into the setup_trigger tool.\n\nTriggers that support editing will include an editSchema field describing the parameters for the edit action in manage_active_triggers.",
+    "Search for available triggers by keywords.\nReturns a list of trigger types that match the search criteria, along with their setup schemas and any prerequisites.\n\nUse this tool to discover what triggers are available before setting one up.\n\nEach returned setupSchema describes keys that go inside setup_trigger.params. Do not pass setupSchema itself to setup_trigger.\n\nTriggers that support editing include an editSchema describing keys that go inside manage_active_triggers.edit_params.",
   inputSchema,
   execute: async ({ keywords }) => {
     const normalizedKeywords = normalizeTriggerKeywords(keywords);

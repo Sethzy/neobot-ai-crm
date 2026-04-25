@@ -29,6 +29,7 @@ export const sendMessageTool: ManagedAgentTool<SendMessageInput, SendMessageResu
   name: "send_message",
   description:
     "Send a message to the user or another verified contact method. " +
+    "Top-level shape: { to, body, subject?, attachments? }. DO NOT wrap the whole call in a payload, params, message, or request object. " +
     "Use 'owner' to target the account owner's primary email. " +
     "This environment currently logs the intent but does not deliver the message.",
   inputSchema,

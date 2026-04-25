@@ -301,6 +301,8 @@ export const updateRecordTool: ManagedAgentTool<UpdateRecordInput> = {
   name: "update_record",
   description:
     "Update one or more CRM records by ID. Only provided fields are changed. " +
+    "Top-level shape: { entity, updates }. The updates property is an array of { id, fields } patches. " +
+    "DO NOT wrap the whole call in a payload, params, body, request, or fields object. " +
     "Pass null to clear a nullable field. Omit fields to leave them unchanged. " +
     "Custom fields are deep-merged (existing keys not in the patch are preserved). " +
     "Use plural entity names: contacts, companies, or deals. " +
