@@ -66,7 +66,12 @@ export const calculateDriveTimeTool: ManagedAgentTool<DriveTimeInput> = {
     }
 
     try {
-      const departureTime = departure_time ?? new Date().toISOString();
+      // Routes API rejects departureTime that resolves to a past instant when
+      // routingPreference=TRAFFIC_AWARE_OPTIMAL. `new Date().toISOString()`
+      // by the time the request hits Google is in the past, producing a 400.
+      // Buffer 30s into the future so it always parses as future.
+      const departureTime =
+        departure_time ?? new Date(Date.now() + 30_000).toISOString();
       const response = await fetchWithTimeout(GOOGLE_ROUTES_URL, {
         method: "POST",
         headers: {
