@@ -22,6 +22,10 @@ describe("MANAGED_AGENT_TOOL_DECLARATIONS", () => {
     expect(MANAGED_AGENT_TOOL_NAMES).toContain("request_approval");
   });
 
+  it("publishes the CRM attachment listing tool", () => {
+    expect(MANAGED_AGENT_TOOL_NAMES).toContain("list_record_attachments");
+  });
+
   it("does not publish the retired activation and discovery tools", () => {
     expect(MANAGED_AGENT_TOOL_NAMES).not.toContain("search_integrations");
     expect(MANAGED_AGENT_TOOL_NAMES).not.toContain("get_integration_capabilities");

@@ -17,13 +17,13 @@ describe("MANAGED_AGENT_TOOLS registry", () => {
     expect(new Set(MANAGED_AGENT_TOOL_NAMES).size).toBe(MANAGED_AGENT_TOOL_NAMES.length);
   });
 
-  it("sets chatOnly: true on exactly run_sql and get_agent_db_schema", () => {
+  it("sets chatOnly: true only on tools that require chat-session context", () => {
     const chatOnly = MANAGED_AGENT_TOOL_DECLARATIONS
       .filter((tool) => tool.chatOnly === true)
       .map((tool) => tool.name)
       .sort();
 
-    expect(chatOnly).toEqual(["get_agent_db_schema", "run_sql"]);
+    expect(chatOnly).toEqual(["get_agent_db_schema", "request_approval", "run_sql"]);
   });
 
   it("keeps each tool name aligned with its registry key", () => {

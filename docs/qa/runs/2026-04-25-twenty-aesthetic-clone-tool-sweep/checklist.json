@@ -2,7 +2,7 @@
   "title": "Tool-by-tool UI smoke test for feat/twenty-aesthetic-clone",
   "branch": "feat/twenty-aesthetic-clone",
   "created_at": "2026-04-25",
-  "summary": "27/43 tools green (T01–T27, all pass after fixes c0e204f3 + 9fbdffbb on Haiku v10), 0/7 pages green (PG01–PG07 untested). Remaining tool tests T28–T43 untested.",
+  "summary": "27/43 tools green (T01–T27, all pass after fixes c0e204f3 + 9fbdffbb plus T12 declaration fix on Haiku v11), 0/7 pages green (PG01–PG07 untested). Remaining tool tests T28–T43 untested. Edge run found one unresolved storage_write hang; see RETEST-REPORT.md.",
   "commits_under_test": [
     "d8699759 chore(cleanup): adopt logger in xai-stt, remove pulse filter from trigger query, add missing tests",
     "20ed23af chore(docs): add planning docs, task lists, and reference analyses",
@@ -285,7 +285,7 @@
       "screenshot": "/tmp/sunder-qa/T12-listAttachments.png",
       "done": true,
       "result": "pass",
-      "notes": "PARTIAL — Haiku skipped explicit list_attachments and went straight to read_record_attachment (which returns enough metadata to enumerate). The agent text confirmed 'Attachments on QA Bot Two: 1 file (qa.txt, 8 bytes)', so the listing semantics work end-to-end. Worth a future direct test of list_attachments specifically (model just chose not to call it here). Tool itself NOT explicitly exercised — pass in the ecosystem sense, not strict-call sense."
+      "notes": "RETESTED 2026-04-26: strict-call gap found and fixed. Haiku v10 could not call list_record_attachments because the tool existed in src/lib/managed-agents/tools/crm/list-attachments.ts and the CRM barrel but was missing from MANAGED_AGENT_TOOL_DECLARATIONS. Added it to declarations, added a regression test, republished Haiku v11, bumped ANTHROPIC_AGENT_VERSION_HAIKU=11, restarted dev, and reran through the UI. Thread 'QA Retest Haiku T12' showed search_crm -> attach_file_to_record -> list_record_attachments -> delete_record_attachment. Evidence: /tmp/sunder-qa/retest-t01-t27/17-t12-v11-list-attachments.png and /tmp/sunder-qa/retest-t01-t27/18-t12-v11-after-delete.png."
     },
     {
       "id": "T13",
