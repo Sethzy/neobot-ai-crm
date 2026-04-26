@@ -9,7 +9,6 @@
  * @module lib/managed-agents/dispatch-event-to-callbacks
  */
 import type { SessionRunnerCallbacks } from "./types";
-import { toInternalManagedAgentToolName } from "./tool-name-aliases";
 import { createConsoleLogger } from "@/lib/logger";
 
 const console = createConsoleLogger();
@@ -39,13 +38,15 @@ export async function dispatchEventToCallbacks(
     handler = "onSessionError";
     await callbacks.onSessionError?.(event);
   } else if (eventType === "agent.custom_tool_use") {
-    const typed = event as { name?: string };
-    if (toInternalManagedAgentToolName(typed.name ?? "") === "request_approval") {
-      handler = "deferred-approval";
-    } else {
-      handler = "onAgentToolUse";
-      await callbacks.onAgentToolUse?.(event);
-    }
+    // Always project the tool-call to the UI stream so a subsequent
+    // tool-output-error / tool-output-available chunk has a matching
+    // invocation. Required for `request_approval` too — when local Zod
+    // validation rejects the tool input (e.g. wrong action_type), the
+    // dispatcher returns an immediate error result instead of going
+    // through the deferred-approval flow, so the UI never receives the
+    // approval-request chunk that would otherwise create the part.
+    handler = "onAgentToolUse";
+    await callbacks.onAgentToolUse?.(event);
   } else if (eventType === "agent.tool_use" || eventType === "agent.mcp_tool_use") {
     // Built-in or MCP tool uses must still be projected to the UI so the
     // subsequent tool_result can bind to an existing invocation. Approval-

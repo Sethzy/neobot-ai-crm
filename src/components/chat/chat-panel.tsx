@@ -287,12 +287,23 @@ export function ChatPanel({
   });
 
   // Clear recovery state when auto-resume finds the message.
+  // Why the ref: useAutoResume's effect calls setIsWaitingForResponse(true) in
+  // the same effect cycle that this effect runs. Reading isWaitingForResponse
+  // from the closure here would see the prior render's `false`, causing us to
+  // clear approvalRecovery before polling has a chance to run — which then
+  // cancels the polling signal and leaves isWaitingForResponse stuck at true.
+  // We only clear after observing isWaitingForResponse transition true → false.
+  const wasWaitingForResponseRef = useRef(false);
   useEffect(() => {
-    if ((streamErrorRecovery || approvalRecovery) && !isWaitingForResponse) {
-      setStreamErrorRecovery(false);
-      setApprovalRecovery(null);
+    if (isWaitingForResponse) {
+      wasWaitingForResponseRef.current = true;
+      return;
     }
-  }, [approvalRecovery, streamErrorRecovery, isWaitingForResponse]);
+    if (!wasWaitingForResponseRef.current) return;
+    wasWaitingForResponseRef.current = false;
+    setStreamErrorRecovery(false);
+    setApprovalRecovery(null);
+  }, [isWaitingForResponse]);
 
   // Subscribe to background message delivery via Supabase Realtime.
   // When a background job completes, the server inserts a conversation_messages

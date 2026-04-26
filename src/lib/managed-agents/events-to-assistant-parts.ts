@@ -50,6 +50,15 @@ export function buildAssistantPartsFromEvents(
     );
   }
 
+  function dropToolPartByCallId(toolCallId: string): void {
+    const index = parts.findIndex(
+      (p) => typeof p.toolCallId === "string" && p.toolCallId === toolCallId,
+    );
+    if (index !== -1) {
+      parts.splice(index, 1);
+    }
+  }
+
   for (const event of events) {
     if (event.type === "span.model_request_start") {
       parts.push({ type: "step-start" });
@@ -98,6 +107,28 @@ export function buildAssistantPartsFromEvents(
         } catch {
           parsed = rawText;
         }
+
+        // Dispatcher-validation rejections of `request_approval` (the
+        // model passed an action_type with the wrong shape) never reached
+        // the user. The model retries automatically with the corrected
+        // input, so persisting the failed shell adds noise to the chat
+        // and breaks AI SDK rehydration on hard refresh.
+        const isRequestApprovalValidationError =
+          isError
+          && existing.type === "tool-request_approval"
+          && typeof parsed === "object"
+          && parsed !== null
+          && "error" in parsed
+          && typeof (parsed as { error: unknown }).error === "string"
+          && (parsed as { error: string }).error.startsWith(
+            "Invalid input for request_approval",
+          );
+
+        if (isRequestApprovalValidationError) {
+          dropToolPartByCallId(event.custom_tool_use_id);
+          continue;
+        }
+
         existing.state = isError ? "output-error" : "output-available";
 
         if (isError) {

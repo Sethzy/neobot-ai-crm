@@ -60,6 +60,20 @@ describe("dispatchEventToCallbacks", () => {
     expect(cbs.onAgentMessage).not.toHaveBeenCalled();
   });
 
+  // Regression: previously request_approval was special-cased to skip
+  // onAgentToolUse, which meant a Zod validation failure inside the local
+  // dispatcher fired tool-output-error against a tool ID the UI stream
+  // had never seen — AI SDK would throw "No tool invocation found".
+  it("routes agent.custom_tool_use for request_approval to onAgentToolUse", async () => {
+    const cbs = makeCallbacks();
+    const event = customToolUseEvent("evt_2b", "request_approval", {
+      action_type: "configure_crm",
+      summary: "test",
+    });
+    await dispatchEventToCallbacks(event, cbs);
+    expect(cbs.onAgentToolUse).toHaveBeenCalledWith(event);
+  });
+
   it("routes span.model_request_start to onSpanModelRequestStart", async () => {
     const cbs = makeCallbacks();
     const event = modelRequestStartEvent("evt_3");
