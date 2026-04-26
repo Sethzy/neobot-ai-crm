@@ -6,7 +6,7 @@
 import { z } from "zod";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
-import { CRM_DEFAULTS, type CrmVocabConfig } from "@/lib/crm/config";
+import { CRM_DEFAULTS, loadCrmConfig, type CrmVocabConfig } from "@/lib/crm/config";
 import { crmViewEntityTypes } from "@/lib/crm/schemas";
 import { validateViewFilters } from "@/lib/crm/view-filters";
 import {
@@ -72,12 +72,17 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
     "A view is a named saved workspace that can remember layout, filters, sort, columns, and record open behavior. " +
     "Only create views when the user explicitly asks. " +
     "Filter keys match CRM columns: stage, status, type, industry, company_id, contact_id, deal_id. " +
-    "Configured custom field keys are also valid filter keys. " +
+    "Configured custom field keys (from configure_crm) are ALSO valid filter keys — pass them by their `key` value, e.g. `qa_test_flag: \"true\"`. " +
     "For date ranges use column_after/column_before (e.g. due_date_before, close_date_after). " +
     "Use symbolic tokens for dynamic dates: $today, $week_start, $week_end, $month_start, $month_end.",
   inputSchema,
   execute: async (input, context) => {
-    const config = context.crmConfig ?? CRM_DEFAULTS;
+    // Always re-read CRM config from the DB rather than using the
+    // session-cached snapshot. configure_crm may have just added a custom
+    // field earlier in the same run, and the cached config wouldn't include
+    // it — causing valid filter keys to be rejected by validateViewFilters.
+    const { config: freshConfig } = await loadCrmConfig(context.supabase, context.clientId);
+    const config = freshConfig ?? context.crmConfig ?? CRM_DEFAULTS;
 
     switch (input.operation) {
       case "create": {

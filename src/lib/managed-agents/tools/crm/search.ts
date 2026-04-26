@@ -11,6 +11,7 @@
 import { z } from "zod";
 
 import {
+  buildContainsIlikeLiteral,
   buildIlikePattern,
   buildSearchExpression,
   DEFAULT_CRM_RESULT_LIMIT,
@@ -509,7 +510,23 @@ export const searchCrmTool: ManagedAgentTool<SearchInput> = {
       if (config.searchColumns.length === 1) {
         queryBuilder = queryBuilder.ilike(config.searchColumns[0], buildIlikePattern(query));
       } else {
-        queryBuilder = queryBuilder.or(buildSearchExpression(query, config.searchColumns));
+        // Multi-word queries like "QA Bot" need to also match when each token
+        // lives in a different column (first_name="QA", last_name="Bot") —
+        // the single-literal OR otherwise requires one column to contain the
+        // full string. Tokenise on whitespace and OR every (token, column)
+        // pair in addition to the original full-string match.
+        const tokens = query.trim().split(/\s+/).filter(Boolean);
+        if (tokens.length > 1) {
+          const fullMatch = buildSearchExpression(query, config.searchColumns);
+          const tokenMatches = tokens.flatMap((token) =>
+            config.searchColumns.map(
+              (col) => `${col}.ilike.${buildContainsIlikeLiteral(token)}`,
+            ),
+          );
+          queryBuilder = queryBuilder.or([fullMatch, ...tokenMatches].join(","));
+        } else {
+          queryBuilder = queryBuilder.or(buildSearchExpression(query, config.searchColumns));
+        }
       }
     }
 

@@ -127,6 +127,8 @@ export const updateTaskTool: ManagedAgentTool<UpdateTaskInput> = {
   description:
     "Update an existing CRM task by id. Use this after finding the task via search_crm. " +
     "Only provided fields are updated. Omit fields you don't want to change. Pass null to clear a nullable field. " +
+    "To mark a task complete, pass `status: \"done\"` — DO NOT abuse the description field for completion state. " +
+    "Valid status values: \"todo\", \"in_progress\", \"done\". " +
     "Data Modification Warning: Only update tasks when the user has explicitly asked to do so.",
   inputSchema: updateTaskInputSchema,
   execute: async ({ task_id, ...fields }, context) => {

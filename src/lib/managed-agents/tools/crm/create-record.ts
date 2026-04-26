@@ -78,15 +78,26 @@ async function findDuplicateContacts(
   email?: string | null,
   phone?: string | null,
 ): Promise<unknown[] | null> {
-  const orParts: string[] = [
-    `and(first_name.ilike.${buildContainsIlikeLiteral(firstName)},last_name.ilike.${buildContainsIlikeLiteral(lastName)})`,
-  ];
+  const orParts: string[] = [];
+
+  // Only include the name-based dedup when at least one name field is non-empty.
+  // Otherwise both ILIKE patterns become "%%" which matches every row in the
+  // table, producing the false-positive duplicate flood seen in QA T03.
+  if (firstName || lastName) {
+    orParts.push(
+      `and(first_name.ilike.${buildContainsIlikeLiteral(firstName)},last_name.ilike.${buildContainsIlikeLiteral(lastName)})`,
+    );
+  }
 
   if (email) {
     orParts.push(`email.eq.${email.toLowerCase()}`);
   }
   if (phone) {
     orParts.push(`phone.eq.${phone}`);
+  }
+
+  if (orParts.length === 0) {
+    return [];
   }
 
   const { data, error } = await context.supabase
@@ -148,6 +159,52 @@ async function findDuplicateDeals(
   }
 
   return data ?? [];
+}
+
+/**
+ * Normalises convenience aliases the model commonly emits into the canonical
+ * column shape the handlers + dedup logic expect. Without this, fields like
+ * `name` / `emails[]` are silently dropped because the schema is permissive
+ * (`z.record(z.string(), z.unknown())`).
+ *
+ * Rules:
+ * - `name` (single string) splits on first space → `first_name` + `last_name`.
+ *   Single-word names go entirely to `first_name`. Skipped if either canonical
+ *   field is already supplied.
+ * - `emails: string[]` collapses to `email` using `[0]`. Skipped if `email`
+ *   is already supplied.
+ *
+ * Mutates `record` in place and returns it so callers can chain.
+ */
+function normalizeRecordAliases(
+  entity: CreateEntity,
+  record: Record<string, unknown>,
+): Record<string, unknown> {
+  if (entity === "contacts") {
+    const name = record.name;
+    const hasFirstName = typeof record.first_name === "string" && record.first_name.trim().length > 0;
+    const hasLastName = typeof record.last_name === "string" && record.last_name.trim().length > 0;
+
+    if (typeof name === "string" && name.trim() && !hasFirstName && !hasLastName) {
+      const parts = name.trim().split(/\s+/);
+      record.first_name = parts[0];
+      record.last_name = parts.length > 1 ? parts.slice(1).join(" ") : "";
+    }
+  }
+
+  if (entity === "contacts" || entity === "companies") {
+    const emails = record.emails;
+    const hasEmail = typeof record.email === "string" && record.email.trim().length > 0;
+
+    if (Array.isArray(emails) && emails.length > 0 && !hasEmail) {
+      const first = emails.find((entry) => typeof entry === "string" && entry.trim().length > 0);
+      if (typeof first === "string") {
+        record.email = first;
+      }
+    }
+  }
+
+  return record;
 }
 
 function dedupKey(entity: CreateEntity, record: Record<string, unknown>): string {
@@ -335,7 +392,8 @@ const inputSchema = z.object({
     .max(50)
     .describe(
       "Array of records to create. Required fields by entity: " +
-        "contacts: { first_name, last_name }. " +
+        "contacts: { first_name, last_name } (canonical). For convenience, you may pass `name` as a single string and it will be split on first space into first_name + last_name. " +
+        "Use `email` (singular). For convenience, you may pass `emails: [\"first@x.com\"]` and the first non-empty entry will be used. " +
         "companies: { name }. " +
         "deals: { address }. " +
         "Optional fields vary by entity - use the CRM schema in system context.",
@@ -378,6 +436,12 @@ export const createRecordTool: ManagedAgentTool<CreateRecordInput, CreateRecordR
     "Data Modification Warning: Only create records when the user has explicitly asked.",
   inputSchema,
   execute: async ({ entity, records, force_create }, context) => {
+    // Normalise common LLM aliases (`name` → first/last; `emails[]` → email)
+    // before any downstream logic runs. See normalizeRecordAliases.
+    for (const record of records) {
+      normalizeRecordAliases(entity, record);
+    }
+
     const config: CrmVocabConfig = context.crmConfig ?? CRM_DEFAULTS;
     const defaultContactType = config.contact_types.includes("other")
       ? "other"

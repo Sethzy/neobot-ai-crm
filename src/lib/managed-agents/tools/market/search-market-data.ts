@@ -425,7 +425,10 @@ async function executeUraStats(supabase: SupabaseClient, filters: MarketDataFilt
 export const searchMarketDataTool: ManagedAgentTool<SearchMarketDataInput> = {
   name: "search_market_data",
   description:
-    "Search Singapore property market data across CEA agents, CEA transactions, HDB resale transactions, and URA private sales. Use search mode for records and stats mode for aggregates. Large HDB and URA stats queries may return recent-window sample metadata alongside exact totalMatching counts.",
+    "Search Singapore property market data across CEA agents, CEA transactions, HDB resale transactions, and URA private sales. Use search mode for records and stats mode for aggregates. " +
+    "LOCATION FILTERING: pass `town` (e.g. \"TAMPINES\", \"YISHUN\") to scope hdb and CEA transactions to a specific HDB town — values are normalised to uppercase before query, but you may pass mixed case. Pass `district` (e.g. \"15\", \"D9\") to scope URA and CEA transactions to a planning district. Without these filters the dataset returns all rows ordered by date, which may surface a single town and look like a default. " +
+    "OTHER FILTERS: `flat_type` (HDB only, exact match), `street`/`project` (partial match), `date_from`/`date_to` (YYYY-MM-DD), `agent_reg_no`/`agent_name`/`agency_name` (CEA only). " +
+    "Large HDB and URA stats queries may return recent-window sample metadata alongside exact totalMatching counts.",
   inputSchema,
   execute: async ({
     dataset,
