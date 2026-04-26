@@ -184,4 +184,21 @@ describe("configureCrmTool", () => {
       },
     });
   });
+
+  // Regression: agent occasionally invents a `custom_fields: { contacts: [...] }`
+  // wrapper. Previously the schema silently dropped the unknown key and the
+  // tool returned the misleading "No fields to update.". Strict mode now
+  // surfaces the unrecognized key so the agent can self-correct.
+  it("rejects unknown top-level keys with a clear validation error", () => {
+    const parsed = configureCrmTool.inputSchema.safeParse({
+      custom_fields: {
+        contacts: [{ name: "qa_test_flag", type: "boolean", default: false }],
+      },
+    });
+
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) {
+      expect(parsed.error.message).toContain("custom_fields");
+    }
+  });
 });

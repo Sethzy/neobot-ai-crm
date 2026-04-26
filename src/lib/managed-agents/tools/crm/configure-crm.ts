@@ -62,7 +62,7 @@ const inputSchema = z.object({
   company_fields: z.array(fieldDefinitionSchema).optional().describe("Full company field definitions array."),
   deal_fields: z.array(fieldDefinitionSchema).optional().describe("Full deal field definitions array."),
   confirm_removals: z.boolean().optional().describe("Set true to confirm removing values or custom fields that existing records still use."),
-});
+}).strict();
 
 const vocabularyEntityMap = {
   deal_stages: { table: "deals", column: "stage" },
@@ -463,6 +463,9 @@ export const configureCrmTool: ManagedAgentTool<ConfigureCrmInput, ConfigureCrmR
     "Custom field types are text, number, currency, date, boolean, and select. " +
     "Pass changed fields directly at the top level (e.g. `contact_custom_fields`, `deal_stages`). " +
     "DO NOT wrap them in an `updates` object — there is no `updates` parameter. " +
+    "DO NOT use a generic `custom_fields` key — the parameters are entity-specific: " +
+    "`contact_custom_fields`, `deal_custom_fields`, `company_custom_fields`, `task_custom_fields`. " +
+    "Each custom field definition uses `key` (snake_case identifier), not `name`. " +
     "Always returns the fully resolved resulting config. " +
     "If requested removals would affect existing records, it returns a warning instead. " +
     "Re-call with confirm_removals: true to proceed. " +
