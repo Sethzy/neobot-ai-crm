@@ -267,6 +267,13 @@ export async function consumeAnthropicSession(
   let tFirstTextDelta: number | null = null;
   let eventIndex = 0;
 
+  // Custom-tool dispatches run in the background so the for-await loop
+  // keeps draining the SSE stream while a tool is executing. This lets
+  // parallel `agent.custom_tool_use` events from a single model turn
+  // surface their `tool-input-available` UI chunks immediately instead of
+  // serializing behind the previous tool's execution.
+  const inFlightDispatches: Promise<void>[] = [];
+
   for await (const event of iterator) {
     const tEventReceived = performance.now();
     if (!tFirstEvent) {
@@ -346,52 +353,65 @@ export async function consumeAnthropicSession(
 
     eventIndex++;
 
-    // Custom tool dispatch — runs synchronously so the result is available
-    // for the next agent step. Wrapped in try-catch so a tool crash or
-    // network failure posts an error result back to Anthropic instead of
-    // silently deadlocking the session in requires_action.
+    // Custom tool dispatch — fired as a background promise so the SSE loop
+    // can continue reading the next event (especially the next parallel
+    // `agent.custom_tool_use` from the same model turn) without waiting
+    // for this tool's execution to finish. Each dispatch posts its own
+    // `user.custom_tool_result` back to Anthropic in completion order; the
+    // `requires_action` and post-loop drain points await `inFlightDispatches`
+    // so finalization sees a consistent post-dispatch state.
     if (result.customToolCall) {
-      try {
-        const tToolStart = performance.now();
-        const dispatchResult = await dispatchCustomTool(
-          {
-            type: "agent.custom_tool_use",
-            id: result.customToolCall.id,
-            name: result.customToolCall.name,
-            input: result.customToolCall.input,
-          },
-          options.context,
-        );
-        const tToolDispatched = performance.now();
-        if (dispatchResult.kind === "deferred") {
-          const approvalId = await persistDeferredApproval({
-            approval: dispatchResult,
-            sessionId: options.sessionId,
-            runId: options.runId,
-            context: options.context,
-            onApprovalRequired: options.callbacks?.onApprovalRequired,
-          });
-          approvalEventIds.push(approvalId);
-          console.log(
-            `${logPrefix} deferred custom tool ${result.customToolCall.name} (${result.customToolCall.id.slice(-8)}) exec=${Math.round(tToolDispatched - tToolStart)}ms approval=${approvalId.slice(-8)}`,
+      const customToolCall = result.customToolCall;
+      const tToolStart = performance.now();
+
+      const dispatchPromise = (async () => {
+        try {
+          const dispatchResult = await dispatchCustomTool(
+            {
+              type: "agent.custom_tool_use",
+              id: customToolCall.id,
+              name: customToolCall.name,
+              input: customToolCall.input,
+            },
+            options.context,
           );
-        } else {
-          await anthropic.beta.sessions.events.send(options.sessionId, {
-            events: [
-              {
-                type: "user.custom_tool_result",
-                custom_tool_use_id: dispatchResult.custom_tool_use_id,
-                content: dispatchResult.content,
-                ...(dispatchResult.is_error ? { is_error: true } : {}),
-              },
-            ],
-          } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
+          const tToolDispatched = performance.now();
+
+          if (dispatchResult.kind === "deferred") {
+            const approvalId = await persistDeferredApproval({
+              approval: dispatchResult,
+              sessionId: options.sessionId,
+              runId: options.runId,
+              context: options.context,
+              onApprovalRequired: options.callbacks?.onApprovalRequired,
+            });
+            approvalEventIds.push(approvalId);
+            console.log(
+              `${logPrefix} deferred custom tool ${customToolCall.name} (${customToolCall.id.slice(-8)}) exec=${Math.round(tToolDispatched - tToolStart)}ms approval=${approvalId.slice(-8)}`,
+            );
+            return;
+          }
+
+          await anthropic.beta.sessions.events.send(
+            options.sessionId,
+            {
+              events: [
+                {
+                  type: "user.custom_tool_result",
+                  custom_tool_use_id: dispatchResult.custom_tool_use_id,
+                  content: dispatchResult.content,
+                  ...(dispatchResult.is_error ? { is_error: true } : {}),
+                },
+              ],
+            } as never,
+            CHAT_ANTHROPIC_REQUEST_OPTIONS,
+          );
           const tToolSent = performance.now();
-          dispatchedCustomToolIds.add(result.customToolCall.id);
-          console.log(`${logPrefix} dispatched custom tool ${result.customToolCall.name} (${result.customToolCall.id.slice(-8)}) is_error=${dispatchResult.is_error ?? false} exec=${Math.round(tToolDispatched - tToolStart)}ms send=${Math.round(tToolSent - tToolDispatched)}ms`);
-          // Synthesize a minimal tool-result event for the callback so chat
-          // adapters can write a tool-result UI part. Non-fatal — same rationale
-          // as the pre-dispatch callback above.
+          dispatchedCustomToolIds.add(customToolCall.id);
+          console.log(
+            `${logPrefix} dispatched custom tool ${customToolCall.name} (${customToolCall.id.slice(-8)}) is_error=${dispatchResult.is_error ?? false} exec=${Math.round(tToolDispatched - tToolStart)}ms send=${Math.round(tToolSent - tToolDispatched)}ms`,
+          );
+
           try {
             await options.callbacks?.onAgentToolResult?.({
               type: "user.custom_tool_result",
@@ -400,38 +420,54 @@ export async function consumeAnthropicSession(
               ...(dispatchResult.is_error ? { is_error: true } : {}),
             });
           } catch (callbackError) {
-            console.warn(`${logPrefix} post-dispatch callback failed, continuing`, callbackError);
+            console.warn(
+              `${logPrefix} post-dispatch callback failed, continuing`,
+              callbackError,
+            );
           }
-        }
-      } catch (toolError) {
-        console.error(`${logPrefix} tool dispatch failed for ${result.customToolCall.name} (${result.customToolCall.id.slice(-8)}):`, toolError);
-        // Post an error result to Anthropic so the session stays alive.
-        try {
-          await anthropic.beta.sessions.events.send(options.sessionId, {
-            events: [
+        } catch (toolError) {
+          console.error(
+            `${logPrefix} tool dispatch failed for ${customToolCall.name} (${customToolCall.id.slice(-8)}):`,
+            toolError,
+          );
+          try {
+            await anthropic.beta.sessions.events.send(
+              options.sessionId,
               {
-                type: "user.custom_tool_result",
-                custom_tool_use_id: result.customToolCall.id,
-                content: [
+                events: [
                   {
-                    type: "text",
-                    text: JSON.stringify({
-                      success: false,
-                      error: toolError instanceof Error ? toolError.message : "Tool execution failed",
-                    }),
+                    type: "user.custom_tool_result",
+                    custom_tool_use_id: customToolCall.id,
+                    content: [
+                      {
+                        type: "text",
+                        text: JSON.stringify({
+                          success: false,
+                          error:
+                            toolError instanceof Error
+                              ? toolError.message
+                              : "Tool execution failed",
+                        }),
+                      },
+                    ],
+                    is_error: true,
                   },
                 ],
-                is_error: true,
-              },
-            ],
-          } as never, CHAT_ANTHROPIC_REQUEST_OPTIONS);
-          dispatchedCustomToolIds.add(result.customToolCall.id);
-        } catch (sendError) {
-          // Double failure — can't recover. Let the session runner crash.
-          console.error(`${logPrefix} failed to post error result for ${result.customToolCall.name}, session will deadlock:`, sendError);
-          throw sendError;
+              } as never,
+              CHAT_ANTHROPIC_REQUEST_OPTIONS,
+            );
+            dispatchedCustomToolIds.add(customToolCall.id);
+          } catch (sendError) {
+            console.error(
+              `${logPrefix} failed to post error result for ${customToolCall.name}, session will deadlock:`,
+              sendError,
+            );
+            throw sendError;
+          }
         }
-      }
+      })();
+
+      inFlightDispatches.push(dispatchPromise);
     }
 
     // Approval handling — chat mode persists; trigger mode auto-denies.
@@ -515,6 +551,14 @@ export async function consumeAnthropicSession(
         continue;
       }
 
+      // Drain any background dispatches so dispatchedCustomToolIds reflects
+      // the true post-dispatch state before we decide whether the
+      // requires_action is genuine or stale.
+      if (inFlightDispatches.length > 0) {
+        await Promise.allSettled(inFlightDispatches);
+        inFlightDispatches.length = 0;
+      }
+
       // Check if this requires_action is stale — i.e. all referenced
       // event_ids are custom tool calls that were already dispatched and
       // responded to above. If so, the session is already resuming and
@@ -533,6 +577,14 @@ export async function consumeAnthropicSession(
       terminalReason = "requires_action";
       break;
     }
+  }
+
+  // Drain any background dispatches that started just before the terminal
+  // event — finalization (cost retrieve, onTerminal callback) needs the
+  // post-dispatch state to be settled.
+  if (inFlightDispatches.length > 0) {
+    await Promise.allSettled(inFlightDispatches);
+    inFlightDispatches.length = 0;
   }
 
   const tLoopEnd = performance.now();

@@ -171,7 +171,7 @@ describe("consumeAnthropicSession — happy path", () => {
       expect.anything(),
       "sess_1",
       expect.objectContaining({ afterId: null }),
-      { preferLiveOnly: true },
+      expect.objectContaining({ preferLiveOnly: true }),
     );
   });
 
@@ -198,7 +198,7 @@ describe("consumeAnthropicSession — happy path", () => {
       expect.anything(),
       "sess_1",
       expect.objectContaining({ afterId: "evt_prev" }),
-      { preferLiveOnly: true },
+      expect.objectContaining({ preferLiveOnly: true }),
     );
   });
 
@@ -736,3 +736,133 @@ describe("consumeAnthropicSession — callback failure resilience (client discon
 // fires onPersistMessage. The chat adapter persists the full assistant
 // message via upsertMessage at terminal time, keyed by the terminal
 // event id for run-restart idempotency.
+
+describe("consumeAnthropicSession — parallel custom tool dispatch", () => {
+  it("does not block event consumption while a custom tool is dispatching", async () => {
+    const dispatchOrder: string[] = [];
+    const eventReadOrder: string[] = [];
+
+    let resolveSlowDispatch: (() => void) | null = null;
+    const slowDispatchStarted = new Promise<void>((resolveStarted) => {
+      (dispatchCustomTool as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+        async (call: { id: string }) => {
+          dispatchOrder.push(`start:${call.id}`);
+          if (call.id === "tool_slow") {
+            resolveStarted();
+            await new Promise<void>((res) => {
+              resolveSlowDispatch = res;
+            });
+          }
+          dispatchOrder.push(`end:${call.id}`);
+          return {
+            custom_tool_use_id: call.id,
+            content: [{ type: "text", text: '{"success":true}' }],
+          };
+        },
+      );
+    });
+
+    const events = [
+      modelRequestStartEvent("span_1"),
+      customToolUseEvent("tool_slow", "search_crm", { entity: "deals" }),
+      customToolUseEvent("tool_fast", "search_crm", { entity: "tasks" }),
+      modelRequestEndEvent("span_1_end", 100, 25),
+      statusIdleEvent("evt_idle", "end_turn"),
+    ];
+
+    (iterateSessionEventsAfter as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      function () {
+        return (async function* () {
+          for (const e of events) {
+            eventReadOrder.push((e as { id: string }).id);
+            yield e;
+          }
+        })();
+      },
+    );
+
+    const consumePromise = consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      kickoffContent: [{ type: "text", text: "go" }],
+    });
+
+    await slowDispatchStarted;
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(eventReadOrder).toContain("tool_fast");
+    expect(dispatchOrder).toContain("start:tool_slow");
+    expect(dispatchOrder).toContain("start:tool_fast");
+    expect(dispatchOrder).not.toContain("end:tool_slow");
+
+    resolveSlowDispatch?.();
+    await consumePromise;
+
+    // tool_fast can finish before tool_slow because slow is gated; we only
+    // care that both started before either finished and both eventually
+    // ended.
+    expect(dispatchOrder.slice(0, 2)).toEqual([
+      "start:tool_slow",
+      "start:tool_fast",
+    ]);
+    expect(dispatchOrder).toContain("end:tool_slow");
+    expect(dispatchOrder).toContain("end:tool_fast");
+    const sentToolResultIds = sendEvent.mock.calls
+      .map((call) => (call[1] as { events: Array<{ type: string; custom_tool_use_id?: string }> }).events[0])
+      .filter((evt) => evt.type === "user.custom_tool_result")
+      .map((evt) => evt.custom_tool_use_id);
+    expect(sentToolResultIds).toEqual(
+      expect.arrayContaining(["tool_slow", "tool_fast"]),
+    );
+  });
+
+  it("waits for all in-flight dispatches before returning from end_turn", async () => {
+    let dispatchResolved = false;
+    let resolveDispatch: (() => void) | null = null;
+
+    (dispatchCustomTool as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async (call: { id: string }) => {
+        await new Promise<void>((res) => {
+          resolveDispatch = () => {
+            dispatchResolved = true;
+            res();
+          };
+        });
+        return {
+          custom_tool_use_id: call.id,
+          content: [{ type: "text", text: '{"success":true}' }],
+        };
+      },
+    );
+
+    stubIteration([
+      modelRequestStartEvent("span_1"),
+      customToolUseEvent("tool_a", "search_crm", { entity: "deals" }),
+      modelRequestEndEvent("span_1_end", 100, 25),
+      statusIdleEvent("evt_idle", "end_turn"),
+    ]);
+
+    const consumePromise = consumeAnthropicSession({
+      anthropic: fakeAnthropic(),
+      sessionId: "sess_1",
+      runId: "run_1",
+      context: baseContext(),
+      kickoffContent: [{ type: "text", text: "go" }],
+    });
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(dispatchResolved).toBe(false);
+
+    resolveDispatch?.();
+    await consumePromise;
+    expect(dispatchResolved).toBe(true);
+
+    const sentToolResults = sendEvent.mock.calls.filter((call) => {
+      const evt = (call[1] as { events: Array<{ type: string }> }).events[0];
+      return evt.type === "user.custom_tool_result";
+    });
+    expect(sentToolResults).toHaveLength(1);
+  });
+});
