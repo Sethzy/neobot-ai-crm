@@ -49,17 +49,76 @@ describe("deleteRecordsTool", () => {
       makeContext(client),
     );
 
-    expect(result).toEqual({ success: true, deleted_count: 1, ids: ["c1"] });
+    expect(result).toEqual({
+      success: true,
+      deleted_count: 1,
+      ids: ["c1"],
+      already_gone_ids: [],
+    });
     expect(builderHistory.contacts[0]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     expect(builderHistory.contacts[1]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
     expect(builderHistory.record_notes[0]?.eq).toHaveBeenCalledWith("client_id", CLIENT_ID);
   });
 
-  it("does not claim success when the tenant cannot delete the requested record", async () => {
+  it("treats already-deleted records as idempotent success", async () => {
     const { client } = createMockSupabase({
       contacts: [
         { data: null, error: null },
         { data: null, error: null },
+      ],
+    });
+
+    const result = await deleteRecordsTool.execute(
+      { entity: "contacts", ids: ["c1"], reason: "Cleanup placeholder rows" },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: true,
+      deleted_count: 0,
+      ids: [],
+      already_gone_ids: ["c1"],
+    });
+  });
+
+  it("returns success when at least one record was deleted and others were already gone", async () => {
+    const liveContact = {
+      contact_id: "c2",
+      client_id: CLIENT_ID,
+      first_name: "Real",
+      last_name: "Person",
+    };
+    const { client } = createMockSupabase({
+      contacts: [
+        { data: null, error: null },
+        { data: null, error: null },
+        { data: liveContact, error: null },
+        { data: liveContact, error: null },
+      ],
+      record_notes: { data: null, error: null },
+    });
+
+    const result = await deleteRecordsTool.execute(
+      { entity: "contacts", ids: ["c1", "c2"], reason: "Cleanup mixed batch" },
+      makeContext(client),
+    );
+
+    expect(result).toEqual({
+      success: true,
+      deleted_count: 1,
+      ids: ["c2"],
+      already_gone_ids: ["c1"],
+    });
+  });
+
+  it("returns failure when Postgres rejects the delete", async () => {
+    const { client } = createMockSupabase({
+      contacts: [
+        { data: null, error: null },
+        {
+          data: null,
+          error: { message: "permission denied for table contacts" },
+        },
       ],
     });
 
@@ -73,7 +132,8 @@ describe("deleteRecordsTool", () => {
       error: "Failed to delete 1 record(s)",
       deleted_count: 0,
       failed_ids: ["c1"],
-      failures: [{ id: "c1", error: "Record not found." }],
+      failures: [{ id: "c1", error: "permission denied for table contacts" }],
+      already_gone_ids: [],
     });
   });
 });

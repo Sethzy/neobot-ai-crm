@@ -56,6 +56,7 @@ export const deleteRecordsTool: ManagedAgentTool<DeleteRecordsInput> = {
 
     const { table, pk } = ENTITY_ROUTING[entity];
     const deletedIds: string[] = [];
+    const alreadyGoneIds: string[] = [];
     const failedIds: string[] = [];
     const failures: Array<{ id: string; error: string }> = [];
 
@@ -96,8 +97,8 @@ export const deleteRecordsTool: ManagedAgentTool<DeleteRecordsInput> = {
       }
 
       if (!deletedRow) {
-        failedIds.push(id);
-        failures.push({ id, error: "Record not found." });
+        // Idempotent: already gone is the goal state.
+        alreadyGoneIds.push(id);
         continue;
       }
 
@@ -132,6 +133,7 @@ export const deleteRecordsTool: ManagedAgentTool<DeleteRecordsInput> = {
         deleted_count: deletedIds.length,
         failed_ids: failedIds,
         failures,
+        already_gone_ids: alreadyGoneIds,
       };
     }
 
@@ -139,6 +141,7 @@ export const deleteRecordsTool: ManagedAgentTool<DeleteRecordsInput> = {
       success: true as const,
       deleted_count: deletedIds.length,
       ids: deletedIds,
+      already_gone_ids: alreadyGoneIds,
     };
   },
 };
