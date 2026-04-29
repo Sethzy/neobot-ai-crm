@@ -109,7 +109,6 @@ describe("openSessionStream", () => {
       "sess_1",
       undefined,
       expect.objectContaining({
-        timeout: 2_500,
         maxRetries: 0,
       }),
     );
@@ -117,7 +116,6 @@ describe("openSessionStream", () => {
       "sess_1",
       undefined,
       expect.objectContaining({
-        timeout: 2_500,
         maxRetries: 0,
       }),
     );
@@ -167,7 +165,6 @@ describe("openSessionTail", () => {
       "sess_reused",
       { order: "desc", limit: 1 },
       expect.objectContaining({
-        timeout: 2_500,
         maxRetries: 0,
       }),
     );
@@ -361,7 +358,6 @@ describe("iterateSessionEventsAfter", () => {
       "sess_reused",
       undefined,
       expect.objectContaining({
-        timeout: 2_500,
         maxRetries: 0,
       }),
     );

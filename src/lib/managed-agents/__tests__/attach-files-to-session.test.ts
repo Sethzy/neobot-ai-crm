@@ -8,6 +8,7 @@ const { mountUploadedFilesToSession, uploadFilePartsToAnthropic } = vi.hoisted((
 vi.mock("../upload-files-for-session", () => ({
   uploadFilePartsToAnthropic,
   mountUploadedFilesToSession,
+  buildSessionAttachmentMounts: vi.fn(() => []),
 }));
 
 import { attachFilesToManagedSession } from "../adapter";

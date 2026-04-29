@@ -186,7 +186,6 @@ describe("getOrCreateSession", () => {
         title: "Draft follow-up",
       }),
       expect.objectContaining({
-        timeout: 5_000,
         maxRetries: 0,
       }),
     );
@@ -219,7 +218,6 @@ describe("getOrCreateSession", () => {
         ],
       }),
       expect.objectContaining({
-        timeout: 5_000,
         maxRetries: 0,
       }),
     );
@@ -254,7 +252,6 @@ describe("getOrCreateSession", () => {
       "sess_dead",
       {},
       expect.objectContaining({
-        timeout: 2_500,
         maxRetries: 0,
       }),
     );

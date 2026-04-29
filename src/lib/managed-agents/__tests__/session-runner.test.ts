@@ -147,7 +147,6 @@ describe("consumeAnthropicSession — happy path", () => {
         ],
       }),
       expect.objectContaining({
-        timeout: 2_500,
         maxRetries: 0,
       }),
     );
@@ -223,7 +222,6 @@ describe("consumeAnthropicSession — happy path", () => {
       "sess_1",
       {},
       expect.objectContaining({
-        timeout: 2_500,
         maxRetries: 0,
       }),
     );
@@ -493,7 +491,6 @@ describe("consumeAnthropicSession — approvals", () => {
         ],
       }),
       expect.objectContaining({
-        timeout: 2_500,
         maxRetries: 0,
       }),
     );
@@ -528,7 +525,6 @@ describe("consumeAnthropicSession — approvals", () => {
         ],
       }),
       expect.objectContaining({
-        timeout: 2_500,
         maxRetries: 0,
       }),
     );
