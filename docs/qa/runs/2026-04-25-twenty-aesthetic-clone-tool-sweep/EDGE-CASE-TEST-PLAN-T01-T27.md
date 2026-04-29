@@ -50,8 +50,12 @@ This file preserves the edge prompts and result notes from the T01-T27 stress sw
 | EC31 | T26 | pass | Tampines Executive flats, filtered correctly |
 | EC32 | T27 | pass-with-note | Verified 2026-04-27 on Haiku v13. Empty result handled cleanly; agent answered conversationally without calling the tool for an obviously absurd date. Tool call still expected by spec — see Fix verification below. |
 | EC33 | T27 | pass | Verified 2026-04-27 on Haiku v13. Agent called search_meeting_recordings with `query: "QA edge unlikely keyword V13 20260427"` and date range scoped to current month; empty result clean. |
+| EC34 | T03,T04,T06 | unverified | Added 2026-04-30 for Run 3. Multi-turn correction on same deal — first run is in Run 3. |
+| EC35 | T03,T06 | unverified | Added 2026-04-30 for Run 3. Chain with mid-flight partial failure — first run is in Run 3. |
 
 **Pass:** 29 / 34 ECs. **Fail:** 0. **Pass with note/caveat:** 5.
+
+(EC34 and EC35 added 2026-04-30 and counted separately — they are new this pass.)
 
 ## Fix verification — 2026-04-27 (Haiku v13)
 
@@ -688,6 +692,87 @@ Expected:
 
 - Query scopes to current month and keyword.
 - Empty result is clear if none match.
+
+## Agent-As-Orchestrator (Multi-Turn And Chain)
+
+The ECs above each exercise one tool in isolation. Real practitioners hold conversations
+and ask the agent to chain work across tools. The next two ECs cover the most common ways
+that orchestration goes wrong: losing the bound record across turns, and partial failures
+mid-chain.
+
+### EC34: Multi-turn correction on the same record
+
+Maps: T03, T04, T06 — but the *behaviour* under test is whether the agent keeps the same
+record bound across three follow-up turns instead of creating duplicates.
+
+Run as **three separate prompts in the same thread**, waiting for each turn to complete
+before sending the next.
+
+Turn 1 prompt:
+
+```text
+Create a deal for QA Co Regress worth $50k in the Lead stage.
+```
+
+Turn 2 prompt (after Turn 1's tool card returns success):
+
+```text
+Actually make it $80k and move it to Qualified.
+```
+
+Turn 3 prompt (after Turn 2's tool card returns success):
+
+```text
+And mark QA Bot Regress as the contact on that deal.
+```
+
+Expected across the three turns:
+
+- Turn 1: exactly one `create_record` for the deal. No duplicate-detection false positive.
+- Turn 2: exactly one `update_record` against the **same** deal_id from Turn 1. No new
+  `create_record`. No re-search of the deal — the agent should remember the id.
+- Turn 3: exactly one `link_records` (or equivalent) attaching QA Bot Regress to the same
+  deal_id. No `create_record`. No duplicate links.
+- After all three turns: a single deal exists at $80k in Qualified with QA Bot Regress
+  linked. Verify by asking the agent to read it back, OR by checking `/crm/deals` if the
+  page test harness allows.
+- Composer re-enables between every turn.
+
+Pass-with-note allowed if the agent does one redundant `search_crm` to re-locate the deal
+in Turn 2 or Turn 3 — note the redundancy but don't fail. Hard fail if a duplicate deal,
+duplicate link, or wrong-record patch occurs.
+
+### EC35: Chain with mid-flight partial failure
+
+Maps: T03, T06 — behaviour under test is graceful partial-failure narration when one
+step in a chain fails.
+
+Single prompt:
+
+```text
+Create three contacts in this order, then link each successful one to the company QA Co
+Regress: (1) Alice EC35 with email alice-ec35@test.example, (2) Bob EC35 with email
+bob-ec35@test.example, (3) blank — first_name="" last_name="" email="". Link each contact
+that succeeds. Tell me at the end which succeeded and which failed.
+```
+
+Expected:
+
+- `create_record` × 3 attempted. Calls #1 and #2 return success. Call #3 returns a clean
+  validation error (empty name + empty email is unsupported per existing schema).
+- `link_records` × 2 follow, only for Alice and Bob. The agent does NOT attempt to link
+  the third (failed) record.
+- Final assistant message names exactly which two succeeded and which one failed, with
+  the validation reason for the failure.
+- No half-mutated state: `/crm/people` (or a follow-up `search_crm`) shows Alice and Bob
+  exist; no orphan link rows; no third contact created.
+- Composer re-enables.
+
+Pass-with-note allowed if the agent narrates the failure but lists Alice/Bob/Blank in a
+slightly different order than asked — the substantive requirement is that the agent
+distinguishes succeeded from failed without claiming full success. Hard fail if the agent
+either (a) silently swallows the third failure and reports "all three created," or (b)
+aborts the entire chain on the third's failure without linking the first two.
 
 ## Visual And Runner Checks To Apply To Every Cluster
 
