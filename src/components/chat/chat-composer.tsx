@@ -5,7 +5,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -135,7 +134,6 @@ export function ChatComposer({
   hideModelSelector = false,
   allowAttachments = true,
 }: ChatComposerProps) {
-  const router = useRouter();
   const supabase = createSupabaseClient();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadQueue, setUploadQueue] = useState<string[]>([]);
@@ -533,15 +531,8 @@ export function ChatComposer({
             <PromptInputTools className="text-foreground">
               <ModelSelector
                 disabled={isGenerating || disabled}
-                onValueChange={(modelId) => {
-                  if (hideModelSelector) {
-                    toast("Start a new chat to switch models.", {
-                      action: { label: "New Chat", onClick: () => router.push("/chat") },
-                    });
-                    return;
-                  }
-                  onSelectedChatModelChange(modelId);
-                }}
+                locked={hideModelSelector}
+                onValueChange={onSelectedChatModelChange}
                 value={selectedChatModel}
               />
             </PromptInputTools>

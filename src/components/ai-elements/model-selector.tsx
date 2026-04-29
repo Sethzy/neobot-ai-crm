@@ -5,7 +5,7 @@
 
 import { useMemo, useState } from "react";
 
-import { Check, ChevronDown } from "@/components/icons/lucide-compat";
+import { Check, ChevronDown, Lock } from "@/components/icons/lucide-compat";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -19,12 +19,19 @@ interface ModelSelectorProps {
   value: string;
   onValueChange: (modelId: string) => void;
   disabled?: boolean;
+  /**
+   * When true, the picker renders as a non-interactive pill showing the
+   * locked model. Used on existing-thread pages where `chat_model` is
+   * pinned to the row at thread create time and can't be swapped.
+   */
+  locked?: boolean;
 }
 
 export function ModelSelector({
   value,
   onValueChange,
   disabled = false,
+  locked = false,
 }: ModelSelectorProps) {
   const [open, setOpen] = useState(false);
   const selectedModel = useMemo(
@@ -45,6 +52,29 @@ export function ModelSelector({
         <span className="truncate text-foreground">{selectedModel.name}</span>
         <span className="text-xs">{"$".repeat(selectedModel.cost)}</span>
       </span>
+    );
+  }
+
+  // Locked: render the same Button shape as the popover trigger so the
+  // composer layout doesn't shift, but disable interaction and swap the
+  // chevron for a lock icon. Tooltip-equivalent hint via `title`.
+  if (locked) {
+    return (
+      <Button
+        aria-label={`${selectedModel.name} (locked to this thread)`}
+        className="max-w-full justify-between gap-2"
+        disabled
+        size="sm"
+        title="Locked to this thread. Start a new chat to switch models."
+        type="button"
+        variant="ghost"
+      >
+        <span className="flex items-center gap-1.5 truncate">
+          {selectedModel.tier}
+          <span className="text-xs text-muted-foreground">{"$".repeat(selectedModel.cost)}</span>
+        </span>
+        <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+      </Button>
     );
   }
 
