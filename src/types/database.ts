@@ -716,6 +716,7 @@ export type Database = {
       }
       conversation_threads: {
         Row: {
+          chat_model: string
           client_id: string
           compaction_compacted_through_at: string | null
           compaction_compacted_through_message_id: string | null
@@ -737,6 +738,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          chat_model?: string
           client_id: string
           compaction_compacted_through_at?: string | null
           compaction_compacted_through_message_id?: string | null
@@ -758,6 +760,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          chat_model?: string
           client_id?: string
           compaction_compacted_through_at?: string | null
           compaction_compacted_through_message_id?: string | null

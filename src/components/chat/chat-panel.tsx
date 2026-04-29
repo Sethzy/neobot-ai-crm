@@ -447,7 +447,7 @@ export function ChatPanel({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- isLoadingRef (stable ref) replaces isLoading to avoid stale closure race
-    [chatId, queryClient, refreshQuota, sendMessage],
+    [chatId, queryClient, refreshQuota, sendMessage, selectedChatModel],
   );
 
   const handleQuestionSubmit = useCallback(

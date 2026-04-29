@@ -23,7 +23,6 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const NEW_THREAD_TITLE = "New Chat";
-const CHAT_SUPABASE_HOT_PATH_TIMEOUT_MS = 800;
 
 const requestSchema = z.object({
   id: z.string().min(1),
@@ -196,11 +195,10 @@ export async function POST(request: Request): Promise<Response> {
 
   const threadResult = await requestResult.supabase
     .from("conversation_threads")
-    .select("thread_id, title, session_id")
+    .select("thread_id, title, session_id, chat_model")
     .eq("thread_id", requestResult.body.id)
     .eq("client_id", clientId)
     .eq("is_archived", false)
-    .abortSignal(AbortSignal.timeout(CHAT_SUPABASE_HOT_PATH_TIMEOUT_MS))
     .maybeSingle();
 
   if (threadResult.error) {
@@ -208,6 +206,10 @@ export async function POST(request: Request): Promise<Response> {
   }
   const existingThread = threadResult.data;
   const existingSessionId = existingThread?.session_id ?? null;
+  // Lock the model to the thread once created. The picker only chooses
+  // the model for new threads; existing threads always use the value
+  // stamped on the row at creation time.
+  const threadChatModel = existingThread?.chat_model ?? selectedChatModel;
   let clientProfile: string | null = null;
   let userPreferences: string | null = null;
 
@@ -216,7 +218,6 @@ export async function POST(request: Request): Promise<Response> {
       .from("clients")
       .select("client_profile, user_preferences")
       .eq("client_id", clientId)
-      .abortSignal(AbortSignal.timeout(CHAT_SUPABASE_HOT_PATH_TIMEOUT_MS))
       .single();
 
     if (clientContextResult.error) {
@@ -237,6 +238,7 @@ export async function POST(request: Request): Promise<Response> {
         thread_id: requestResult.body.id,
         client_id: clientId,
         title: NEW_THREAD_TITLE,
+        chat_model: selectedChatModel,
       });
     if (insertError) {
       return jsonError("Failed to create thread.", 500);
@@ -271,7 +273,7 @@ export async function POST(request: Request): Promise<Response> {
     threadTitle,
     existingSessionId,
     generatedTitlePromise: titlePromise,
-    selectedChatModel,
+    selectedChatModel: threadChatModel,
   });
   const tPostAdapter = performance.now();
 

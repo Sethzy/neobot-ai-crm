@@ -3,13 +3,12 @@
  * Resolves thread ownership, loads persisted messages, and seeds the client chat state.
  * @module app/(dashboard)/chat/[threadId]/page
  */
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { TelegramCtaBanner } from "@/components/agent/telegram-cta-banner";
 import { DataStreamHandler } from "@/components/chat/data-stream-handler";
-import { CHAT_MODEL_COOKIE_NAME, resolveModelId } from "@/lib/ai/models";
+import { resolveModelId } from "@/lib/ai/models";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { mapDbMessageToUiMessage } from "@/lib/chat/message-normalization";
 import { listMessages } from "@/lib/chat/messages";
@@ -37,7 +36,7 @@ export default async function ChatThreadPage({ params }: ChatThreadPageProps) {
 
   const { data: thread, error: threadLookupError } = await supabase
     .from("conversation_threads")
-    .select("thread_id, is_primary")
+    .select("thread_id, is_primary, chat_model")
     .eq("thread_id", threadId)
     .eq("client_id", clientId)
     .eq("is_archived", false)
@@ -55,18 +54,16 @@ export default async function ChatThreadPage({ params }: ChatThreadPageProps) {
   const [
     persistedMessages,
     initialQuota,
-    cookieStore,
     authResult,
   ] = await Promise.all([
     listMessages(supabase, threadId),
     loadCurrentMessageQuota(),
-    cookies(),
     thread.is_primary ? supabase.auth.getUser() : Promise.resolve({ data: { user: null } }),
   ]);
   const initialMessages = persistedMessages.map(mapDbMessageToUiMessage);
-  const initialChatModel = resolveModelId(
-    cookieStore.get(CHAT_MODEL_COOKIE_NAME)?.value,
-  );
+  // The thread row is the source of truth — once a thread exists, its
+  // model is locked. The cookie only seeds new threads.
+  const initialChatModel = resolveModelId(thread.chat_model);
   const telegramConnection = thread.is_primary && authResult.data.user
     ? await supabase
       .from("messaging_channel_connections")
