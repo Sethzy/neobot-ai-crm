@@ -102,7 +102,14 @@ export async function getRedisClient(): Promise<RedisClient | null> {
           totalMs: Math.round(performance.now() - tEntry),
         });
       }
-      redisClient?.destroy();
+      // The client may already be closed by the time we reach here, in
+      // which case destroy() throws "The client is closed" and the
+      // route returns 500. Swallow — we're already returning null.
+      try {
+        redisClient?.destroy();
+      } catch {
+        // ignore — we just want the client gone
+      }
       redisClient = null;
       return null;
     }
