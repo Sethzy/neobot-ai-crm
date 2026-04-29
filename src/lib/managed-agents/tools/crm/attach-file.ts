@@ -57,6 +57,16 @@ function normalizeAttachmentMimeType(mimeType: string): string {
   return mimeType.split(";")[0]?.trim().toLowerCase() || "application/octet-stream";
 }
 
+// Storage may return `text/plain` for an `.exe` whose contents happen
+// to be ASCII, which slips past the MIME allowlist. Reject by extension.
+const BLOCKED_ATTACHMENT_EXTENSIONS = new Set<string>(["exe"]);
+
+function getFileExtension(filename: string): string | null {
+  const lastDot = filename.lastIndexOf(".");
+  if (lastDot < 0 || lastDot === filename.length - 1) return null;
+  return filename.slice(lastDot + 1).toLowerCase();
+}
+
 const inputSchema = z.object({
   source_path: z.string().min(1).describe("Path to an existing workspace file, usually like '/agent/home/report.pdf'."),
   record_type: recordTypeSchema.describe("CRM record type."),
@@ -98,6 +108,18 @@ export const attachFileToRecordTool: ManagedAgentTool<AttachFileInput> = {
 
     const sourceStoragePath = `${context.clientId}/${workspacePath}`;
     const displayFilename = filename ?? workspacePath.split("/").pop() ?? "file";
+
+    const blockedExt = getFileExtension(displayFilename);
+    if (blockedExt && BLOCKED_ATTACHMENT_EXTENSIONS.has(blockedExt)) {
+      return {
+        success: false as const,
+        error:
+          `Attachment "${displayFilename}" has a blocked extension (.${blockedExt}). ` +
+          `Executable file types are rejected regardless of content. ` +
+          `Allowed MIME types: ${SUPPORTED_ATTACHMENT_MIME_TYPES_DESCRIPTION}.`,
+      };
+    }
+
     const ownershipCheck = await findOwnedRecord(
       context,
       RECORD_TABLE_MAP[record_type],

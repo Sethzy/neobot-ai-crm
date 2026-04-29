@@ -24,7 +24,8 @@ export const runSqlTool: ManagedAgentTool<RunSqlInput> = {
     "Escape hatch for queries search_crm cannot express: multi-table JOINs, " +
     "aggregations (COUNT, SUM, AVG), GROUP BY, subqueries, date arithmetic. " +
     "Always try search_crm first. Read-only SELECT/CTE only. " +
-    "Use get_agent_db_schema to inspect available tables and columns.",
+    "Use get_agent_db_schema to inspect available tables and columns. " +
+    "Read-only and tenant-scoped via Postgres RLS — no need to add `WHERE client_id = ...`.",
   inputSchema,
   chatOnly: true,
   execute: async ({ query }, context) => {

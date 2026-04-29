@@ -20,7 +20,18 @@ const inputSchema = (interactionTypes: readonly string[]) =>
     type: z.string().trim().min(1).describe(
       `Interaction type (${interactionTypes.join(", ")} or configured CRM values).`,
     ),
-    summary: z.string().optional().describe("Interaction summary."),
+    summary: z.string().optional().describe(
+      "Free-text summary of what happened — e.g. 'Discussed Q2 pricing, sent proposal'. Use this whenever the user provides any narrative context for the interaction.",
+    ),
+    duration_minutes: z
+      .number()
+      .int()
+      .min(0)
+      .max(60 * 24)
+      .optional()
+      .describe(
+        "Duration in whole minutes (0-1440). Use for calls and meetings when known. Reject negative durations at the call site.",
+      ),
     occurred_at: flexibleTimestampSchema
       .optional()
       .describe("ISO-8601 timestamp or YYYY-MM-DD date when the interaction occurred."),
@@ -31,16 +42,24 @@ type CreateInteractionInput = {
   deal_id?: string;
   type: string;
   summary?: string;
+  duration_minutes?: number;
   occurred_at?: string;
 };
 
 export const createInteractionTool: ManagedAgentTool<CreateInteractionInput> = {
   name: "create_interaction",
   description:
-    `Record a CRM interaction. Valid interaction types: ${CRM_DEFAULTS.interaction_types.join(", ")}. ` +
-    "Data Modification Warning: Only record interactions when the user has explicitly asked to do so.",
+    `Record a CRM interaction (call, meeting, email, etc.). ` +
+    `Valid interaction types: ${CRM_DEFAULTS.interaction_types.join(", ")}. ` +
+    `Accepts: contact_id (required), type (required), summary, duration_minutes, occurred_at, deal_id. ` +
+    `Always pass summary when the user gives narrative context. ` +
+    `Pass duration_minutes for calls/meetings when known (validated to 0-1440). ` +
+    `Data Modification Warning: Only record interactions when the user has explicitly asked to do so.`,
   inputSchema: inputSchema(CRM_DEFAULTS.interaction_types),
-  execute: async ({ contact_id, deal_id, type, summary, occurred_at }, context) => {
+  execute: async (
+    { contact_id, deal_id, type, summary, duration_minutes, occurred_at },
+    context,
+  ) => {
     const interactionTypes = context.crmConfig?.interaction_types ?? CRM_DEFAULTS.interaction_types;
     const resolvedType = matchVocabularyValue(type, interactionTypes);
 
@@ -61,6 +80,7 @@ export const createInteractionTool: ManagedAgentTool<CreateInteractionInput> = {
         deal_id,
         type: resolvedType,
         summary: summary ?? null,
+        duration_minutes: duration_minutes ?? null,
         occurred_at: normalizedOccurredAt ?? new Date().toISOString(),
       })
       .select()

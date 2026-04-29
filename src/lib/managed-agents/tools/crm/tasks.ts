@@ -67,6 +67,11 @@ export const createTaskTool: ManagedAgentTool<CreateTaskInput> = {
   name: "create_task",
   description:
     "Create a new CRM follow-up task. " +
+    "Accepts: title (required), description, status (todo/in_progress/done; defaults to todo), " +
+    "due_date (ISO-8601 timestamp WITH timezone offset, or YYYY-MM-DD), " +
+    "contact_id (UUID, use search_crm to find), deal_id (UUID), custom_fields. " +
+    "Always pass due_date when the user mentions a date or time — include the user's stated timezone in the ISO offset (e.g. '2026-04-28T15:00:00+08:00' for 3pm Singapore time). " +
+    "Always pass contact_id or deal_id when the task is for a specific person/deal. " +
     "Data Modification Warning: Only create tasks when the user has explicitly asked to do so.",
   inputSchema: createTaskInputSchema,
   execute: async ({ title, description, status, due_date, contact_id, deal_id, custom_fields }, context) => {

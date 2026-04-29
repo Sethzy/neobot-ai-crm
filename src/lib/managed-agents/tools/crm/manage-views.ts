@@ -93,11 +93,13 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           };
         }
 
+        const customKeys = getCustomFilterKeysForEntity(input.entity_type, config);
+
         const validationError = validateViewFilters(
           input.entity_type,
           input.state.filters ?? {},
           input.state.sort ?? null,
-          { customFieldKeys: getCustomFilterKeysForEntity(input.entity_type, config) },
+          { customFieldKeys: customKeys },
         );
         if (validationError) {
           return { success: false as const, error: validationError };
@@ -106,6 +108,7 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
         const state = normalizeCrmViewState({
           entityType: input.entity_type,
           state: input.state,
+          customFieldKeys: customKeys,
         });
 
         const { data, error } = await context.supabase
@@ -129,7 +132,10 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           properties: { entity_type: input.entity_type, source: "agent" },
         });
 
-        return { success: true as const, view: normalizeCrmView(data) };
+        return {
+          success: true as const,
+          view: normalizeCrmView(data, { customFieldKeys: customKeys }),
+        };
       }
 
       case "list": {
@@ -150,7 +156,11 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           return { success: false as const, error: error.message };
         }
 
-        const views = (data ?? []).map((view) => normalizeCrmView(view));
+        const views = (data ?? []).map((view) =>
+          normalizeCrmView(view, {
+            customFieldKeys: getCustomFilterKeysForEntity(view.entity_type, config),
+          }),
+        );
         return { success: true as const, views, count: views.length };
       }
 
@@ -180,9 +190,12 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
             return { success: false as const, error: "View not found." };
           }
 
+          const customKeys = getCustomFilterKeysForEntity(existing.entity_type, config);
+
           const existingState = normalizeCrmViewState({
             entityType: existing.entity_type,
             state: existing.state,
+            customFieldKeys: customKeys,
           });
 
           const mergedState = { ...existingState, ...input.state };
@@ -191,7 +204,7 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
             existing.entity_type,
             mergedState.filters ?? {},
             mergedState.sort ?? null,
-            { customFieldKeys: getCustomFilterKeysForEntity(existing.entity_type, config) },
+            { customFieldKeys: customKeys },
           );
           if (validationError) {
             return { success: false as const, error: validationError };
@@ -200,6 +213,7 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           updates.state = normalizeCrmViewState({
             entityType: existing.entity_type,
             state: mergedState,
+            customFieldKeys: customKeys,
           });
         }
 
@@ -219,7 +233,12 @@ export const manageViewsTool: ManagedAgentTool<ManageViewsInput> = {
           return { success: false as const, error: error.message };
         }
 
-        return { success: true as const, view: normalizeCrmView(data) };
+        return {
+          success: true as const,
+          view: normalizeCrmView(data, {
+            customFieldKeys: getCustomFilterKeysForEntity(data.entity_type, config),
+          }),
+        };
       }
 
       case "delete": {

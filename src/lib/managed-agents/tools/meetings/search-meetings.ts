@@ -117,7 +117,15 @@ type SearchMeetingsInput = z.infer<typeof inputSchema>;
 export const searchMeetingsTool: ManagedAgentTool<SearchMeetingsInput> = {
   name: "search_meeting_recordings",
   description:
-    "Search past meeting recordings and their transcripts by keyword, date range, or linked CRM record. Returns title, summary, duration, and creation date. This searches recorded meetings, not calendar events.",
+    "Search past meeting recordings and their transcripts. " +
+    "Pass a keyword as `query` to filter title/summary/notes AND scan transcript text server-side — " +
+    "do NOT pull recent meetings and filter client-side. " +
+    "Pass `dateFrom`/`dateTo` (ISO date strings) to bound by creation date. " +
+    "Pass `linkedContactId` or `linkedDealId` (UUID) to filter by CRM linkage. " +
+    "Always call this tool when the user asks about their meetings — even for empty/absurd date ranges, " +
+    "so the user gets a real database-backed answer instead of a guess. " +
+    "Returns title, summary, duration, and creation date. " +
+    "This searches recorded meetings, not calendar events.",
   inputSchema,
   execute: async ({ query, dateFrom, dateTo, linkedContactId, linkedDealId, limit }, context) => {
     const normalizedQuery = query ? normalizeSearchValue(query) : "";

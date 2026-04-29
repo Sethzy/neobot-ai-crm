@@ -206,11 +206,13 @@ describe("attachFileToRecordTool", () => {
 
     expect(result).toEqual({
       success: false,
-      error: expect.stringContaining("Unsupported attachment MIME type"),
+      error: expect.stringContaining("blocked extension (.exe)"),
     });
-    expect(result.error).toContain("application/json");
+    expect(result.error).toContain("Allowed MIME types");
     expect(upload).not.toHaveBeenCalled();
     expect(sourceBlob.arrayBuffer).not.toHaveBeenCalled();
+    // Extension check fires before download too — saves a round trip.
+    expect(download).not.toHaveBeenCalled();
   });
 
   it("rejects attachments for records the tenant does not own", async () => {

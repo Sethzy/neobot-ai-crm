@@ -11,6 +11,67 @@ import type { ManagedAgentTool } from "../types";
 
 const GOOGLE_ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
 const GOOGLE_ROUTES_FIELD_MASK = "routes.duration,routes.distanceMeters,routes.localizedValues";
+const GOOGLE_GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
+
+interface GeocodeCheck {
+  ok: boolean;
+  formattedAddress?: string;
+  partialMatch?: boolean;
+  status?: string;
+  error?: string;
+}
+
+/**
+ * Pre-check an address with the Geocoding API to catch the "fake place
+ * fuzzy-matched to a real one" case (EC28). If the response is `OK` with
+ * `partial_match: true`, the address didn't fully resolve — treat as a
+ * miss instead of feeding it to the Routes API and getting back a
+ * confident-looking but fabricated duration.
+ */
+async function geocodeCheck(
+  address: string,
+  apiKey: string,
+): Promise<GeocodeCheck> {
+  try {
+    const url = new URL(GOOGLE_GEOCODE_URL);
+    url.searchParams.set("address", address);
+    url.searchParams.set("key", apiKey);
+    const response = await fetchWithTimeout(url.toString(), { method: "GET" });
+    if (!response.ok) {
+      return { ok: false, error: `Geocoding API ${response.status}` };
+    }
+    const data = (await response.json()) as {
+      status?: string;
+      results?: Array<{
+        formatted_address?: string;
+        partial_match?: boolean;
+      }>;
+    };
+    const status = data.status ?? "UNKNOWN";
+    if (status === "ZERO_RESULTS") {
+      return { ok: false, status, error: "Address not found" };
+    }
+    if (status !== "OK") {
+      return { ok: false, status, error: `Geocoding status: ${status}` };
+    }
+    const top = data.results?.[0];
+    return {
+      ok: true,
+      status,
+      formattedAddress: top?.formatted_address,
+      partialMatch: top?.partial_match === true,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: isAbortError(error)
+        ? "Geocoding request timed out"
+        : error instanceof Error
+          ? error.message
+          : "Unknown geocoding error",
+    };
+  }
+}
 
 function doesNotContainWaypointSeparators(value: string): boolean {
   return !value.includes("|");
@@ -57,12 +118,48 @@ type DriveTimeInput = z.infer<typeof inputSchema>;
 
 export const calculateDriveTimeTool: ManagedAgentTool<DriveTimeInput> = {
   name: "calculate_drive_time",
-  description: "Calculate traffic-aware driving time between two addresses using Google Maps Routes API.",
+  description:
+    "Calculate traffic-aware driving time between two addresses using Google Maps Routes API. " +
+    "Both origin and destination are pre-validated through the Geocoding API: addresses that don't " +
+    "resolve, or that resolve only via partial-match fuzzy logic, are rejected up front. " +
+    "When a result is returned, the response includes the resolved formatted addresses for both endpoints — " +
+    "always show those to the user so they can confirm the right places were used.",
   inputSchema,
   execute: async ({ origin, destination, departure_time }) => {
     const apiKey = process.env.GOOGLE_MAPS_API_KEY;
     if (!apiKey) {
       return { success: false as const, error: "GOOGLE_MAPS_API_KEY is not configured." };
+    }
+
+    // EC28: pre-validate inputs so fake places don't get fuzzy-matched
+    // by the Routes API into confident-looking distances.
+    const [originGeo, destGeo] = await Promise.all([
+      geocodeCheck(origin, apiKey),
+      geocodeCheck(destination, apiKey),
+    ]);
+    if (!originGeo.ok) {
+      return {
+        success: false as const,
+        error: `Could not resolve origin "${origin}": ${originGeo.error ?? originGeo.status ?? "unknown"}`,
+      };
+    }
+    if (!destGeo.ok) {
+      return {
+        success: false as const,
+        error: `Could not resolve destination "${destination}": ${destGeo.error ?? destGeo.status ?? "unknown"}`,
+      };
+    }
+    if (originGeo.partialMatch) {
+      return {
+        success: false as const,
+        error: `Origin "${origin}" only matched partially (resolved as "${originGeo.formattedAddress ?? "unknown"}"). Refine the address or pass coordinates.`,
+      };
+    }
+    if (destGeo.partialMatch) {
+      return {
+        success: false as const,
+        error: `Destination "${destination}" only matched partially (resolved as "${destGeo.formattedAddress ?? "unknown"}"). Refine the address or pass coordinates.`,
+      };
     }
 
     try {
@@ -115,6 +212,8 @@ export const calculateDriveTimeTool: ManagedAgentTool<DriveTimeInput> = {
         success: true as const,
         origin,
         destination,
+        resolved_origin: originGeo.formattedAddress,
+        resolved_destination: destGeo.formattedAddress,
         duration_minutes: durationMinutes,
         duration_display: route.localizedValues?.duration?.text ?? formatDurationDisplay(durationMinutes),
         distance_km: distanceKm,
