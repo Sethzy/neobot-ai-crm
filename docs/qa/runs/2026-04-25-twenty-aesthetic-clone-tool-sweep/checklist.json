@@ -2,14 +2,7 @@
   "title": "Tool-by-tool UI smoke test for feat/twenty-aesthetic-clone",
   "branch": "feat/twenty-aesthetic-clone",
   "created_at": "2026-04-25",
-  "summary": "27/43 tools green (T01–T27, all pass after fixes c0e204f3 + 9fbdffbb plus T12 declaration fix on Haiku v11), 0/7 pages green (PG01–PG07 untested). Remaining tool tests T28–T43 untested. Edge run found one unresolved storage_write hang; see RETEST-REPORT.md.",
-  "commits_under_test": [
-    "d8699759 chore(cleanup): adopt logger in xai-stt, remove pulse filter from trigger query, add missing tests",
-    "20ed23af chore(docs): add planning docs, task lists, and reference analyses",
-    "5a39dd50 chore(config): update deps, eslint, next.config, and agent skills",
-    "a1cb0f59 feat(branding): add site branding module",
-    "fc05650b feat(settings): update settings pages and hooks for new navigation structure"
-  ],
+  "summary": "27/43 tools green in this checklist (T01-T27 pass); T28-T43 remain untested. 0/7 page checks green (PG01-PG07 untested). T01-T27 edge stress sweep EC00-EC33 finished at 29/34 pass, 5 pass-with-note, 0 fail on Haiku v13; the earlier storage_write / Stop hang is marked resolved in RETEST-REPORT.md.",
   "global_rules": {
     "model": "anthropic/claude-haiku-4-5",
     "model_label_in_ui": "Basic — Haiku 4.5",

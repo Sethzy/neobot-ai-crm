@@ -55,3 +55,6 @@ artifacts/
 
 # Scratch screenshots at repo root
 /*.png
+
+# QA-run screenshot scratch directory
+/screenshots/
