@@ -9,7 +9,6 @@ import { useEffect, useState } from "react";
 import { AppSidebar } from "./app-sidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
 import { Logo } from "@/components/landing/Logo";
 
 const CommandMenu = dynamic(
@@ -66,9 +65,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         <AppSidebar onOpenCommandMenu={openCommandMenu} />
         <SidebarInset className="min-h-0 bg-app-canvas">
           {/* Mobile header — visible only below md breakpoint */}
-          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-app-border-subtle bg-background px-2 md:hidden">
+          <header className="flex h-12 shrink-0 items-center gap-3 border-b border-app-border-subtle bg-background px-3 md:hidden">
             <SidebarTrigger />
-            <Separator orientation="vertical" className="h-4" />
             <Logo />
           </header>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-app-canvas">

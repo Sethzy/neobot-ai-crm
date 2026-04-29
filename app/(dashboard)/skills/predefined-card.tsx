@@ -28,7 +28,7 @@ export function PredefinedCard({ isInstalled, skill, onSelect, onHover }: Predef
   const category = getSkillCategory(skill.slug);
 
   return (
-    <div className="group flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-2.5 transition-colors hover:bg-accent/40" onMouseEnter={onHover}>
+    <div className="group flex min-w-0 items-start gap-3 rounded-lg border border-border bg-card px-4 py-2.5 transition-colors hover:bg-accent/40" onMouseEnter={onHover}>
       <SkillIcon className="mt-0.5" slug={skill.slug} />
 
       {/* Name + badges + description — clicking opens the detail dialog */}
@@ -37,7 +37,7 @@ export function PredefinedCard({ isInstalled, skill, onSelect, onHover }: Predef
         onClick={onSelect}
         type="button"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <span className="type-row-title truncate text-foreground group-hover:underline">
             {skill.name}
           </span>

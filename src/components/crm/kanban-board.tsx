@@ -389,25 +389,26 @@ function MobileKanbanBoardContent<T>({
             const itemLabel = String((item as { title?: unknown }).title ?? itemId ?? index);
 
             return (
-              <div key={itemId ?? index} className="space-y-2">
-                <KanbanCardShell
-                  className={onCardClick && itemId ? "cursor-pointer" : ""}
-                  onClick={() => {
-                    if (onCardClick && itemId) onCardClick(itemId);
-                  }}
-                >
-                  {renderCard(item)}
-                </KanbanCardShell>
+              <KanbanCardShell
+                key={itemId ?? index}
+                className={onCardClick && itemId ? "cursor-pointer" : ""}
+                onClick={() => {
+                  if (onCardClick && itemId) onCardClick(itemId);
+                }}
+              >
+                {renderCard(item)}
                 {canMove && itemId ? (
-                  <label className="grid gap-1.5">
-                    <span className="sr-only">
-                      Move {itemLabel} to {mobileColumnChangeLabel}
+                  <label className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+                    <span className="type-control text-muted-foreground">
+                      Move to
                     </span>
                     <select
                       aria-label={`Move ${itemLabel} to ${mobileColumnChangeLabel}`}
-                      className="h-11 rounded-md border border-input bg-background px-3 text-control"
+                      className="h-9 flex-1 rounded-md border border-input bg-background px-2 text-control"
                       value={currentColumn}
+                      onClick={(event) => event.stopPropagation()}
                       onChange={(event) => {
+                        event.stopPropagation();
                         void onColumnChange(itemId, currentColumn, event.target.value);
                       }}
                     >
@@ -419,7 +420,7 @@ function MobileKanbanBoardContent<T>({
                     </select>
                   </label>
                 ) : null}
-              </div>
+              </KanbanCardShell>
             );
           })
         )}

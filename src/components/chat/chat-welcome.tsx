@@ -71,7 +71,7 @@ export function ChatWelcome({
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center overflow-y-auto px-4 py-6 sm:py-10">
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-y-auto px-4 pb-10 pt-8 sm:justify-center sm:py-10">
       <div className="w-full">
         <h1 className="type-hero-title text-center text-foreground">
           What can I do for you?
@@ -154,14 +154,28 @@ function TemplateCard({
     <button
       type="button"
       onClick={() => onClick(template)}
-      className="flex flex-col items-start rounded-lg p-4 text-left transition-colors hover:bg-accent/40"
+      className="group flex items-start gap-3 rounded-lg border border-app-border-subtle bg-background p-4 text-left transition-colors hover:border-app-border hover:bg-accent/40 active:bg-accent/60 sm:border-transparent sm:bg-transparent"
     >
-      <span className="type-row-title text-foreground">
-        {template.title}
-      </span>
-      <span className="mt-1.5 flex-1 text-meta leading-relaxed text-muted-foreground">
-        {template.description}
-      </span>
+      <div className="flex flex-1 flex-col">
+        <span className="type-row-title text-foreground">
+          {template.title}
+        </span>
+        <span className="mt-1.5 text-meta leading-relaxed text-muted-foreground">
+          {template.description}
+        </span>
+      </div>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 sm:hidden"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M7 5l5 5-5 5" />
+      </svg>
     </button>
   );
 }

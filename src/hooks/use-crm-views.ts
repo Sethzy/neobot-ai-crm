@@ -7,10 +7,30 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useClientId } from "@/hooks/use-client-id";
+import { useCrmConfig } from "@/hooks/use-crm-config";
 import { useRealtimeTable } from "@/hooks/use-realtime";
 import type { CrmView, CrmViewEntityType } from "@/lib/crm/schemas";
 import { normalizeCrmView } from "@/lib/crm/view-state";
 import { supabase } from "@/lib/supabase";
+
+function customFieldKeysFor(
+  entityType: CrmViewEntityType,
+  config: ReturnType<typeof useCrmConfig>["data"],
+): string[] {
+  if (!config?.config) return [];
+  switch (entityType) {
+    case "contacts":
+      return config.config.contact_custom_fields.map((f) => f.key);
+    case "companies":
+      return config.config.company_custom_fields.map((f) => f.key);
+    case "deals":
+      return config.config.deal_custom_fields.map((f) => f.key);
+    case "tasks":
+      return config.config.task_custom_fields.map((f) => f.key);
+    default:
+      return [];
+  }
+}
 
 /** Query key factory for CRM views. */
 export const crmViewKeys = {
@@ -25,6 +45,7 @@ export const crmViewKeys = {
  */
 export function useCrmViews(entityType: CrmViewEntityType) {
   const { data: clientId } = useClientId();
+  const { data: crmConfig } = useCrmConfig();
 
   useRealtimeTable({
     table: "crm_views",
@@ -33,8 +54,13 @@ export function useCrmViews(entityType: CrmViewEntityType) {
     enabled: Boolean(clientId),
   });
 
+  const customFieldKeys = customFieldKeysFor(entityType, crmConfig);
+
   return useQuery({
-    queryKey: crmViewKeys.byEntity(entityType),
+    // Include custom-field keys in the query key so the cache invalidates when
+    // configure_crm adds a new field — without this, normalizeCrmView would
+    // strip filters using the stale key set.
+    queryKey: [...crmViewKeys.byEntity(entityType), customFieldKeys],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crm_views")
@@ -47,7 +73,9 @@ export function useCrmViews(entityType: CrmViewEntityType) {
         throw error;
       }
 
-      return (data ?? []).map((view) => normalizeCrmView(view)) as CrmView[];
+      return (data ?? []).map((view) =>
+        normalizeCrmView(view, { customFieldKeys }),
+      ) as CrmView[];
     },
     enabled: Boolean(clientId),
   });

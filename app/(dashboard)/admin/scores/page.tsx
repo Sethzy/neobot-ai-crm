@@ -55,7 +55,7 @@ export default async function ScoresPage() {
             No scores recorded yet.
           </PageSurface>
         ) : (
-          <PageSurface padding="none" className="overflow-hidden">
+          <PageSurface padding="none" className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>

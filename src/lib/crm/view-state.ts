@@ -175,6 +175,7 @@ function normalizeStatePatch(state: unknown): CrmViewStatePatch {
 function sanitizeStateForEntity(
   entityType: string,
   state: CrmViewState,
+  customFieldKeys?: Iterable<string>,
 ): CrmViewState {
   const allowed = ENTITY_ALLOWED_COLUMNS[entityType];
 
@@ -182,8 +183,16 @@ function sanitizeStateForEntity(
     return state;
   }
 
+  // Custom-field keys (configured via configure_crm) are valid filter
+  // keys for views, but they aren't in the hard-coded allow-list. Treat
+  // them as allowed too — otherwise saving a view with a custom-field
+  // filter silently drops the filter (regression caught by EC03).
+  const customKeys = new Set(customFieldKeys ?? []);
+
   const filters = Object.fromEntries(
-    Object.entries(state.filters).filter(([key]) => allowed.filterKeys.has(key)),
+    Object.entries(state.filters).filter(
+      ([key]) => allowed.filterKeys.has(key) || customKeys.has(key),
+    ),
   );
 
   const sort =
@@ -204,11 +213,17 @@ function sanitizeStateForEntity(
  * Always returns a safe, fully-defaulted `CrmViewState` — missing or malformed
  * properties fall back to defaults and filter/sort entries that aren't allowed
  * for the entity are stripped.
+ *
+ * Pass `customFieldKeys` (resolved from `crm_config` for the relevant entity)
+ * to keep configured custom-field filters from being stripped as unknown.
  */
 export function normalizeCrmViewState({
   entityType,
   state,
-}: NormalizeCrmViewStateInput): CrmViewState {
+  customFieldKeys,
+}: NormalizeCrmViewStateInput & {
+  customFieldKeys?: Iterable<string>;
+}): CrmViewState {
   const statePatch = normalizeStatePatch(state);
 
   const normalizedState = crmViewStateSchema.parse({
@@ -224,16 +239,18 @@ export function normalizeCrmViewState({
     isDefault: statePatch.isDefault ?? false,
   });
 
-  return sanitizeStateForEntity(entityType, normalizedState);
+  return sanitizeStateForEntity(entityType, normalizedState, customFieldKeys);
 }
 
 /** Returns the view row with its `state` parsed into the current contract. */
 export function normalizeCrmView<TView extends CrmViewRow>(
   row: TView,
+  options?: { customFieldKeys?: Iterable<string> },
 ): Omit<TView, "state"> & { state: CrmViewState } {
   const state = normalizeCrmViewState({
     entityType: row.entity_type,
     state: row.state,
+    customFieldKeys: options?.customFieldKeys,
   });
 
   return { ...row, state };
