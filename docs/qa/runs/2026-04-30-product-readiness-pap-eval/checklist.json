@@ -1,0 +1,818 @@
+{
+  "title": "Product Readiness / PAP Evaluation Checklist",
+  "created_at": "2026-04-30",
+  "status": "draft",
+  "summary": "0/30 product-readiness checks executed. This run is intentionally separate from the feat/twenty-aesthetic-clone tool sweep so broad product evals do not muddy the T01-T43 and PG01-PG07 tally.",
+  "related_runs": [
+    "docs/qa/runs/2026-04-25-twenty-aesthetic-clone-tool-sweep/checklist.json",
+    "docs/qa/runs/2026-04-25-twenty-aesthetic-clone-tool-sweep/RETEST-REPORT.md"
+  ],
+  "source_surfaces": [
+    "docs/qa/02-chat-core.md",
+    "docs/qa/03-crm-tools-via-chat.md",
+    "docs/qa/06-file-and-memory.md",
+    "docs/qa/08-triggers-and-automations.md",
+    "docs/qa/09-chat-advanced.md",
+    "docs/qa/10-connections.md",
+    "docs/qa/12-approvals.md",
+    "docs/qa/21-streaming-resilience.md",
+    "docs/qa/22-error-recovery.md",
+    "docs/qa/24-browser-automation.md",
+    "docs/qa/26-ask-user-question.md",
+    "docs/qa/27-real-business-cases.md",
+    "docs/qa/30-production-hardening.md"
+  ],
+  "global_rules": {
+    "model": "anthropic/claude-haiku-4-5",
+    "model_label_in_ui": "Basic - Haiku 4.5",
+    "why_haiku_only": "Managed Agent test runs must use Haiku only. Do not use Sonnet or Opus for this checklist.",
+    "dev_server": "http://localhost:3000",
+    "browser_tool": "agent-browser or the in-app browser, using real UI interactions unless a check explicitly calls for a read-only DB/API inspection.",
+    "screenshots_dir": "/tmp/sunder-qa/product-readiness-pap/",
+    "issues_dir": "/tmp/sunder-qa/product-readiness-pap/issues/",
+    "test_data_prefix": "QA PAP 20260430",
+    "test_credentials": "Use local QA_USER_EMAIL / QA_USER_PASSWORD or the same test account used for the current QA run.",
+    "external_actions": "Use sandbox/test destinations only. For destructive or external-facing actions, first test rejection, then test approval only when the destination is safe.",
+    "console_errors": "Every UI check must capture browser console errors. Red console errors fail the item unless documented as pre-existing and unrelated.",
+    "done_rule": "Set done=true only when the UI behavior, side effect, and console/error checks have all been verified.",
+    "result_values": ["pass", "fail", "blocked", "pass-with-note"]
+  },
+  "preflight": [
+    {
+      "id": "PF01",
+      "priority": "P0",
+      "step": "Start or verify the dev server",
+      "command": "curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/",
+      "expected": "200",
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PF02",
+      "priority": "P0",
+      "step": "Log in through the browser UI",
+      "expected": "Authenticated session lands on /chat without redirect loops.",
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PF02-login.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PF03",
+      "priority": "P0",
+      "step": "Confirm chat model is Haiku 4.5",
+      "expected": "Composer model selector shows Basic - Haiku 4.5 before any Managed Agent prompt is sent.",
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PF03-haiku.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PF04",
+      "priority": "P0",
+      "step": "Capture console-clean baseline",
+      "expected": "No red console errors on /chat, /crm/people, /automations, and /settings/agent/general.",
+      "artifacts": {
+        "console_log": "/tmp/sunder-qa/product-readiness-pap/PF04-console.log"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PF05",
+      "priority": "P0",
+      "step": "Create or identify a unique QA run prefix",
+      "expected": "All CRM records, files, triggers, tasks, and thread names created by this run include QA PAP 20260430.",
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PF06",
+      "priority": "P1",
+      "step": "Verify observability access",
+      "expected": "Executor can find Langfuse traces or equivalent local trace/log evidence for each Managed Agent run.",
+      "done": false,
+      "result": null,
+      "notes": "Mark blocked if Langfuse credentials are unavailable; do not block functional UI checks."
+    }
+  ],
+  "checks": [
+    {
+      "id": "PAP01",
+      "priority": "P0",
+      "group": "Advisor autopilot workflow",
+      "name": "Just-met lead capture creates CRM graph",
+      "chat_prompt": "I just met QA PAP 20260430 David Chen at a viewing for 22 Nassim Road. He's a buyer, budget $3.2M, wants a 3-bed with a balcony. His phone is 9182-7364 and email is qa-pap-david@example.test. He's relocating from Hong Kong in April. Save this in my CRM.",
+      "expected_tool_calls": ["create_record", "create_record", "link_records"],
+      "expected": [
+        "Person/contact exists with name, email, phone, buyer context, budget, and relocation note.",
+        "Deal/opportunity exists for 22 Nassim Road with approximate value 3200000.",
+        "Contact and deal are linked.",
+        "Agent confirms the saved facts without inventing extra data."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_db",
+        "description": "Verify contact/deal/link in CRM UI or read-only Supabase inspection."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP01-lead-capture.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP02",
+      "priority": "P0",
+      "group": "Advisor autopilot workflow",
+      "name": "Follow-up email is drafted and gated",
+      "chat_prompt": "Draft a follow-up email to qa-pap-david@example.test thanking him for the 22 Nassim Road viewing. Mention the balcony and ask if he wants a second viewing this week. Send it if everything looks good.",
+      "expected_tool_calls": ["search_crm", "request_approval"],
+      "expected": [
+        "Approval card renders before any external send tool.",
+        "Click Reject first; no send_message or Composio send tool executes.",
+        "Repeat with a sandbox-safe destination and click Approve; exactly one send action executes.",
+        "Thread resumes cleanly after both reject and approve paths."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_trace",
+        "description": "Verify no send after rejection, one send after approval, and trace shows approval gating before external action."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP02-approval.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": "Use a sandbox/test mailbox only for the approval path."
+    },
+    {
+      "id": "PAP03",
+      "priority": "P0",
+      "group": "Memory",
+      "name": "Memory persists across threads",
+      "chat_prompt": "Remember that QA PAP 20260430 David Chen cares most about pet-friendly buildings and high floors. Then start a new thread and ask: what should I remember about David Chen?",
+      "expected_tool_calls": ["storage_write", "storage_read"],
+      "expected": [
+        "First thread writes the preference to the appropriate memory file.",
+        "Second thread recalls pet-friendly and high-floor preferences without being re-told.",
+        "Agent distinguishes durable memory from transient chat history."
+      ],
+      "side_effect_check": {
+        "type": "storage",
+        "description": "Read SOUL.md, USER.md, MEMORY.md, or memory/*.md via the app/tool and confirm the fact is present once."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP03-memory-cross-thread.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP04",
+      "priority": "P0",
+      "group": "Memory",
+      "name": "Memory correction does not duplicate stale facts",
+      "chat_prompt": "Correction: QA PAP 20260430 David Chen does not have a dog anymore. He still likes high floors, but pet-friendly is no longer important. Update what you remember.",
+      "expected_tool_calls": ["storage_read", "storage_write"],
+      "expected": [
+        "Memory is updated to remove or supersede pet-friendly preference.",
+        "A new thread reports the corrected preference, not both old and new facts.",
+        "Agent explains the correction succinctly."
+      ],
+      "side_effect_check": {
+        "type": "storage",
+        "description": "Inspect memory files for stale duplicate facts."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP04-memory-correction.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP05",
+      "priority": "P0",
+      "group": "Automations",
+      "name": "Create, list, pause, resume, and delete scheduled automation",
+      "chat_prompt": "Create a QA PAP 20260430 automation that gives me a daily 9am briefing of overdue tasks and stale deals. Then show it in my automations list, pause it, resume it, and delete it.",
+      "expected_tool_calls": ["setup_trigger", "search_triggers", "manage_active_triggers"],
+      "expected": [
+        "Automation appears in /automations after creation.",
+        "Pause and resume state changes are visible in UI.",
+        "Delete removes the automation or marks it inactive according to product behavior.",
+        "No duplicate active automation remains after cleanup."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_db",
+        "description": "Verify agent_triggers row lifecycle and /automations UI state."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP05-automation-lifecycle.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP06",
+      "priority": "P0",
+      "group": "Automations",
+      "name": "Automation duplicate-run suppression",
+      "setup": [
+        "Use a QA automation trigger from PAP05 or create a dedicated short-lived trigger.",
+        "Manually claim or fire the same due trigger twice if a safe local path exists."
+      ],
+      "expected": [
+        "Only one active Managed Agent run starts for the automation.",
+        "Second claim skips or reports already running.",
+        "Parent automation/thread linkage is preserved."
+      ],
+      "side_effect_check": {
+        "type": "db_and_logs",
+        "description": "Inspect trigger execution rows/logs for one run and one skipped duplicate."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP06-automation-dedupe.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": "Mark blocked if there is no safe local way to fire the scheduler."
+    },
+    {
+      "id": "PAP07",
+      "priority": "P0",
+      "group": "Tenant isolation",
+      "name": "CRM and file data are tenant-isolated",
+      "setup": [
+        "Use two distinct test users/clients when available.",
+        "Create one QA PAP 20260430 CRM record and one storage file under client A."
+      ],
+      "expected": [
+        "Client B cannot see client A CRM rows through UI, tools, or read-only SQL.",
+        "Client B cannot read client A storage files.",
+        "Agent refuses or reports no access instead of leaking data."
+      ],
+      "side_effect_check": {
+        "type": "supabase_rls",
+        "description": "Use user-authenticated reads only. Do not use service_role for the isolation verdict."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP07-tenant-isolation.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": "Mark blocked if only one test tenant is available."
+    },
+    {
+      "id": "PAP08",
+      "priority": "P0",
+      "group": "Tenant isolation",
+      "name": "Approval event cannot be confirmed by the wrong tenant/session",
+      "setup": [
+        "Create a pending approval for client A.",
+        "Attempt to confirm/reject it from client B or an unauthenticated context."
+      ],
+      "expected": [
+        "Wrong tenant/session receives 401/403/not found.",
+        "Approval remains pending for client A.",
+        "External action does not execute."
+      ],
+      "side_effect_check": {
+        "type": "api_and_db",
+        "description": "Inspect approval_events status and outbound action logs."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP08-approval-isolation.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": "Also covers Telegram callback isolation if Telegram is configured."
+    },
+    {
+      "id": "PAP09",
+      "priority": "P0",
+      "group": "Streaming and recovery",
+      "name": "Stop button recovers composer and archives stalled run",
+      "chat_prompt": "Do a broad QA PAP 20260430 research pass: search the web, inspect my CRM, write a short memory note, and prepare a follow-up draft, but wait for my approval before any external send.",
+      "expected": [
+        "Click Stop while the run is active.",
+        "Composer unlocks within a reasonable time.",
+        "Thread can send a new message after stop.",
+        "If the managed session remains running, archive escalation path runs and is visible in logs."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_logs",
+        "description": "Check chat UI state, /api/chat stop response, and session-runner logs."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP09-stop-recovery.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP10",
+      "priority": "P0",
+      "group": "Streaming and recovery",
+      "name": "Refresh mid-run does not orphan the thread",
+      "chat_prompt": "Build me a detailed QA PAP 20260430 morning briefing from CRM tasks, deals, last interactions, and memory. Include stale follow-ups.",
+      "expected": [
+        "Refresh the browser while the run is streaming.",
+        "Thread reloads with coherent run state.",
+        "No duplicate assistant messages or duplicate tool side effects appear.",
+        "Composer eventually returns to usable state."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_db",
+        "description": "Compare message rows/tool result rows before and after refresh."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP10-refresh-mid-run.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP11",
+      "priority": "P0",
+      "group": "Mobile UX",
+      "name": "Mobile chat and approval flow are usable",
+      "setup": ["Set viewport to 390px width."],
+      "chat_prompt": "Draft a short follow-up to qa-pap-david@example.test and ask for approval before sending.",
+      "expected": [
+        "Composer, model pill, approval card, tool cards, and message bubbles fit without horizontal overflow.",
+        "Approve and Reject buttons are tappable.",
+        "No text overlaps or clipped controls."
+      ],
+      "side_effect_check": {
+        "type": "ui",
+        "description": "Capture screenshot and browser console at mobile viewport."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP11-mobile-approval.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP12",
+      "priority": "P0",
+      "group": "Observability",
+      "name": "Trace captures prompt, tool calls, approvals, and terminal state",
+      "setup": ["Run any successful P0 chat workflow above."],
+      "expected": [
+        "Trace contains thread/session/run identifiers.",
+        "Trace includes tool call names, arguments shape, success/failure result, and approval decision.",
+        "Trace terminal state matches UI terminal state.",
+        "Trace does not expose secrets, auth headers, or service role keys."
+      ],
+      "side_effect_check": {
+        "type": "langfuse_or_logs",
+        "description": "Use Langfuse when available; otherwise use local structured logs."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP12-observability.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": "Functional checks can pass even if this is blocked by missing observability credentials."
+    },
+    {
+      "id": "PAP13",
+      "priority": "P1",
+      "group": "Advisor autopilot workflow",
+      "name": "Pipeline review finds stale opportunities",
+      "chat_prompt": "Show me every QA PAP 20260430 deal in negotiation or proposal stage. For each one, tell me the last interaction and whether it needs follow-up.",
+      "expected_tool_calls": ["search_crm"],
+      "expected": [
+        "Agent queries CRM rather than answering from memory only.",
+        "Deals are grouped by stage.",
+        "Stale deals are flagged based on last interaction date.",
+        "Agent says clearly when no matching deals exist."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_db",
+        "description": "Compare response to current CRM rows/interactions."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP13-pipeline-review.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP14",
+      "priority": "P1",
+      "group": "Advisor autopilot workflow",
+      "name": "Client matching uses CRM preferences",
+      "chat_prompt": "I have a new QA PAP 20260430 3-bed listing at 22 Nassim Road for $3.2M with a balcony and city view. Which buyer contacts might be interested? Check budgets and preferences.",
+      "expected_tool_calls": ["search_crm"],
+      "expected": [
+        "Agent searches CRM contacts/deals.",
+        "Shortlist reasoning cites budget, bedroom count, location, balcony, or known preferences.",
+        "Agent does not invent preferences for contacts with no notes."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_db",
+        "description": "Compare shortlist to seeded QA contacts."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP14-client-matching.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP15",
+      "priority": "P1",
+      "group": "Advisor autopilot workflow",
+      "name": "Morning briefing is concise and date-aware",
+      "chat_prompt": "Good morning. What QA PAP 20260430 tasks are due today or overdue? Any deals need attention?",
+      "expected_tool_calls": ["search_crm"],
+      "expected": [
+        "Agent uses the current date correctly.",
+        "Briefing separates due today, overdue, and stale deals.",
+        "Response is concise and does not fabricate work when no rows match."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_db",
+        "description": "Compare to current crm_tasks/deals/interactions rows."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP15-morning-briefing.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP16",
+      "priority": "P1",
+      "group": "Connections",
+      "name": "Connections discovery and missing-permission path",
+      "chat_prompt": "What connected apps can you use for me right now? If email is not connected, tell me what is missing without trying to send anything.",
+      "expected_tool_calls": ["list_connections", "get_integration_capabilities"],
+      "expected": [
+        "Agent lists connected/disconnected state accurately.",
+        "Missing email permission produces a clear next step.",
+        "No approval card or send action appears for read-only discovery."
+      ],
+      "side_effect_check": {
+        "type": "ui",
+        "description": "Compare chat answer to /settings/connections state."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP16-connections-discovery.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP17",
+      "priority": "P1",
+      "group": "Connections",
+      "name": "Connection lifecycle does not require action approval",
+      "setup": ["Use a safe OAuth provider/test account if available."],
+      "expected": [
+        "Create/reauthorize/delete connection flows are clear in UI.",
+        "Connection readiness is not treated as an external content-send approval.",
+        "External actions through the connection still require approval."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_provider",
+        "description": "Verify connection state before and after lifecycle action."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP17-connection-lifecycle.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": "Mark blocked if no sandbox provider account is available."
+    },
+    {
+      "id": "PAP18",
+      "priority": "P1",
+      "group": "Browser automation",
+      "name": "Public web research feeds CRM-safe answer",
+      "chat_prompt": "Research the official website for 22 Nassim Road or a similar public listing source, summarize only facts you can verify, and do not update CRM unless I ask.",
+      "expected_tool_calls": ["web_search", "web_scrape"],
+      "expected": [
+        "Agent cites or names sources used.",
+        "Facts are clearly separated from assumptions.",
+        "No CRM mutation happens because the user did not ask to save."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_trace",
+        "description": "Verify no create/update tool calls after research-only prompt."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP18-web-research.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP19",
+      "priority": "P1",
+      "group": "Browser automation",
+      "name": "Authenticated browser profile path is graceful",
+      "chat_prompt": "Open the saved browser profile for a login-gated property or CRM site and tell me whether you can access it. Do not make any changes.",
+      "expected": [
+        "If profile exists, browser session opens and reports access state.",
+        "If profile is missing/expired, agent gives a clear reauth path.",
+        "No destructive browser action is performed."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_browser",
+        "description": "Watch embedded live browser state when available."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP19-auth-browser.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": "Mark blocked if Browser-Use Cloud or saved profile is unavailable."
+    },
+    {
+      "id": "PAP20",
+      "priority": "P1",
+      "group": "Ask user question",
+      "name": "Agent asks for missing business judgment and resumes",
+      "chat_prompt": "I want to follow up with QA PAP 20260430 David Chen, but I am not sure whether to push for a second viewing or ask about financing. Ask me what direction to take, then draft the message.",
+      "expected_tool_calls": ["ask_user_question"],
+      "expected": [
+        "Inline question UI appears.",
+        "User reply resumes the same run/thread.",
+        "Final draft reflects the user's chosen direction.",
+        "No external send occurs without approval."
+      ],
+      "side_effect_check": {
+        "type": "ui",
+        "description": "Reply through the inline question UI, not by bypassing with direct API calls."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP20-ask-user-question.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP21",
+      "priority": "P1",
+      "group": "Telegram",
+      "name": "Telegram pairing and approval callback",
+      "setup": ["Use a sandbox Telegram account/bot if configured."],
+      "expected": [
+        "User can see pairing/readiness state.",
+        "Telegram approval notification maps to the correct pending approval.",
+        "Approve/Reject callback updates the web thread and does not double-execute."
+      ],
+      "side_effect_check": {
+        "type": "telegram_and_db",
+        "description": "Verify approval_events and outbound action logs."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP21-telegram-approval.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": "Mark blocked if Telegram env/webhook is not configured locally."
+    },
+    {
+      "id": "PAP22",
+      "priority": "P1",
+      "group": "Agent-generated views",
+      "name": "Inline json-render specs render deterministically",
+      "chat_prompt": "Show me a compact dashboard for QA PAP 20260430 deals: count by stage, stale follow-ups, and open tasks. Use whatever visual view format is available.",
+      "expected": [
+        "Agent emits valid spec fence when appropriate.",
+        "Frontend renders metrics/cards/charts without raw JSON leaking.",
+        "Invalid or partial specs do not crash the chat."
+      ],
+      "side_effect_check": {
+        "type": "ui",
+        "description": "Inspect rendered view on desktop and mobile."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP22-json-render.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP23",
+      "priority": "P1",
+      "group": "Thread UX",
+      "name": "Long thread remains readable and scroll-stable",
+      "setup": ["Use a thread with at least 25 messages and multiple tool cards, or create one during this eval."],
+      "expected": [
+        "Scroll up/down is smooth enough for use.",
+        "Tool cards retain readable colors.",
+        "No random characters, clipped message text, or horizontal overflow.",
+        "Mobile viewport remains usable."
+      ],
+      "side_effect_check": {
+        "type": "ui",
+        "description": "Capture desktop 1440px and mobile 390px screenshots."
+      },
+      "artifacts": {
+        "desktop_screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP23-long-thread-desktop.png",
+        "mobile_screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP23-long-thread-mobile.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP24",
+      "priority": "P1",
+      "group": "New user activation",
+      "name": "Fresh account becomes useful in under 10 minutes",
+      "setup": ["Use a fresh test user or reset setup state safely."],
+      "expected": [
+        "Landing/login/onboarding route works.",
+        "SOUL.md, USER.md, MEMORY.md baseline files are created or recover gracefully.",
+        "Daily Orchestrator seeded automation appears in Automations.",
+        "User can send a useful first chat request within 10 minutes."
+      ],
+      "side_effect_check": {
+        "type": "ui_storage_db",
+        "description": "Verify setup_progress, storage files, and agent_triggers state."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP24-new-user-activation.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": "Mark blocked if no fresh account/reset path is available."
+    },
+    {
+      "id": "PAP25",
+      "priority": "P1",
+      "group": "Model routing",
+      "name": "Testing uses Haiku and helper models stay scoped",
+      "setup": ["Run any chat workflow that creates a title and later triggers compaction if practical."],
+      "expected": [
+        "Managed Agent run uses claude-haiku-4-5 during QA.",
+        "Main agent session does not route through Vercel AI SDK or Gemini.",
+        "Gemini is used only for title generation or compaction helpers when those paths run."
+      ],
+      "side_effect_check": {
+        "type": "logs_and_trace",
+        "description": "Inspect request logs, model labels, and trace metadata."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP25-model-routing.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP26",
+      "priority": "P2",
+      "group": "Error recovery",
+      "name": "Tool failure is visible and recoverable",
+      "chat_prompt": "Read a QA PAP 20260430 file that definitely does not exist, then continue by creating a todo reminding me to upload it later.",
+      "expected": [
+        "Missing file error appears as a failed/readable tool result.",
+        "Agent continues to the follow-up todo rather than stalling.",
+        "Composer unlocks at terminal state."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_db",
+        "description": "Verify todo exists and failed file read is visible."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP26-tool-failure-recovery.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP27",
+      "priority": "P2",
+      "group": "Error recovery",
+      "name": "Server restart during/after run does not corrupt thread",
+      "setup": ["Start a non-destructive long-running chat task, then restart the local dev server."],
+      "expected": [
+        "App reloads after server restart.",
+        "Thread does not lose persisted messages.",
+        "User can continue in the same or a clearly recovered state.",
+        "No duplicate side effects are created."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_db",
+        "description": "Inspect message rows and side-effect rows for duplication."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP27-server-restart.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP28",
+      "priority": "P2",
+      "group": "Performance",
+      "name": "Common chat workflows feel usable on slow network",
+      "setup": ["Optionally use browser/network throttling or a known slow network."],
+      "chat_prompt": "Find QA PAP 20260430 David Chen, summarize his deal, and create one follow-up task for tomorrow.",
+      "expected": [
+        "Initial response/tool cards begin streaming without a long blank wait.",
+        "Tool completion cards render progressively.",
+        "No artificial short timeout fails normal Supabase/Anthropic calls.",
+        "Final state is correct even when slow."
+      ],
+      "side_effect_check": {
+        "type": "ui_and_timing",
+        "description": "Record time to first visible progress and total terminal time."
+      },
+      "artifacts": {
+        "screenshot": "/tmp/sunder-qa/product-readiness-pap/PAP28-slow-network.png"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP29",
+      "priority": "P2",
+      "group": "Production hardening",
+      "name": "Health, headers, and rate-limit smoke",
+      "expected": [
+        "/api/health returns 200 with healthy or documented degraded checks.",
+        "Security headers are present on page responses.",
+        "Rate limiting fails open or returns clear retry behavior according to current product design.",
+        "No secrets appear in errors or response bodies."
+      ],
+      "side_effect_check": {
+        "type": "api",
+        "description": "Follow docs/qa/30-production-hardening.md for exact curl checks."
+      },
+      "artifacts": {
+        "log": "/tmp/sunder-qa/product-readiness-pap/PAP29-hardening.log"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    },
+    {
+      "id": "PAP30",
+      "priority": "P2",
+      "group": "Cleanup",
+      "name": "QA data cleanup is complete",
+      "expected": [
+        "All QA PAP 20260430 CRM records/tasks/deals/interactions are deleted or clearly marked test data.",
+        "All QA PAP 20260430 triggers are paused/deleted.",
+        "All QA PAP 20260430 storage files are removed unless intentionally retained as evidence.",
+        "No pending approvals or external draft sends remain."
+      ],
+      "side_effect_check": {
+        "type": "ui_db_storage",
+        "description": "Search by QA PAP 20260430 prefix across CRM, triggers, tasks, storage, and approvals."
+      },
+      "artifacts": {
+        "log": "/tmp/sunder-qa/product-readiness-pap/PAP30-cleanup.log"
+      },
+      "done": false,
+      "result": null,
+      "notes": ""
+    }
+  ],
+  "post_run": {
+    "tally_command": "Count checks where result is pass, pass-with-note, fail, or blocked. Include preflight separately.",
+    "deliverables": [
+      "Filled-in checklist.json with done/result/notes populated for every preflight and check entry.",
+      "Screenshots and logs under /tmp/sunder-qa/product-readiness-pap/.",
+      "One repro markdown per fail or serious pass-with-note under /tmp/sunder-qa/product-readiness-pap/issues/<ID>-<slug>.md.",
+      "Short summary at the top of this JSON: '<N>/30 product checks pass, <M> pass-with-note, <F> fail, <B> blocked'."
+    ],
+    "exit_criteria": [
+      "Every P0 item is pass or explicitly blocked for an environment reason.",
+      "No P0 fail remains unresolved.",
+      "All external actions have approval evidence.",
+      "All created QA test data is cleaned up or intentionally retained with notes."
+    ]
+  }
+}
