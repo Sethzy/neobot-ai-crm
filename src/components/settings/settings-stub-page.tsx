@@ -4,7 +4,7 @@
  * @module components/settings/settings-stub-page
  */
 import { PageHeader } from "@/components/layout/page-header";
-import { PageCanvas } from "@/components/layout/page-canvas";
+import { SettingsPageShell } from "@/components/settings/settings-page-shell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface SettingsStubPageProps {
@@ -15,18 +15,18 @@ interface SettingsStubPageProps {
 
 export function SettingsStubPage({ title, description, note }: SettingsStubPageProps) {
   return (
-    <PageCanvas variant="form" contentClassName="max-w-2xl">
+    <SettingsPageShell>
         <PageHeader title={title} description={description} />
 
         <Card className="border-border/70 bg-card shadow-sm">
           <CardHeader className="gap-2">
-            <CardDescription className="type-row-meta">Coming soon</CardDescription>
+            <CardDescription className="type-row-meta">Planned</CardDescription>
             <CardTitle className="type-toolbar-title">{title}</CardTitle>
           </CardHeader>
           <CardContent className="type-toolbar-description">
             <p>{note ?? "This section is in the roadmap and will land in a future release."}</p>
           </CardContent>
         </Card>
-    </PageCanvas>
+    </SettingsPageShell>
   );
 }

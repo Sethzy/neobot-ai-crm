@@ -79,7 +79,7 @@ describe("TelegramConnectRow", () => {
       ),
     );
 
-    expect(screen.getByRole("button", { name: "Unavailable" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Not configured" })).toBeDisabled();
     expect(screen.getByText("Telegram is not configured yet.")).toBeInTheDocument();
   });
 

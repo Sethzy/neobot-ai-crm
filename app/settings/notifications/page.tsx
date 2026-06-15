@@ -9,7 +9,7 @@ export default function NotificationsPage() {
     <SettingsStubPage
       title="Notifications"
       description="Choose when and where your agent pings you."
-      note="Web push, Telegram, and email notification preferences for automation runs and approval requests will land here."
+      note="Web push and email notification preferences for automation runs and approval requests will land here."
     />
   );
 }

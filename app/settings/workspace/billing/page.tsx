@@ -9,8 +9,8 @@
 import Link from "next/link";
 
 import { AlertCircle, CheckCircle } from "@/components/icons/lucide-compat";
-import { PageCanvas } from "@/components/layout/page-canvas";
 import { PageHeader } from "@/components/layout/page-header";
+import { SettingsPageShell } from "@/components/settings/settings-page-shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,7 +95,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const badge = stateBadge[view.state];
 
   return (
-    <PageCanvas variant="form" contentClassName="max-w-2xl">
+    <SettingsPageShell>
         <PageHeader
           title="Billing"
           description="Manage your plan, payment, and invoices in Stripe."
@@ -136,6 +136,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             )}
           </CardFooter>
         </Card>
-    </PageCanvas>
+    </SettingsPageShell>
   );
 }

@@ -6,8 +6,8 @@
  */
 import { AgentContextForm } from "@/components/settings/agent-context-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { PageCanvas } from "@/components/layout/page-canvas";
 import { PageHeader } from "@/components/layout/page-header";
+import { SettingsPageShell } from "@/components/settings/settings-page-shell";
 import { resolveClientId } from "@/lib/chat/client-id";
 import { createClient } from "@/lib/supabase/server";
 
@@ -44,7 +44,7 @@ export default async function AgentMemoryPage() {
   const agentContext = await loadAgentContext();
 
   return (
-    <PageCanvas variant="content" contentClassName="max-w-6xl">
+    <SettingsPageShell width="wide">
         <PageHeader
           title="Personality"
           description="These two fields are injected into every managed-agent kickoff. Keep them stable, durable, and high-signal."
@@ -66,6 +66,6 @@ export default async function AgentMemoryPage() {
             initialUserPreferences={agentContext.data.user_preferences ?? ""}
           />
         )}
-    </PageCanvas>
+    </SettingsPageShell>
   );
 }

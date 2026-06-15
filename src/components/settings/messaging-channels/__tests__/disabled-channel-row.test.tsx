@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { DisabledChannelRow } from "../disabled-channel-row";
 
 describe("DisabledChannelRow", () => {
-  it("renders title, description, and a disabled 'Coming soon' button", () => {
+  it("renders title, description, and a disabled status button", () => {
     render(
       <DisabledChannelRow
         icon="chat"
@@ -20,7 +20,7 @@ describe("DisabledChannelRow", () => {
     expect(screen.getByText("Slack")).toBeInTheDocument();
     expect(screen.getByText("Message your agent from any Slack workspace.")).toBeInTheDocument();
 
-    const button = screen.getByRole("button", { name: "Coming soon" });
+    const button = screen.getByRole("button", { name: "Not connected" });
     expect(button).toBeInTheDocument();
     expect(button).toBeDisabled();
   });

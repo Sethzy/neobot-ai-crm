@@ -1,6 +1,6 @@
 /**
  * Row variant for channels that are on the roadmap but not yet connectable.
- * Renders the shared ChannelRow primitive with a disabled "Coming soon" button.
+ * Renders the shared ChannelRow primitive with a production-neutral disabled button.
  * @module components/settings/messaging-channels/disabled-channel-row
  */
 "use client";
@@ -31,7 +31,7 @@ export function DisabledChannelRow({
       description={description}
       action={
         <Button variant="outline" size="sm" disabled>
-          Coming soon
+          Not connected
         </Button>
       }
     />

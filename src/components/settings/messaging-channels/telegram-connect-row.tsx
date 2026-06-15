@@ -208,7 +208,7 @@ export function TelegramConnectRow({
   if (!isAvailable) {
     action = (
       <Button variant="outline" size="sm" disabled>
-        Unavailable
+        Not configured
       </Button>
     );
     body = (

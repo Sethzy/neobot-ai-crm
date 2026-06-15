@@ -4,14 +4,14 @@
  * @module components/settings/settings-page-loading
  */
 import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsPageShell } from "./settings-page-shell";
 
 /**
  * Mirrors the width and rhythm of settings pages without recreating the rail.
  */
 export function SettingsPageLoading() {
   return (
-    <div
-      className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-6 md:px-8 md:py-8"
+    <SettingsPageShell
       data-testid="settings-page-loading-shell"
       aria-busy="true"
     >
@@ -36,6 +36,6 @@ export function SettingsPageLoading() {
           />
         ))}
       </div>
-    </div>
+    </SettingsPageShell>
   );
 }
