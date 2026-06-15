@@ -20,13 +20,13 @@ function customFieldKeysFor(
   if (!config?.config) return [];
   switch (entityType) {
     case "contacts":
-      return config.config.contact_custom_fields.map((f) => f.key);
+      return (config.config.contact_custom_fields ?? []).map((f) => f.key);
     case "companies":
-      return config.config.company_custom_fields.map((f) => f.key);
+      return (config.config.company_custom_fields ?? []).map((f) => f.key);
     case "deals":
-      return config.config.deal_custom_fields.map((f) => f.key);
+      return (config.config.deal_custom_fields ?? []).map((f) => f.key);
     case "tasks":
-      return config.config.task_custom_fields.map((f) => f.key);
+      return (config.config.task_custom_fields ?? []).map((f) => f.key);
     default:
       return [];
   }

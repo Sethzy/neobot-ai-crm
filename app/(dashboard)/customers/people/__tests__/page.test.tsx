@@ -260,8 +260,8 @@ describe("PeoplePage", () => {
       data: {
         contact_id: "contact-2",
         client_id: "client-1",
-        first_name: "New",
-        last_name: "Contact",
+        first_name: "Client",
+        last_name: "Draft",
         email: null,
         phone: null,
         type: "buyer",

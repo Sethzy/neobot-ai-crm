@@ -125,7 +125,7 @@ describe("AppSidebar", () => {
 
   it("renders logo", () => {
     render(<AppSidebar />, { wrapper });
-    expect(screen.getByText("neobot")).toBeInTheDocument();
+    expect(screen.getByText("Sunder")).toBeInTheDocument();
   });
 
   it("renders AGENT section nav items", () => {

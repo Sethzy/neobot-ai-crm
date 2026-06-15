@@ -11,15 +11,15 @@ vi.mock("./PromoVideo", () => ({
   PromoVideo: () => <div data-testid="promo-video" />,
 }));
 
-vi.mock("./HeroIdentityAnimation", () => ({
-  HeroIdentityAnimation: () => <div data-testid="hero-identity-animation" />,
+vi.mock("./HeroIdentityAnimationShell", () => ({
+  HeroIdentityAnimationShell: () => <div data-testid="hero-identity-animation-shell" />,
 }));
 
 describe("Hero", () => {
   it("routes the primary conversion CTA to signup", () => {
     render(<Hero />);
 
-    expect(screen.getByTestId("hero-identity-animation")).toBeInTheDocument();
+    expect(screen.getByTestId("hero-identity-animation-shell")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /try for free/i })).toHaveAttribute("href", "/register");
     expect(screen.getByTestId("promo-video")).toBeInTheDocument();
   });

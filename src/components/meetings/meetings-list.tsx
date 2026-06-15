@@ -56,9 +56,9 @@ function groupByDate(meetings: MeetingRecord[]): Map<string, MeetingRecord[]> {
 export function MeetingsList({ meetings }: MeetingsListProps) {
   if (meetings.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+      <div className="surface-app flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
         <p className="type-empty-title">No meetings yet</p>
-        <p className="mt-1 type-empty-copy">Click &quot;New Meeting&quot; to record your first one.</p>
+        <p className="mt-1 type-empty-copy">Record a meeting to keep notes, decisions, and follow-ups in Sunder.</p>
       </div>
     );
   }
@@ -69,8 +69,8 @@ export function MeetingsList({ meetings }: MeetingsListProps) {
     <div className="space-y-4">
       {Array.from(groupedMeetings.entries()).map(([label, groupedRows]) => (
         <section key={label}>
-          <h2 className="mb-2 px-1 type-table-heading text-muted-foreground/50">{label}</h2>
-          <div className="surface-app overflow-hidden p-2">
+          <h2 className="mb-2 px-1 type-table-heading text-muted-foreground/60">{label}</h2>
+          <div className="surface-app divide-y divide-app-border-subtle/70 overflow-hidden p-1">
             {groupedRows.map((meeting) => (
               <MeetingRow key={meeting.meeting_record_id} meeting={meeting} />
             ))}

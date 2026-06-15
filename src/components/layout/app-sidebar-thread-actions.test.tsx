@@ -164,16 +164,15 @@ describe("AppSidebar mobile thread actions", () => {
     expect(inactiveLink.closest("[data-active]")).toHaveAttribute("data-active", "false");
   });
 
-  it("archives the active thread and navigates to the next available thread", async () => {
-    const user = userEvent.setup();
+  it("does not render inline archive actions for regular threads", () => {
     mockPathname = "/chat/thread-1";
     render(<AppSidebar />);
 
-    await user.click(screen.getByRole("button", { name: /more actions for thread alpha/i }));
-    await user.click(screen.getByRole("menuitem", { name: /archive/i }));
-
-    expect(mockArchiveThread).toHaveBeenCalledWith("thread-1");
-    expect(mockPush).toHaveBeenCalledWith("/chat/thread-primary");
+    expect(
+      screen.queryByRole("button", { name: /more actions for thread alpha/i }),
+    ).not.toBeInTheDocument();
+    expect(mockArchiveThread).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it("does not render archive actions for pinned threads", async () => {
@@ -184,16 +183,15 @@ describe("AppSidebar mobile thread actions", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not navigate when archiving fails and shows an error toast", async () => {
-    const user = userEvent.setup();
+  it("does not navigate when inline archive actions are unavailable", () => {
     mockPathname = "/chat/thread-1";
     mockArchiveThread.mockRejectedValue(new Error("archive failed"));
     render(<AppSidebar />);
 
-    await user.click(screen.getByRole("button", { name: /more actions for thread alpha/i }));
-    await user.click(screen.getByRole("menuitem", { name: /archive/i }));
-
+    expect(
+      screen.queryByRole("button", { name: /more actions for thread alpha/i }),
+    ).not.toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
-    expect(mockToastError).toHaveBeenCalledWith("Failed to archive chat.");
+    expect(mockToastError).not.toHaveBeenCalled();
   });
 });

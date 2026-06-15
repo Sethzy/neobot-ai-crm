@@ -109,7 +109,7 @@ export const COMPANY_DEFAULT_FIELDS: FieldDefinition[] = [
 
 /** Deals: default fields shipped with every new client. */
 export const DEAL_DEFAULT_FIELDS: FieldDefinition[] = [
-  { key: "name", label: "Name", type: "full_name", source: "column", tier: "indestructible", visible: true, order: 0, editable: true, required: true, width: 240 },
+  { key: "name", label: "Name", type: "text", source: "column", tier: "indestructible", visible: true, order: 0, editable: true, required: true, width: 240 },
   { key: "amount", label: "Amount", type: "currency", source: "column", tier: "default", visible: true, order: 1, editable: true, required: false, width: 140 },
   { key: "close_date", label: "Close date", type: "date", source: "column", tier: "default", visible: false, order: 2, editable: true, required: false, width: 140 },
   { key: "stage", label: "Stage", type: "select", source: "column", tier: "default", visible: true, order: 3, editable: true, required: false, options: ["leads", "negotiation", "offer", "closing", "lost"], width: 160 },

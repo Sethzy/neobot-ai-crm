@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 
 const migrationPath = join(
   process.cwd(),
-  "supabase/migrations/20260426090000_allow_agent_file_text_mime_charset_variants.sql",
+  "supabase/migrations/20260425231127_allow_agent_file_text_mime_charset_variants.sql",
 );
 
 describe("agent-files text MIME charset variants migration", () => {

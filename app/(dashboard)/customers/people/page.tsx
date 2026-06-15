@@ -412,7 +412,12 @@ export default function PeoplePage() {
       if (!clientId) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("contacts")
-        .insert({ client_id: clientId, first_name: "New", last_name: "Contact", type: contactTypes[0] })
+        .insert({
+          client_id: clientId,
+          first_name: "Client",
+          last_name: "Draft",
+          type: contactTypes[0],
+        })
         .select("*")
         .single();
       if (error) throw error;

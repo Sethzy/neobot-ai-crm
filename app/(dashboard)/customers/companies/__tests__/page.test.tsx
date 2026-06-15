@@ -237,7 +237,7 @@ describe("CompaniesPage", () => {
       data: {
         company_id: "company-2",
         client_id: "client-1",
-        name: "New Company",
+        name: "Company Draft",
         industry: null,
         phone: null,
         email: null,

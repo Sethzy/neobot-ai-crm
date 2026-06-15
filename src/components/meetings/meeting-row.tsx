@@ -40,7 +40,7 @@ export function MeetingRow({ meeting }: MeetingRowProps) {
   return (
     <Link
       href={`/meetings/${meeting.meeting_record_id}`}
-      className="group flex items-center justify-between rounded-xl px-3 py-3 transition-colors hover:bg-app-hover/80"
+      className="group flex items-center justify-between rounded-lg px-3 py-3 transition-colors hover:bg-app-hover/80"
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <AppIcon name="meeting" className="h-4 w-4 shrink-0 text-muted-foreground" />

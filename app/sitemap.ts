@@ -77,6 +77,15 @@ function toIsoDate(value: string | null | undefined): string {
   return parsed.toISOString();
 }
 
+function getStaticSitemapEntries(siteUrl: string): ExtraSitemapEntry[] {
+  const lastModified = new Date().toISOString();
+
+  return STATIC_ROUTES.map((path) => ({
+    url: `${siteUrl}${path}`,
+    lastModified,
+  }));
+}
+
 async function getAgentCount(): Promise<number> {
   const client = createPropertyPublicServerClient();
   const { count, error } = await client
@@ -88,6 +97,15 @@ async function getAgentCount(): Promise<number> {
   }
 
   return count ?? 0;
+}
+
+async function getSafeAgentCount(): Promise<number> {
+  try {
+    return await getAgentCount();
+  } catch (error) {
+    console.warn("[sitemap] Falling back without agent chunks.", error);
+    return 0;
+  }
 }
 
 async function getAgentEntriesChunk(
@@ -105,7 +123,8 @@ async function getAgentEntriesChunk(
     .range(from, to);
 
   if (error) {
-    throw new Error(`Failed to load agent sitemap chunk: ${error.message}`);
+    console.warn("[sitemap] Failed to load agent sitemap chunk.", error);
+    return [];
   }
 
   return ((data ?? []) as AgentSitemapRow[])
@@ -120,9 +139,10 @@ async function getAgentEntriesChunk(
 
 async function getExtraEntries(siteUrl: string): Promise<ExtraSitemapEntry[]> {
   const client = createPropertyPublicServerClient();
+  const out = getStaticSitemapEntries(siteUrl);
 
   const [propertiesResult, agenciesResult, areasResult, hdbResult] =
-    await Promise.all([
+    await Promise.allSettled([
       client
         .from("ura_transactions")
         .select("project, district, contract_date")
@@ -148,28 +168,25 @@ async function getExtraEntries(siteUrl: string): Promise<ExtraSitemapEntry[]> {
         .limit(HDB_LIMIT),
     ]);
 
-  for (const result of [
-    propertiesResult,
-    agenciesResult,
-    areasResult,
-    hdbResult,
-  ]) {
-    if (result.error) {
-      throw new Error(`Failed to load sitemap source rows: ${result.error.message}`);
-    }
-  }
-
-  const out: ExtraSitemapEntry[] = [];
-
-  for (const path of STATIC_ROUTES) {
-    out.push({
-      url: `${siteUrl}${path}`,
-      lastModified: new Date().toISOString(),
-    });
-  }
+  const propertyRows =
+    propertiesResult.status === "fulfilled" && !propertiesResult.value.error
+      ? (propertiesResult.value.data ?? [])
+      : [];
+  const agencyRows =
+    agenciesResult.status === "fulfilled" && !agenciesResult.value.error
+      ? (agenciesResult.value.data ?? [])
+      : [];
+  const areaRows =
+    areasResult.status === "fulfilled" && !areasResult.value.error
+      ? (areasResult.value.data ?? [])
+      : [];
+  const hdbRows =
+    hdbResult.status === "fulfilled" && !hdbResult.value.error
+      ? (hdbResult.value.data ?? [])
+      : [];
 
   const seenProperties = new Set<string>();
-  for (const row of (propertiesResult.data ?? []) as PropertySitemapRow[]) {
+  for (const row of propertyRows as PropertySitemapRow[]) {
     const project = row.project?.trim();
     if (!project) {
       continue;
@@ -188,7 +205,7 @@ async function getExtraEntries(siteUrl: string): Promise<ExtraSitemapEntry[]> {
   }
 
   const seenAgencies = new Set<string>();
-  for (const row of (agenciesResult.data ?? []) as AgencySitemapRow[]) {
+  for (const row of agencyRows as AgencySitemapRow[]) {
     const agencyName = row.estate_agent_name?.trim();
     if (!agencyName || seenAgencies.has(agencyName)) {
       continue;
@@ -202,7 +219,7 @@ async function getExtraEntries(siteUrl: string): Promise<ExtraSitemapEntry[]> {
   }
 
   const seenAreas = new Set<string>();
-  for (const row of (areasResult.data ?? []) as AreaSitemapRow[]) {
+  for (const row of areaRows as AreaSitemapRow[]) {
     const areaName = row.town?.trim() || row.district?.trim();
     if (!areaName || seenAreas.has(areaName)) {
       continue;
@@ -216,7 +233,7 @@ async function getExtraEntries(siteUrl: string): Promise<ExtraSitemapEntry[]> {
   }
 
   const seenHdbStreets = new Set<string>();
-  for (const row of (hdbResult.data ?? []) as HdbSitemapRow[]) {
+  for (const row of hdbRows as HdbSitemapRow[]) {
     const town = row.town?.trim();
     const street = row.street_name?.trim();
     if (!town || !street) {
@@ -244,7 +261,7 @@ export async function generateSitemaps() {
   }
 
   const [agentCount, extraEntries] = await Promise.all([
-    getAgentCount(),
+    getSafeAgentCount(),
     getExtraEntries(getSiteUrl()),
   ]);
 
@@ -267,7 +284,7 @@ export default async function sitemap({ id }: { id: number }): Promise<MetadataR
     }));
   }
 
-  const agentCount = await getAgentCount();
+  const agentCount = await getSafeAgentCount();
   const agentChunks = Math.max(1, Math.ceil(agentCount / CHUNK_SIZE));
 
   if (id < agentChunks) {

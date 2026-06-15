@@ -57,7 +57,7 @@ const surfaceClassMap = {
   default: "surface-app",
   muted: "surface-app-muted",
   elevated: "surface-app-elevated",
-  ghost: "rounded-2xl border border-app-border-subtle/80 bg-transparent",
+  ghost: "rounded-xl border border-app-border-subtle/80 bg-transparent",
 } as const;
 
 const surfacePaddingClassMap = {

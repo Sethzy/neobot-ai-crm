@@ -50,6 +50,7 @@ const agentNavItems: NavigationItem[] = [
   { label: "New Task", href: "/chat", icon: "compose" },
   { label: "Skills", href: "/skills", icon: "document" },
   { label: "Automations", href: "/automations", icon: "automations" },
+  { label: "Channels", href: "/channels", icon: "channels" },
 ];
 
 /** CRM section — records plus todos and meetings attached to them */
@@ -119,7 +120,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
             asChild
             isActive={isActive}
             tooltip={item.label}
-            className="transition-colors hover:bg-sidebar-accent/70 data-[active=true]:bg-app-surface data-[active=true]:font-medium data-[active=true]:text-foreground data-[active=true]:ring-1 data-[active=true]:ring-app-border-subtle data-[active=true]:shadow-xs data-[active=true]:hover:bg-app-surface"
+            className="border border-transparent transition-colors hover:bg-sidebar-accent/70 data-[active=true]:border-primary/15 data-[active=true]:bg-primary/[0.055] data-[active=true]:font-medium data-[active=true]:text-primary data-[active=true]:shadow-xs data-[active=true]:hover:bg-primary/[0.075]"
           >
             <Link href={item.href} onClick={closeMobileSidebar}>
               <AppIcon name={item.icon} className="h-4 w-4" />
@@ -199,7 +200,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
                       asChild
                       isActive={isActive}
                       tooltip={thread.title}
-                      className="transition-colors hover:bg-sidebar-accent/70 data-[active=true]:bg-app-surface data-[active=true]:font-medium data-[active=true]:text-foreground data-[active=true]:ring-1 data-[active=true]:ring-app-border-subtle data-[active=true]:shadow-xs"
+                      className="border border-transparent transition-colors hover:bg-sidebar-accent/70 data-[active=true]:border-primary/15 data-[active=true]:bg-primary/[0.055] data-[active=true]:font-medium data-[active=true]:text-primary data-[active=true]:shadow-xs"
                     >
                       <Link
                         href={`/chat/${thread.id}`}
@@ -251,7 +252,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
               asChild
               isActive={pathname.startsWith("/settings")}
               tooltip="Settings"
-              className="transition-colors hover:bg-sidebar-accent/70 data-[active=true]:bg-app-surface data-[active=true]:font-medium data-[active=true]:text-foreground data-[active=true]:ring-1 data-[active=true]:ring-app-border-subtle data-[active=true]:shadow-xs"
+              className="border border-transparent transition-colors hover:bg-sidebar-accent/70 data-[active=true]:border-primary/15 data-[active=true]:bg-primary/[0.055] data-[active=true]:font-medium data-[active=true]:text-primary data-[active=true]:shadow-xs"
             >
               <Link href="/settings" onClick={closeMobileSidebar}>
                 <AppIcon name="settings" className="h-4 w-4" />
@@ -265,7 +266,7 @@ export function AppSidebar({ onOpenCommandMenu }: AppSidebarProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
-                  tooltip={user?.email || "User"}
+                  id="sidebar-user-menu-trigger"
                   className="transition-colors hover:bg-sidebar-accent/70"
                 >
                   <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-foreground type-caption font-semibold text-background">

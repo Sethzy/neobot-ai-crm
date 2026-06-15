@@ -353,7 +353,7 @@ export default function CompaniesPage() {
       if (!clientId) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("companies")
-        .insert({ client_id: clientId, name: "New Company" })
+        .insert({ client_id: clientId, name: "Company Draft" })
         .select("*")
         .single();
       if (error) throw error;

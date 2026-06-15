@@ -271,7 +271,7 @@ describe("DealsPage", () => {
       data: {
         deal_id: "deal-2",
         client_id: "client-1",
-        address: "Untitled Deal",
+        address: "Opportunity Draft",
         stage: "leads",
         amount: null,
         company_id: null,

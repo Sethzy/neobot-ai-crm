@@ -47,6 +47,7 @@ export function ViewPicker({ entityType, activeViewId, onViewChange, count }: Vi
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
+          id={`view-picker-${entityType}`}
           variant="ghost"
           size="sm"
           className="max-w-full gap-1.5 rounded-md px-2.5 font-medium text-foreground ring-1 ring-transparent transition-colors hover:bg-app-hover/60 hover:ring-app-border-subtle max-sm:h-11"

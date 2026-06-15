@@ -480,7 +480,7 @@ export default function DealsPage() {
       if (!clientId) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("deals")
-        .insert({ client_id: clientId, address: "Untitled Deal", stage: stages[0] })
+        .insert({ client_id: clientId, address: "Opportunity Draft", stage: stages[0] })
         .select("*")
         .single();
       if (error) throw error;

@@ -9,7 +9,7 @@ import { formatMessageQuotaResetDate } from "@/lib/usage/message-quota";
 import { loadCurrentMessageQuota } from "@/lib/usage/message-quota-server";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { PageCanvas } from "@/components/layout/page-canvas";
+import { PageCanvas, PageSurface } from "@/components/layout/page-canvas";
 import { PageHeader } from "@/components/layout/page-header";
 import {
   Card,
@@ -32,7 +32,7 @@ function normalizeSearchParam(value: string | string[] | undefined): string | nu
 
 function formatCurrency(amount: number | null, currency: string): string {
   if (amount === null) {
-    return "Unavailable";
+    return "Contact us";
   }
 
   return new Intl.NumberFormat("en-SG", {
@@ -43,6 +43,28 @@ function formatCurrency(amount: number | null, currency: string): string {
 
 function formatStatusLabel(status: string): string {
   return status.replace(/_/g, " ");
+}
+
+const INTERNAL_UNLIMITED_MESSAGE_LIMIT = 999_000;
+
+function formatCurrentQuotaUsage(
+  messageQuota: Awaited<ReturnType<typeof loadCurrentMessageQuota>>,
+): string | null {
+  if (!messageQuota) {
+    return null;
+  }
+
+  const resetLabel = formatMessageQuotaResetDate(messageQuota.nextResetDate);
+
+  if (messageQuota.messagesRemaining <= 0) {
+    return `Limit reached · resets ${resetLabel}`;
+  }
+
+  if (messageQuota.monthlyMessageLimit >= INTERNAL_UNLIMITED_MESSAGE_LIMIT) {
+    return `${messageQuota.messagesUsed} messages used · resets ${resetLabel}`;
+  }
+
+  return `${messageQuota.messagesUsed} used · ${messageQuota.messagesRemaining} remaining · resets ${resetLabel}`;
 }
 
 function getBillingNotice(status: string | null): {
@@ -104,6 +126,7 @@ export default async function PricingPage({
   ]);
   const billingNotice = getBillingNotice(normalizeSearchParam(billing));
   const { paidPlans, pricingError } = stripePlansResult;
+  const currentQuotaUsageLabel = formatCurrentQuotaUsage(messageQuota);
 
   const paidPlanMap = new Map(paidPlans.map((plan) => [plan.name, plan]));
 
@@ -142,13 +165,17 @@ export default async function PricingPage({
         ) : null}
 
         {pricingError ? (
-          <Alert className="mt-6" variant="destructive">
-            <AlertTitle>Stripe plans are not ready yet.</AlertTitle>
-            <AlertDescription>{pricingError}</AlertDescription>
+          <Alert className="mt-6">
+            <AlertTitle>Paid checkout is temporarily unavailable.</AlertTitle>
+            <AlertDescription>
+              Your current plan remains active. Contact support to upgrade while billing is being
+              configured.
+            </AlertDescription>
           </Alert>
         ) : null}
 
-        <div className="mt-8 grid gap-3 md:grid-cols-3">
+        <PageSurface className="mt-8" padding="none">
+          <div className="grid gap-px overflow-hidden rounded-xl bg-app-border-subtle md:grid-cols-3">
           {billingPlanNames.map((planName) => {
             const planDefinition = billingPlanCatalog[planName];
             const isFreePlan = planDefinition.isFree;
@@ -162,14 +189,19 @@ export default async function PricingPage({
               !isFreePlan &&
               Boolean(stripePlan?.priceId) &&
               !billingSummary.hasPaidSubscription;
+            const priceLabel = isFreePlan
+              ? "Free"
+              : stripePlan && stripePlan.amount !== null
+                ? `${formatCurrency(stripePlan.amount, stripePlan.currency)}/mo`
+                : "Contact us";
 
             return (
               <Card
                 key={planName}
                 className={
                   isCurrentPlan
-                    ? "border-primary/40 shadow-sm ring-primary/20"
-                    : "border-border/60 shadow-sm"
+                    ? "rounded-none border-0 bg-app-surface shadow-none ring-1 ring-inset ring-primary/25"
+                    : "rounded-none border-0 bg-app-surface shadow-none"
                 }
               >
                 <CardHeader>
@@ -187,20 +219,15 @@ export default async function PricingPage({
                 <CardContent className="space-y-5">
                   <div>
                     <div className="text-title text-foreground">
-                      {isFreePlan
-                        ? "Free"
-                        : stripePlan
-                          ? `${formatCurrency(stripePlan.amount, stripePlan.currency)}/mo`
-                          : "Unavailable"}
+                      {priceLabel}
                     </div>
                     <p className="mt-2 type-control-muted text-muted-foreground">{trialLabel}</p>
                     <p className="mt-2 type-control-muted text-muted-foreground">
                       {planDefinition.monthlyMessageLimit} messages / month
                     </p>
-                    {isCurrentPlan && messageQuota ? (
+                    {isCurrentPlan && currentQuotaUsageLabel ? (
                       <p className="mt-1 type-row-meta text-muted-foreground">
-                        {messageQuota.messagesUsed} used · {messageQuota.messagesRemaining}{" "}
-                        remaining · resets {formatMessageQuotaResetDate(messageQuota.nextResetDate)}
+                        {currentQuotaUsageLabel}
                       </p>
                     ) : null}
                   </div>
@@ -242,8 +269,8 @@ export default async function PricingPage({
                   ) : (
                     <SubmitButton
                       disabled
-                      idleLabel={isFreePlan ? "Included on Free" : "Unavailable"}
-                      pendingLabel="Unavailable"
+                      idleLabel={isFreePlan ? "Included on Free" : "Contact support"}
+                      pendingLabel="Contact support"
                       variant="outline"
                     />
                   )}
@@ -257,7 +284,8 @@ export default async function PricingPage({
               </Card>
             );
           })}
-        </div>
+          </div>
+        </PageSurface>
     </PageCanvas>
   );
 }

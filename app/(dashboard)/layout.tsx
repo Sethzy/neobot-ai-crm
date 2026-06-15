@@ -29,13 +29,12 @@ export default async function DashboardLayout({
   try {
     const supabase = await createClient();
     const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const user = session?.user ?? null;
+      data: { user },
+    } = await supabase.auth.getUser();
 
     if (user) {
-      // Prefetch session so useSession() finds it in the cache immediately
-      queryClient.setQueryData(["session"], { session, user });
+      // Prefetch the authenticated user so useSession() renders without a client waterfall.
+      queryClient.setQueryData(["session"], { session: null, user });
 
       const clientId = await resolveClientId(supabase, user.id);
       queryClient.setQueryData(clientIdKeys.byUser(user.id), clientId);

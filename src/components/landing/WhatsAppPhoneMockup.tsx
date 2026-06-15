@@ -438,9 +438,9 @@ export function WhatsAppPhoneMockup({ isVisible = false }: WhatsAppPhoneMockupPr
                 <div className="relative rounded-lg rounded-tl-none bg-white px-3 py-2 shadow-sm">
                   <div className="absolute top-0 -left-1 h-2 w-2 bg-white" style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }} />
                   <div className="flex gap-1">
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
-                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '300ms' }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-gray-400 opacity-70" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-gray-400 opacity-80" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-gray-400 opacity-70" />
                   </div>
                 </div>
               </div>

@@ -40,6 +40,10 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+const isAgentationEnabled =
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_ENABLE_AGENTATION === "1";
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -69,7 +73,7 @@ export default function RootLayout({
         />
         <Providers>{children}</Providers>
         <Toaster position="bottom-right" richColors />
-        {process.env.NODE_ENV === "development" && <Agentation />}
+        {isAgentationEnabled ? <Agentation /> : null}
       </body>
     </html>
   );

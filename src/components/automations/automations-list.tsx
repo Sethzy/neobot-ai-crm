@@ -75,7 +75,7 @@ export function AutomationsList({
         {active.length > 0 && (
           <section>
             <h3 className="mb-3 type-section-title">Active</h3>
-            <div className="surface-app divide-y divide-app-border-subtle/80 overflow-hidden p-0">
+            <div className="surface-app divide-y divide-app-border-subtle/70 overflow-hidden p-0">
               <AnimatePresence initial={false}>
                 {active.map((trigger) => (
                   <motion.div
@@ -98,7 +98,7 @@ export function AutomationsList({
         {inactive.length > 0 && (
           <section>
             <h3 className="mb-3 type-section-title">Inactive</h3>
-            <div className="surface-app divide-y divide-app-border-subtle/80 overflow-hidden p-0">
+            <div className="surface-app divide-y divide-app-border-subtle/70 overflow-hidden p-0">
               <AnimatePresence initial={false}>
                 {inactive.map((trigger) => (
                   <motion.div
@@ -129,10 +129,13 @@ function AutomationRow({
   trigger: AutomationTrigger;
   onToggleEnabled: (triggerId: string, enabled: boolean) => void;
 }) {
+  const scheduleLabel = cronToHuman(trigger.cron_expression);
+  const nextRunLabel = formatCountdown(trigger.next_fire_at);
+
   return (
     <div
       data-testid={`automation-row-${trigger.id}`}
-      className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-app-hover/60 max-sm:items-start max-sm:py-3"
+      className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-app-hover/60 max-sm:items-start"
     >
       <Link
         href={`/automations/${trigger.id}`}
@@ -140,24 +143,25 @@ function AutomationRow({
       >
         <div className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="type-row-title text-foreground/90">{trigger.name}</span>
+            <span className="type-row-title text-foreground">{trigger.name}</span>
             <Badge variant={getStatusVariant(trigger)}>
               {getStatusLabel(trigger)}
             </Badge>
           </div>
           <span className="mt-1 block type-row-meta text-muted-foreground">
-            {cronToHuman(trigger.cron_expression)}
+            {scheduleLabel === "\u2014" ? "Trigger configured" : scheduleLabel}
           </span>
         </div>
       </Link>
 
       <div className="flex shrink-0 items-center gap-4 max-sm:flex-col max-sm:items-end max-sm:gap-2">
-        {trigger.enabled && trigger.next_fire_at && (
-          <span className="type-row-meta text-muted-foreground">
-            {formatCountdown(trigger.next_fire_at)}
+        {trigger.enabled && nextRunLabel !== "\u2014" ? (
+          <span className="rounded-full bg-app-surface-muted px-2 py-1 type-row-meta text-muted-foreground">
+            {nextRunLabel}
           </span>
-        )}
+        ) : null}
         <Switch
+          aria-label={trigger.enabled ? `Disable ${trigger.name}` : `Enable ${trigger.name}`}
           checked={trigger.enabled}
           onCheckedChange={(checked) => {
             onToggleEnabled(trigger.id, checked);

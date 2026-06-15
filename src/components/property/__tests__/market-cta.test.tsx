@@ -9,7 +9,7 @@ describe("MarketCta", () => {
     expect(
       screen.getByText(/Need this data in your next proposal/i)
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /try neobot free/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /try sunder free/i })).toHaveAttribute(
       "href",
       "/register"
     );

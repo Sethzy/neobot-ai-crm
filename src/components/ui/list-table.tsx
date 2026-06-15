@@ -317,9 +317,14 @@ export function ListTable<TData>({
   };
 
   return (
-    <div className={cn("min-w-0", className)}>
+    <div className={cn("w-full min-w-0 overflow-hidden [contain:inline-size]", className)}>
       {renderMobileCards()}
-      <div className={cn("overflow-x-auto", mobileCardRenderer && "max-md:hidden")}>
+      <div
+        className={cn(
+          "max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-app-border-subtle bg-app-surface [contain:inline-size] [scrollbar-gutter:stable]",
+          mobileCardRenderer && "max-md:hidden",
+        )}
+      >
         <table
           className={cn(
             "w-full",
@@ -328,7 +333,7 @@ export function ListTable<TData>({
           )}
           style={isColumnResizeEnabled ? { width: table.getTotalSize() } : undefined}
         >
-          <thead className="border-b border-app-border-subtle">
+          <thead className="border-b border-app-border-subtle bg-app-surface-muted/60">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header, headerIndex) => {
@@ -341,7 +346,7 @@ export function ListTable<TData>({
                       key={header.id}
                       colSpan={header.colSpan}
                       className={cn(
-                        "h-8 px-2 text-left text-meta font-medium text-muted-foreground",
+                        "h-9 px-3 text-left text-meta font-medium text-muted-foreground",
                         canResize && "group/header relative",
                         isActionsColumn && "w-[1%] text-right",
                         isPinnedColumn && "sticky left-0 z-10 bg-background",
@@ -399,14 +404,12 @@ export function ListTable<TData>({
                     {visibleLeafColumns.map((column, colIndex) => {
                       const colId = column.id;
                       const isActionsCol = colId === "__row_actions";
-                      const isLastCol = colIndex === visibleLeafColumns.length - 1;
                       const isPinnedCol = pinFirstColumn && colIndex === 0;
                       return (
                         <td
                           key={colIndex}
                           className={cn(
-                            "h-[41px] px-2",
-                            !isLastCol && "border-r border-app-border-subtle/80",
+                            "h-[44px] px-3",
                             isActionsCol && "w-[1%] text-right",
                             isPinnedCol && PINNED_FIRST_COL_CLASSES,
                           )}
@@ -448,10 +451,9 @@ export function ListTable<TData>({
                             onRowClick(row.original);
                           }}
                         >
-                          {row.getVisibleCells().map((cell, cellIndex, cellsArray) => {
+                          {row.getVisibleCells().map((cell, cellIndex) => {
                             const columnId = cell.column.id;
                             const isActionsColumn = columnId === "__row_actions";
-                            const isLastCell = cellIndex === cellsArray.length - 1;
                             const isPinnedCell = pinFirstColumn && cellIndex === 0;
                             const rawValue = cell.getValue();
                             const renderedContent = cell.column.columnDef.cell
@@ -467,8 +469,7 @@ export function ListTable<TData>({
                               <td
                                 key={cell.id}
                                 className={cn(
-                                  "h-[41px] px-2 text-meta text-foreground",
-                                  !isLastCell && "border-r border-app-border-subtle/80",
+                                  "h-[44px] px-3 text-meta text-foreground",
                                   isActionsColumn && "w-[1%] whitespace-nowrap text-right",
                                   isPinnedCell && PINNED_FIRST_COL_CLASSES,
                                   isPinnedCell && isSelected && "bg-[var(--selection)]",

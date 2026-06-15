@@ -31,33 +31,33 @@
   --card-foreground: oklch(0.2417 0.0298 269.8827);
   --popover: var(--app-surface-elevated);
   --popover-foreground: oklch(0.2417 0.0298 269.8827);
-  --primary: oklch(0.3840 0.0681 181.8438);
+  --primary: #024f46;
   --primary-foreground: oklch(1.0000 0 0);
   --secondary: oklch(0.8596 0.0291 119.9919);
   --secondary-foreground: oklch(0.2417 0.0298 269.8827);
   --muted: var(--app-surface-muted);
   --muted-foreground: oklch(0.5510 0.0234 264.3637);
-  --accent: oklch(0.8242 0.0221 136.6092);
-  --accent-foreground: oklch(0.2417 0.0298 269.8827);
+  --accent: #edf4f2;
+  --accent-foreground: #024f46;
   --destructive: oklch(0.5624 0.1743 26.1433);
   --destructive-foreground: oklch(1.0000 0 0);
   --border: var(--app-border-subtle);
   --input: var(--app-border-subtle);
-  --ring: oklch(0.6333 0.0309 154.9039);
-  --chart-1: oklch(0.6333 0.0309 154.9039);
-  --chart-2: oklch(0.7209 0.0489 120.9474);
-  --chart-3: oklch(0.6744 0.0427 136.0110);
-  --chart-4: oklch(0.5510 0.0234 264.3637);
-  --chart-5: oklch(0.9251 0.0071 88.6450);
+  --ring: color-mix(in oklch, var(--primary) 68%, white);
+  --chart-1: #024f46;
+  --chart-2: #397dff;
+  --chart-3: #f55c15;
+  --chart-4: #6f5cc2;
+  --chart-5: #66800b;
   --radius: 0.5rem;
   --sidebar: var(--app-sidebar);
   --sidebar-foreground: oklch(0.2417 0.0298 269.8827);
-  --sidebar-primary: oklch(0.6333 0.0309 154.9039);
+  --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: oklch(1.0000 0 0);
   --sidebar-accent: var(--app-hover);
   --sidebar-accent-foreground: oklch(0.2417 0.0298 269.8827);
   --sidebar-border: var(--app-border-subtle);
-  --sidebar-ring: oklch(0.6333 0.0309 154.9039);
+  --sidebar-ring: var(--ring);
 
   --success: var(--flexoki-green);
   --success-foreground: #000000;
@@ -108,14 +108,14 @@
      4%-alpha shadow. Sidebar is the only tinted tone — it anchors the
      navigation rail against the white app body. Muted is a near-invisible
      neutral gray for hover/zebra/footer tints. */
-  --app-sidebar: oklch(0.9700 0.0030 90.0000);
+  --app-sidebar: #fbfbfa;
   --app-canvas: oklch(1.0000 0 0);
   --app-surface: oklch(1.0000 0 0);
-  --app-surface-muted: oklch(0.9750 0 0);
+  --app-surface-muted: #f7f7f5;
   --app-surface-elevated: oklch(0.9850 0 0);
   --app-border-subtle: oklch(0.9050 0 0);
   --app-border-strong: oklch(0.8650 0 0);
-  --app-hover: oklch(0.9600 0 0);
+  --app-hover: #f0f2f0;
 
   /* Twenty aesthetic clone — chip radius, selection tint, semantic shadow roles, motion budget */
   --radius-chip: 0.25rem;
@@ -253,7 +253,7 @@
   --text-title--font-weight: 600;
   --text-display: clamp(2.5rem, 5vw, 4rem);
   --text-display--line-height: 1.02;
-  --text-display--letter-spacing: -0.05em;
+  --text-display--letter-spacing: -0.035em;
   --text-display--font-weight: 500;
 
   /* Core shadcn color tokens */
@@ -379,11 +379,15 @@
   body {
     @apply bg-background font-sans text-body text-foreground antialiased;
     font-kerning: normal;
+    max-width: 100%;
+    overflow-x: hidden;
     text-rendering: optimizeLegibility;
   }
 
   html {
     @apply font-sans;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   /*
@@ -537,19 +541,19 @@
   }
 
   .page-canvas {
-    @apply flex min-h-0 min-w-0 flex-1 overflow-auto bg-app-canvas;
+    @apply flex min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-app-canvas;
   }
 
   .surface-app {
-    @apply rounded-2xl border border-app-border-subtle bg-app-surface text-foreground shadow-sm;
+    @apply rounded-xl border border-app-border-subtle bg-app-surface text-foreground shadow-xs;
   }
 
   .surface-app-muted {
-    @apply rounded-2xl border border-app-border-subtle bg-app-surface-muted text-foreground shadow-sm;
+    @apply rounded-xl border border-app-border-subtle bg-app-surface-muted text-foreground shadow-xs;
   }
 
   .surface-app-elevated {
-    @apply rounded-2xl border border-app-border-strong/70 bg-app-surface-elevated text-foreground shadow-md;
+    @apply rounded-xl border border-app-border-strong/70 bg-app-surface-elevated text-foreground shadow-sm;
   }
 }
 
@@ -730,10 +734,9 @@
   75% { transform: scale(1.2) rotate(-3deg); opacity: 0.9; }
 }
 
-@keyframes icon-key-wobble {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-8deg); }
-  75% { transform: rotate(8deg); }
+@keyframes icon-key-settle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
 }
 
 @keyframes icon-clock-tick {
@@ -743,7 +746,7 @@
 }
 
 .icon-flame { animation: icon-flame 1.6s ease-in-out infinite; }
-.icon-key { animation: icon-key-wobble 2.5s ease-in-out infinite; }
+.icon-key { animation: icon-key-settle 2.5s ease-in-out infinite; }
 .icon-clock { animation: icon-clock-tick 2.5s ease-in-out infinite; }
 
 @property --shimmer-angle {
@@ -917,4 +920,9 @@
 .rpv-default-layout__body,
 .rpv-core__viewer {
   border: none !important;
+}
+
+/* Keep local demo recordings free of framework-only development chrome. */
+nextjs-portal {
+  display: none !important;
 }
