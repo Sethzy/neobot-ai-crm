@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sunder Product UI Production Readiness Audit</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f6f1;
+        --surface: #fbfaf7;
+        --surface-2: #efeee8;
+        --text: #1d202d;
+        --muted: #6f7480;
+        --border: #dedbd2;
+        --accent: #1f5f51;
+        --danger: #9d2f2f;
+        --warn: #8a5a12;
+        --ok: #2f6654;
+        --code: #ece9df;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 48px 28px 80px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        letter-spacing: 0;
+        line-height: 1.12;
+      }
+
+      h1 {
+        max-width: 840px;
+        font-size: 48px;
+      }
+
+      h2 {
+        margin-top: 52px;
+        font-size: 28px;
+      }
+
+      h3 {
+        font-size: 18px;
+      }
+
+      p {
+        max-width: 760px;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      .eyebrow {
+        margin-bottom: 12px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .lede {
+        margin-top: 18px;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 28px;
+      }
+
+      .metric {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 18px;
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 30px;
+        line-height: 1;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .callout {
+        margin-top: 28px;
+        border: 1px solid color-mix(in srgb, var(--warn), var(--border) 45%);
+        border-radius: 8px;
+        background: #fff8e8;
+        padding: 18px 20px;
+      }
+
+      .callout strong {
+        color: var(--warn);
+      }
+
+      .screens {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 20px;
+      }
+
+      figure {
+        margin: 0;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+
+      figure img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      figcaption {
+        border-top: 1px solid var(--border);
+        padding: 10px 12px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      table {
+        width: 100%;
+        margin-top: 18px;
+        border-collapse: collapse;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+
+      th,
+      td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+        font-size: 14px;
+      }
+
+      th {
+        background: var(--surface-2);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 3px 9px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .p0 {
+        background: #f7d8d6;
+        color: var(--danger);
+      }
+
+      .p1 {
+        background: #f8e5bd;
+        color: var(--warn);
+      }
+
+      .p2 {
+        background: #dbece5;
+        color: var(--ok);
+      }
+
+      code {
+        border-radius: 4px;
+        background: var(--code);
+        padding: 2px 5px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.92em;
+      }
+
+      .finding {
+        margin-top: 18px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 18px;
+      }
+
+      .finding-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+
+      .finding p {
+        margin: 8px 0 0;
+      }
+
+      .evidence {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .fix-list {
+        margin: 10px 0 0;
+        padding-left: 20px;
+      }
+
+      .fix-list li {
+        margin: 5px 0;
+      }
+
+      .route-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .route-card {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 14px;
+      }
+
+      .route-card strong {
+        display: block;
+      }
+
+      .route-card span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 820px) {
+        main {
+          padding: 32px 16px 56px;
+        }
+
+        h1 {
+          font-size: 34px;
+        }
+
+        .summary-grid,
+        .screens,
+        .route-grid {
+          grid-template-columns: 1fr;
+        }
+
+        table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Sunder product UI audit</div>
+      <h1>Production readiness review for the authenticated app surface</h1>
+      <p class="lede">
+        Audit date: June 11, 2026. Scope covered chat, CRM, tasks, automations, meetings,
+        skills, settings, and pricing at desktop and mobile widths using live browser
+        automation against <code>localhost:3000</code>.
+      </p>
+
+      <div class="summary-grid" aria-label="Audit summary">
+        <div class="metric">
+          <strong>18</strong>
+          <span>screens captured</span>
+        </div>
+        <div class="metric">
+          <strong>3</strong>
+          <span>desktop routes with horizontal overflow</span>
+        </div>
+        <div class="metric">
+          <strong>2</strong>
+          <span>global console problems</span>
+        </div>
+        <div class="metric">
+          <strong>P0</strong>
+          <span>debug chrome and fake data must be removed before prod demos</span>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>Bottom line:</strong> the app is functional, but it does not yet look production-ready.
+        The main blockers are non-production artifacts in the UI, seeded QA data, fake quota and billing
+        values, CRM table overflow, and global console warnings/errors. Fix these before showing this
+        to customers or investors.
+      </div>
+
+      <h2>Evidence</h2>
+      <div class="screens">
+        <figure>
+          <img src="desktop-contact-sheet.png" alt="Desktop contact sheet of audited product routes" />
+          <figcaption>Desktop sweep: chat, CRM, automations, meetings, pricing, settings, skills, tasks.</figcaption>
+        </figure>
+        <figure>
+          <img src="mobile-contact-sheet.png" alt="Mobile contact sheet of audited product routes" />
+          <figcaption>Mobile sweep: chat, CRM cards, tasks, automations, meetings, skills.</figcaption>
+        </figure>
+      </div>
+
+      <h2>Top Findings</h2>
+
+      <section class="finding">
+        <div class="finding-header">
+          <span class="pill p0">P0</span>
+          <h3>Debug and annotation chrome is visible in the product UI</h3>
+        </div>
+        <p>
+          The app shows non-product overlays: Agentation controls, a bottom-right black debug button,
+          red issue badges, and the Next.js Dev Tools button. These are visible on multiple routes and
+          instantly make the app feel like a development build.
+        </p>
+        <p class="evidence">
+          Evidence: <code>desktop-chat.png</code>, <code>desktop-automations.png</code>,
+          <code>mobile-automations.png</code>. DOM snapshots include <code>Open Next.js Dev Tools</code>,
+          <code>v3.0.2 Output Detail</code>, and <code>Block page interactions</code>.
+        </p>
+        <ul class="fix-list">
+          <li>Gate Agentation and annotation tooling behind a local-only env flag.</li>
+          <li>Ensure Next dev tooling never appears in preview or production deploys.</li>
+          <li>Remove visible issue markers from demo accounts unless the route is explicitly an internal QA route.</li>
+        </ul>
+      </section>
+
+      <section class="finding">
+        <div class="finding-header">
+          <span class="pill p0">P0</span>
+          <h3>Demo account data contains QA noise and placeholder records</h3>
+        </div>
+        <p>
+          CRM screens expose records such as <code>QA Duplicate Noise</code>, <code>QA Bot Two</code>,
+          <code>New Contact</code>, <code>New Company</code>, <code>Untitled Deal</code>, and
+          <code>Untitled Recording</code>. This makes the product look uncurated and undermines trust.
+        </p>
+        <p class="evidence">
+          Evidence: <code>desktop-people.png</code>, <code>desktop-companies.png</code>,
+          <code>desktop-deals.png</code>, <code>desktop-meetings.png</code>.
+        </p>
+        <ul class="fix-list">
+          <li>Create a clean demo tenant with realistic advisory-sales data.</li>
+          <li>Keep QA records in a separate test client or environment.</li>
+          <li>Add a seed script for demo data so previews can be reset predictably.</li>
+        </ul>
+      </section>
+
+      <section class="finding">
+        <div class="finding-header">
+          <span class="pill p0">P0</span>
+          <h3>Pricing and quota display fake or broken commercial values</h3>
+        </div>
+        <p>
+          Chat shows <code>1 / 999999 messages</code>, while pricing says Free includes
+          <code>100 messages / month</code>. Paid plans show <code>Unavailable/mo</code> and disabled
+          buttons. This looks like a half-wired billing system.
+        </p>
+        <p class="evidence">
+          Evidence: <code>desktop-chat.png</code>, <code>desktop-pricing.png</code>.
+        </p>
+        <ul class="fix-list">
+          <li>Use real quota values everywhere or hide quota in demo mode.</li>
+          <li>Replace <code>Unavailable/mo</code> with real prices, a waitlist CTA, or remove paid tiers.</li>
+          <li>Make upgrade copy consistent with the user's actual billing status.</li>
+        </ul>
+      </section>
+
+      <section class="finding">
+        <div class="finding-header">
+          <span class="pill p0">P0</span>
+          <h3>Desktop CRM tables create page-level horizontal overflow</h3>
+        </div>
+        <p>
+          People, Companies, and Deals exceed the viewport at 1440px. The table itself pushes the document
+          wider than the screen instead of scrolling inside the table region. This matches the clipping issue
+          seen in the supplied chat screenshot.
+        </p>
+        <p class="evidence">
+          Measured overflow: People document width 1484px, Companies 1948px, Deals 1464px at a 1440px viewport.
+        </p>
+        <ul class="fix-list">
+          <li>Contain CRM tables in an internal horizontal scroll region.</li>
+          <li>Review default column widths and hide low-priority columns below large-desktop widths.</li>
+          <li>Make table header, filters, and actions align to the contained table width.</li>
+        </ul>
+      </section>
+
+      <section class="finding">
+        <div class="finding-header">
+          <span class="pill p1">P1</span>
+          <h3>Settings profile can look permanently empty</h3>
+        </div>
+        <p>
+          The settings route redirected to <code>/settings/profile</code> and showed a faint skeleton-like
+          card with no clear heading, error, or loaded content. In a production app, settings must never
+          feel like an abandoned loading state.
+        </p>
+        <p class="evidence">Evidence: <code>desktop-settings.png</code>.</p>
+        <ul class="fix-list">
+          <li>Add a clear page title and persistent section description.</li>
+          <li>Use a deterministic empty, error, or loading state with retry affordance.</li>
+          <li>Do not render ultra-low-contrast skeletons without visible framing context.</li>
+        </ul>
+      </section>
+
+      <section class="finding">
+        <div class="finding-header">
+          <span class="pill p1">P1</span>
+          <h3>Console has global hydration and auth warnings</h3>
+        </div>
+        <p>
+          Browser logs repeatedly include a React hydration mismatch and Supabase warnings about using
+          <code>getSession()</code> user data. These are visible across routes and should not be ignored
+          before production.
+        </p>
+        <p class="evidence">
+          Sample log: <code>A tree hydrated but some attributes of the server rendered HTML didn't match...</code>.
+          Sample warning: <code>Using the user object as returned from supabase.auth.getSession()...</code>.
+        </p>
+        <ul class="fix-list">
+          <li>Find and remove client/server mismatched attributes, likely in injected dev tooling or mounted overlays.</li>
+          <li>Use <code>supabase.auth.getUser()</code> where server/auth trust is required.</li>
+          <li>Add console-error checks to smoke tests for core routes.</li>
+        </ul>
+      </section>
+
+      <section class="finding">
+        <div class="finding-header">
+          <span class="pill p1">P1</span>
+          <h3>Mobile surfaces are functional but cramped by overlays</h3>
+        </div>
+        <p>
+          Mobile routes avoid document-level overflow, which is good. The issue is polish: debug overlays and
+          issue badges sit over core controls and content cards. Automations is the clearest example, where the
+          composer and floating controls visually collide with the list.
+        </p>
+        <p class="evidence">Evidence: <code>mobile-automations.png</code>, <code>mobile-deals.png</code>.</p>
+        <ul class="fix-list">
+          <li>Remove all non-product overlays from mobile.</li>
+          <li>Reserve bottom safe areas for the app's own composer or action controls.</li>
+          <li>Audit touch target spacing after overlays are gone.</li>
+        </ul>
+      </section>
+
+      <section class="finding">
+        <div class="finding-header">
+          <span class="pill p1">P1</span>
+          <h3>The chat landing state feels like a demo, not an operational workbench</h3>
+        </div>
+        <p>
+          The app works end to end, but the empty chat route still reads like a generic AI assistant landing
+          page. For Sunder, the first screen should make completed work and current responsibilities feel close:
+          recent work, primary thread, daily orchestrator, due follow-ups, and approval queue.
+        </p>
+        <p class="evidence">Evidence: <code>desktop-chat.png</code>, <code>mobile-chat.png</code>.</p>
+        <ul class="fix-list">
+          <li>Keep the composer, but reduce hero scale on desktop and mobile.</li>
+          <li>Replace broad prompt categories with user-specific operational suggestions.</li>
+          <li>Show current automation status or pending approvals when present.</li>
+        </ul>
+      </section>
+
+      <section class="finding">
+        <div class="finding-header">
+          <span class="pill p2">P2</span>
+          <h3>The design system is not documented in the repo root</h3>
+        </div>
+        <p>
+          <code>PRODUCT.md</code> exists and is useful. <code>DESIGN.md</code> is missing, so production polish
+          depends on scattered component conventions. That makes future work more likely to drift.
+        </p>
+        <ul class="fix-list">
+          <li>Create <code>DESIGN.md</code> with token usage, layout rules, table behavior, mobile patterns, and state patterns.</li>
+          <li>Document Flexoki semantic token usage and banned raw Tailwind palette classes.</li>
+          <li>Add screenshot examples of approved app surfaces.</li>
+        </ul>
+      </section>
+
+      <h2>Route Matrix</h2>
+      <div class="route-grid">
+        <div class="route-card">
+          <strong>Chat</strong>
+          <span>Works, Haiku selectable, but quota and generic empty state look non-production.</span>
+        </div>
+        <div class="route-card">
+          <strong>People</strong>
+          <span>Desktop overflow and QA data. Mobile card layout is more acceptable.</span>
+        </div>
+        <div class="route-card">
+          <strong>Companies</strong>
+          <span>Worst desktop overflow at 1948px document width. Placeholder company data dominates.</span>
+        </div>
+        <div class="route-card">
+          <strong>Deals</strong>
+          <span>Desktop overflow and repeated untitled records. Mobile cards work but show issue badge overlay.</span>
+        </div>
+        <div class="route-card">
+          <strong>Tasks</strong>
+          <span>Mostly stable. Needs seeded data cleanup and consistent demo state.</span>
+        </div>
+        <div class="route-card">
+          <strong>Automations</strong>
+          <span>Useful structure, but mobile composer and debug controls collide with list content.</span>
+        </div>
+        <div class="route-card">
+          <strong>Meetings</strong>
+          <span>Functional but many generic "Untitled" rows weaken production impression.</span>
+        </div>
+        <div class="route-card">
+          <strong>Skills</strong>
+          <span>Cleanest surface. Descriptions truncate heavily, but overall production direction is good.</span>
+        </div>
+        <div class="route-card">
+          <strong>Settings</strong>
+          <span>Profile route looked like a blank skeleton. Needs clear loaded, empty, and error states.</span>
+        </div>
+        <div class="route-card">
+          <strong>Pricing</strong>
+          <span>Commercial copy is not demo-ready because paid plans render as unavailable.</span>
+        </div>
+      </div>
+
+      <h2>Recommended Fix Order</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Fix</th>
+            <th>Why first</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Remove dev and annotation overlays from product routes.</td>
+            <td>Fastest visible win. Immediately stops the app from looking like a development build.</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Replace QA data with a clean demo tenant.</td>
+            <td>The product cannot be credibly demoed while core lists show test data.</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Fix pricing and quota display.</td>
+            <td>Commercial trust breaks when plan numbers are fake or unavailable.</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Contain CRM desktop table overflow.</td>
+            <td>Prevents clipping and sideways page scroll on the most important operational surfaces.</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Resolve hydration and Supabase auth warnings.</td>
+            <td>Console errors make production debugging harder and hide real regressions.</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>Harden settings loading and empty states.</td>
+            <td>Settings should communicate control and reliability, not uncertainty.</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>Document the design system in <code>DESIGN.md</code>.</td>
+            <td>Prevents the same polish drift from coming back route by route.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Audit Notes</h2>
+      <p>
+        The installed <code>agent-browser</code> CLI was attempted but Chrome failed before writing a DevTools
+        endpoint. The audit continued through the in-app Browser automation attached to the real local app.
+        Source data is saved in <a href="browser-audit-results.json">browser-audit-results.json</a>.
+      </p>
+    </main>
+  </body>
+</html>

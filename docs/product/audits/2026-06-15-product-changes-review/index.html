@@ -1,0 +1,2659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sunder Product Change Review</title>
+<style>
+:root { --bg:#fbfaf7; --surface:#fffdfa; --ink:#181713; --muted:#716d65; --line:#ded8ca; --soft:#f3efe6; --accent:#295f5b; --accent-soft:#e5f1ee; --warn:#8a5a00; --good:#23664f; --bad:#9f2f2f; --shadow:0 16px 40px rgba(26,22,15,.08); }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+header { padding:48px 40px 28px; border-bottom:1px solid var(--line); background:linear-gradient(180deg,#fffdfa,#f7f3ea); }
+main { padding:28px 40px 64px; max-width:1280px; margin:0 auto; }
+h1 { margin:0; font-size:clamp(36px,5vw,64px); line-height:1; letter-spacing:-.025em; }
+h2 { margin:8px 0 10px; font-size:28px; line-height:1.15; letter-spacing:-.015em; }
+h3 { margin:0 0 8px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); }
+p { margin:0; }
+code { font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size:13px; white-space:normal; overflow-wrap:anywhere; }
+.meta { color:var(--muted); font-size:14px; margin-bottom:16px; }
+.lede { margin-top:18px; max-width:860px; font-size:21px; color:#2d2a24; }
+.metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:28px; }
+.metric { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px; box-shadow:var(--shadow); }
+.metric strong { display:block; font-size:34px; line-height:1; }
+.metric span { color:var(--muted); }
+.notice { margin:22px 0; padding:16px 18px; background:#fff7e1; border-left:5px solid #9f6b02; border-radius:10px; }
+.controls { display:flex; gap:12px; flex-wrap:wrap; margin:24px 0; }
+input, select, button { border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); padding:12px 14px; font:inherit; }
+input { min-width:min(520px,100%); flex:1; }
+button { cursor:pointer; }
+.grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:18px 0 32px; }
+.category-card { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px; }
+.category-count { font-size:28px; font-weight:700; }
+.category-name { color:var(--muted); }
+.section-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:24px; margin:18px 0; box-shadow:var(--shadow); }
+.section-topline { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:13px; }
+.number { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:999px; background:var(--accent); color:#fff; font-weight:700; }
+.count { padding:4px 8px; border-radius:999px; background:var(--accent-soft); color:var(--accent); }
+.audience { color:#36322b; margin-bottom:18px; }
+.before-after, .plain-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:14px 0; }
+.before-after > div, .plain-grid > div { border:1px solid var(--line); background:#fbf8f1; border-radius:12px; padding:16px; }
+.before-after > div:nth-child(2) { background:#f0f7f4; border-color:#c8ded6; }
+.recommendation { margin-top:16px; padding:14px 16px; border-radius:10px; background:#f5f1e8; border:1px solid var(--line); }
+details { margin-top:16px; }
+summary { cursor:pointer; color:var(--accent); font-weight:700; }
+.file-list { list-style:none; padding:0; margin:12px 0 0; display:grid; gap:8px; }
+.file-list li, .orphan-list li { display:flex; gap:10px; align-items:flex-start; }
+.pill { display:inline-flex; min-width:66px; justify-content:center; border-radius:999px; padding:2px 8px; font-size:12px; font-weight:700; border:1px solid var(--line); background:#fff; color:var(--muted); }
+.pill.new { color:var(--good); background:#e8f5ef; border-color:#c8e3d7; }
+.pill.changed { color:#5d4a07; background:#fff5ce; border-color:#ead88f; }
+.pill.deleted { color:var(--bad); background:#ffeded; border-color:#f2c2c2; }
+.appendix { margin-top:40px; }
+table { width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+th { color:var(--muted); background:var(--soft); font-size:13px; }
+.raw { white-space:pre-wrap; background:#15130f; color:#f7f1de; padding:16px; border-radius:12px; overflow:auto; font-size:12px; }
+.hidden { display:none !important; }
+.orphan-list { list-style:none; padding:0; display:grid; gap:8px; }
+@media (max-width:900px) { header, main { padding-left:18px; padding-right:18px; } .metrics, .grid, .before-after, .plain-grid { grid-template-columns:1fr; } h1 { font-size:40px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="meta">Generated 2026-06-15T08:07:21.474Z · branch feat/twenty-aesthetic-clone · HEAD c11738a7</div>
+  <h1>Sunder Product Change Review</h1>
+  <p class="lede">Plain-language review of the recent uncommitted changes. This is written for product decisions: what changed, what users would experience, and what each change achieves.</p>
+  <div class="metrics">
+    <div class="metric"><strong>352</strong><span>total changed paths</span></div>
+    <div class="metric"><strong>95</strong><span>tracked product/tool changes</span></div>
+    <div class="metric"><strong>257</strong><span>new files</span></div>
+    <div class="metric"><strong>17</strong><span>deleted files</span></div>
+  </div>
+</header>
+<main>
+  <div class="notice"><strong>How to use this:</strong> read the product sections first, then mark each section as keep, revert, or split. The appendix still lists every changed path so nothing is hidden.</div>
+
+  <section>
+    <h2>At a glance</h2>
+    <p class="audience">The recent work is mostly launch polish: clearer billing and usage language, cleaner settings, safer sign-in checks, tidier CRM defaults, calmer app behavior, more resilient public pages, plus a large behind-the-scenes design tooling update.</p>
+    <div class="grid">
+  <div class="category-card">
+    <div class="category-count">5</div>
+    <div class="category-name">App polish</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">1</div>
+    <div class="category-name">Automations</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">7</div>
+    <div class="category-name">Customer records</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">272</div>
+    <div class="category-name">Design tooling</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">7</div>
+    <div class="category-name">Generated analysis cache</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">3</div>
+    <div class="category-name">Other</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">3</div>
+    <div class="category-name">Pricing and usage limits</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">2</div>
+    <div class="category-name">Public site and search visibility</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">25</div>
+    <div class="category-name">Review artifacts</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">9</div>
+    <div class="category-name">Settings</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">2</div>
+    <div class="category-name">Sign-in and account session</div>
+  </div>
+
+  <div class="category-card">
+    <div class="category-count">16</div>
+    <div class="category-name">Test coverage</div>
+  </div></div>
+  </section>
+
+  <section>
+    <h2>Product-facing changes</h2>
+    <div class="controls">
+      <input id="sectionSearch" placeholder="Search sections, e.g. pricing, settings, CRM, tooling..." />
+      <button id="resetSections">Reset</button>
+    </div>
+    
+    <article class="section-card" data-section data-title="pricing and usage limits feel more launch-ready" data-recommendation="likely keep. this directly removes rough launch-facing copy.">
+      <div class="section-topline">
+        <span class="number">1</span>
+        <span class="count">3 changed paths</span>
+      </div>
+      <h2>Pricing and usage limits feel more launch-ready</h2>
+      <p class="audience"><strong>Who notices:</strong> People checking their plan, message usage, or upgrade options.</p>
+      <div class="before-after">
+        <div><h3>Before</h3><p>Some pages could show internal numbers like 999999 messages, or use harsh fallback labels like Unavailable when billing was not fully connected.</p></div>
+        <div><h3>After</h3><p>Users see clearer plan language: messages used, reset timing, Contact support, or Contact us when checkout is not ready.</p></div>
+      </div>
+      <div class="plain-grid">
+        <div><h3>What this achieves</h3><p>This makes the product feel intentional during launch, even if Stripe setup or a paid checkout path is temporarily incomplete.</p></div>
+        <div><h3>How the experience looks</h3><p>A customer can understand whether they are on the right plan without seeing internal placeholders.</p></div>
+      </div>
+      <p class="recommendation"><strong>Product call:</strong> Likely keep. This directly removes rough launch-facing copy.</p>
+      <details>
+        <summary>Changed paths behind this section</summary>
+        <ul class="file-list">
+          <li><span class="pill changed">Changed</span><code>app/(dashboard)/pricing/page.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/chat/message-quota-pill.tsx</code></li><li><span class="pill new">New</span><code>src/components/chat/message-quota-pill.test.tsx</code></li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="section-card" data-section data-title="settings pages feel more consistent and less unfinished" data-recommendation="likely keep, unless you prefer more explicit coming soon language.">
+      <div class="section-topline">
+        <span class="number">2</span>
+        <span class="count">8 changed paths</span>
+      </div>
+      <h2>Settings pages feel more consistent and less unfinished</h2>
+      <p class="audience"><strong>Who notices:</strong> Users managing profile, billing, Telegram, agent behavior, and future settings areas.</p>
+      <div class="before-after">
+        <div><h3>Before</h3><p>Different settings pages used slightly different widths and loading layouts. Future features used labels like Coming soon or Unavailable, which can feel unfinished in production.</p></div>
+        <div><h3>After</h3><p>Settings pages share a calmer layout. Future or inactive channels say Planned, Not connected, or Not configured.</p></div>
+      </div>
+      <div class="plain-grid">
+        <div><h3>What this achieves</h3><p>The settings area reads more like a real product surface and less like a collection of temporary pages.</p></div>
+        <div><h3>How the experience looks</h3><p>A user moving between settings pages should feel like they are still in the same product, with clearer expectations about what is available now.</p></div>
+      </div>
+      <p class="recommendation"><strong>Product call:</strong> Likely keep, unless you prefer more explicit Coming soon language.</p>
+      <details>
+        <summary>Changed paths behind this section</summary>
+        <ul class="file-list">
+          <li><span class="pill changed">Changed</span><code>app/settings/agent/general/page.tsx</code></li><li><span class="pill changed">Changed</span><code>app/settings/agent/memory/page.tsx</code></li><li><span class="pill changed">Changed</span><code>app/settings/profile/page.tsx</code></li><li><span class="pill changed">Changed</span><code>app/settings/workspace/billing/page.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/settings/messaging-channels/disabled-channel-row.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/settings/messaging-channels/telegram-connect-row.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/settings/settings-stub-page.tsx</code></li><li><span class="pill new">New</span><code>src/components/settings/settings-page-shell.tsx</code></li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="section-card" data-section data-title="customer record pages are tidier and safer to use" data-recommendation="likely keep. these are small but visible quality improvements.">
+      <div class="section-topline">
+        <span class="number">3</span>
+        <span class="count">6 changed paths</span>
+      </div>
+      <h2>Customer record pages are tidier and safer to use</h2>
+      <p class="audience"><strong>Who notices:</strong> Users creating contacts, companies, and deals in the CRM.</p>
+      <div class="before-after">
+        <div><h3>Before</h3><p>New records were named New Contact, New Company, or Untitled Deal. Wide tables could push outside the page. Missing custom field settings could break saved views.</p></div>
+        <div><h3>After</h3><p>New records use softer draft names like Client Draft, Company Draft, and Opportunity Draft. Tables stay contained. Views tolerate missing custom field settings.</p></div>
+      </div>
+      <div class="plain-grid">
+        <div><h3>What this achieves</h3><p>The CRM feels more deliberate and less brittle, especially during demos and first-time setup.</p></div>
+        <div><h3>How the experience looks</h3><p>A user can add a record and see a normal draft item instead of placeholder-sounding data.</p></div>
+      </div>
+      <p class="recommendation"><strong>Product call:</strong> Likely keep. These are small but visible quality improvements.</p>
+      <details>
+        <summary>Changed paths behind this section</summary>
+        <ul class="file-list">
+          <li><span class="pill changed">Changed</span><code>app/(dashboard)/customers/companies/page.tsx</code></li><li><span class="pill changed">Changed</span><code>app/(dashboard)/customers/deals/page.tsx</code></li><li><span class="pill changed">Changed</span><code>app/(dashboard)/customers/people/page.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/crm/view-picker.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/ui/list-table.tsx</code></li><li><span class="pill changed">Changed</span><code>src/hooks/use-crm-views.ts</code></li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="section-card" data-section data-title="sign-in and account checks are more trustworthy" data-recommendation="likely keep, but treat as important enough to verify sign-in, sign-out, and email-confirm flows before launch.">
+      <div class="section-topline">
+        <span class="number">4</span>
+        <span class="count">4 changed paths</span>
+      </div>
+      <h2>Sign-in and account checks are more trustworthy</h2>
+      <p class="audience"><strong>Who notices:</strong> Users confirming email, signing in, or returning to the dashboard.</p>
+      <div class="before-after">
+        <div><h3>Before</h3><p>The app leaned on locally stored session information in a few places.</p></div>
+        <div><h3>After</h3><p>The app asks the account provider for the current user before treating someone as signed in.</p></div>
+      </div>
+      <div class="plain-grid">
+        <div><h3>What this achieves</h3><p>This reduces the chance of showing account-only pages based on stale local information.</p></div>
+        <div><h3>How the experience looks</h3><p>Email confirmation and dashboard entry should feel more reliable after sign-in changes.</p></div>
+      </div>
+      <p class="recommendation"><strong>Product call:</strong> Likely keep, but treat as important enough to verify sign-in, sign-out, and email-confirm flows before launch.</p>
+      <details>
+        <summary>Changed paths behind this section</summary>
+        <ul class="file-list">
+          <li><span class="pill changed">Changed</span><code>app/(dashboard)/layout.tsx</code></li><li><span class="pill changed">Changed</span><code>app/auth/confirm/page-client.tsx</code></li><li><span class="pill changed">Changed</span><code>app/auth/confirm/page.test.tsx</code></li><li><span class="pill changed">Changed</span><code>src/hooks/use-session.ts</code></li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="section-card" data-section data-title="automation controls are easier to understand and tap" data-recommendation="likely keep.">
+      <div class="section-topline">
+        <span class="number">5</span>
+        <span class="count">2 changed paths</span>
+      </div>
+      <h2>Automation controls are easier to understand and tap</h2>
+      <p class="audience"><strong>Who notices:</strong> Users enabling or disabling scheduled work.</p>
+      <div class="before-after">
+        <div><h3>Before</h3><p>Automation switches were small and did not describe their action clearly for assistive tools.</p></div>
+        <div><h3>After</h3><p>Switches are larger and each one clearly represents Enable or Disable for the named automation.</p></div>
+      </div>
+      <div class="plain-grid">
+        <div><h3>What this achieves</h3><p>This improves confidence when turning autopilot behavior on or off.</p></div>
+        <div><h3>How the experience looks</h3><p>On mobile, the toggle should be easier to hit, and the action is clearer.</p></div>
+      </div>
+      <p class="recommendation"><strong>Product call:</strong> Likely keep.</p>
+      <details>
+        <summary>Changed paths behind this section</summary>
+        <ul class="file-list">
+          <li><span class="pill changed">Changed</span><code>src/components/automations/automations-list.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/ui/switch.tsx</code></li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="section-card" data-section data-title="general app polish reduces demo rough edges" data-recommendation="mostly keep. the only point to review is hiding development chrome, because it affects local debugging unless explicitly enabled.">
+      <div class="section-topline">
+        <span class="number">6</span>
+        <span class="count">4 changed paths</span>
+      </div>
+      <h2>General app polish reduces demo rough edges</h2>
+      <p class="audience"><strong>Who notices:</strong> Anyone seeing the product in a launch demo or production trial.</p>
+      <div class="before-after">
+        <div><h3>Before</h3><p>Some screens could produce sideways scroll. Development-only overlays could appear in local demos. A few animations and type details were more distracting than useful.</p></div>
+        <div><h3>After</h3><p>The app is stricter about staying within the viewport, hides development chrome unless explicitly enabled, and uses calmer motion and type spacing.</p></div>
+      </div>
+      <div class="plain-grid">
+        <div><h3>What this achieves</h3><p>This makes the app feel more stable and composed during demos.</p></div>
+        <div><h3>How the experience looks</h3><p>Pages should feel less jumpy, less clipped, and less obviously local/dev-only.</p></div>
+      </div>
+      <p class="recommendation"><strong>Product call:</strong> Mostly keep. The only point to review is hiding development chrome, because it affects local debugging unless explicitly enabled.</p>
+      <details>
+        <summary>Changed paths behind this section</summary>
+        <ul class="file-list">
+          <li><span class="pill changed">Changed</span><code>app/globals.css</code></li><li><span class="pill changed">Changed</span><code>app/layout.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/landing/WhatsAppPhoneMockup.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/layout/app-sidebar.tsx</code></li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="section-card" data-section data-title="public pages and search listings are more resilient" data-recommendation="likely keep.">
+      <div class="section-topline">
+        <span class="number">7</span>
+        <span class="count">3 changed paths</span>
+      </div>
+      <h2>Public pages and search listings are more resilient</h2>
+      <p class="audience"><strong>Who notices:</strong> People discovering Sunder or property pages through search engines.</p>
+      <div class="before-after">
+        <div><h3>Before</h3><p>A problem loading one public data source could prevent the sitemap from being produced.</p></div>
+        <div><h3>After</h3><p>The sitemap still includes the core public pages even if one source is temporarily unavailable.</p></div>
+      </div>
+      <div class="plain-grid">
+        <div><h3>What this achieves</h3><p>Search visibility becomes less fragile during launch.</p></div>
+        <div><h3>How the experience looks</h3><p>Search engines can still find the main public pages instead of receiving a broken sitemap.</p></div>
+      </div>
+      <p class="recommendation"><strong>Product call:</strong> Likely keep.</p>
+      <details>
+        <summary>Changed paths behind this section</summary>
+        <ul class="file-list">
+          <li><span class="pill changed">Changed</span><code>app/sitemap.ts</code></li><li><span class="pill changed">Changed</span><code>src/components/landing/Hero.test.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/property/__tests__/market-cta.test.tsx</code></li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="section-card" data-section data-title="design review tooling was heavily updated" data-recommendation="review carefully. this is the biggest change set and may be worth keeping separate from product launch polish.">
+      <div class="section-topline">
+        <span class="number">8</span>
+        <span class="count">272 changed paths</span>
+      </div>
+      <h2>Design review tooling was heavily updated</h2>
+      <p class="audience"><strong>Who notices:</strong> The team using Codex to inspect, annotate, and polish the interface.</p>
+      <div class="before-after">
+        <div><h3>Before</h3><p>The design skill/tooling had older commands and less structured support for browser-based review and manual edits.</p></div>
+        <div><h3>After</h3><p>A large set of new design-review files, browser helpers, manual edit flows, and copied skill folders were added or changed.</p></div>
+      </div>
+      <div class="plain-grid">
+        <div><h3>What this achieves</h3><p>This may improve future design-polish workflows, but it is mostly behind the scenes and not part of the customer product.</p></div>
+        <div><h3>How the experience looks</h3><p>End users should not notice this directly. The team may notice better review workflows inside Codex.</p></div>
+      </div>
+      <p class="recommendation"><strong>Product call:</strong> Review carefully. This is the biggest change set and may be worth keeping separate from product launch polish.</p>
+      <details>
+        <summary>Changed paths behind this section</summary>
+        <ul class="file-list">
+          <li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/adapt.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/animate.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/audit.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/bolder.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/brand.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/clarify.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/reference/cognitive-load.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/reference/color-and-contrast.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/colorize.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/craft.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/critique.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/delight.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/distill.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/document.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/extract.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/harden.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/reference/heuristics-scoring.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/interaction-design.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/layout.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/live.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/reference/motion-design.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/onboard.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/optimize.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/overdrive.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/reference/personas.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/polish.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/product.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/quieter.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/reference/responsive-design.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/shape.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/reference/spatial-design.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/reference/teach.md</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/reference/typeset.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/reference/typography.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/reference/ux-writing.md</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/scripts/cleanup-deprecated.mjs</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/scripts/command-metadata.json</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/scripts/design-parser.mjs</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/scripts/is-generated.mjs</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/scripts/live-accept.mjs</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/scripts/live-browser.js</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/scripts/live-inject.mjs</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/scripts/live-poll.mjs</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/scripts/live-server.mjs</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/scripts/live-wrap.mjs</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/scripts/live.mjs</code></li><li><span class="pill deleted">Deleted</span><code>.agents/skills/impeccable/scripts/load-context.mjs</code></li><li><span class="pill changed">Changed</span><code>.agents/skills/impeccable/scripts/pin.mjs</code></li><li><span class="pill deleted">Deleted</span><code>.claude/skills/impeccable</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/agents/impeccable_asset_producer.toml</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/agents/impeccable_manual_edit_applier.toml</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/reference/codex.md</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/reference/init.md</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/context-signals.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/context.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/critique-storage.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detect.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/browser/injected/index.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/cli/main.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/detect-antipatterns-browser.js</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/detect-antipatterns.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/engines/browser/detect-url.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/engines/regex/detect-text.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/engines/static-html/css-cascade.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/engines/static-html/detect-html.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/engines/visual/screenshot-contrast.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/findings.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/node/file-system.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/profile/profiler.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/registry/antipatterns.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/rules/checks.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/shared/color.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/shared/constants.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/detector/shared/page.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/lib/design-parser.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/lib/impeccable-paths.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/lib/is-generated.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live-browser-dom.js</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live-browser-session.js</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live-commit-manual-edits.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live-complete.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live-copy-edit-agent.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live-discard-manual-edits.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live-insert.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live-manual-edit-evidence.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live-resume.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live-status.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/browser-script-parts.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/completion.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/event-validation.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/insert-ui.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/manual-apply.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/manual-edit-routes.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/manual-edits-buffer.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/session-store.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/svelte-component.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/sveltekit-adapter.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/ui-core.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/live/vocabulary.mjs</code></li><li><span class="pill new">New</span><code>.agents/skills/impeccable/scripts/palette.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/SKILL.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/adapt.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/animate.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/audit.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/bolder.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/brand.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/clarify.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/codex.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/colorize.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/craft.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/critique.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/delight.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/distill.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/document.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/extract.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/harden.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/init.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/interaction-design.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/layout.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/live.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/onboard.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/optimize.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/overdrive.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/polish.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/product.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/quieter.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/shape.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/reference/typeset.md</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/command-metadata.json</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/context-signals.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/context.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/critique-storage.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detect-csp.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detect.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/browser/injected/index.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/cli/main.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/detect-antipatterns-browser.js</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/detect-antipatterns.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/engines/browser/detect-url.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/engines/regex/detect-text.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/engines/static-html/css-cascade.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/engines/static-html/detect-html.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/engines/visual/screenshot-contrast.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/findings.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/node/file-system.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/profile/profiler.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/registry/antipatterns.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/rules/checks.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/shared/color.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/shared/constants.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/detector/shared/page.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/lib/design-parser.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/lib/impeccable-paths.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/lib/is-generated.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-accept.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-browser-dom.js</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-browser-session.js</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-browser.js</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-commit-manual-edits.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-complete.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-copy-edit-agent.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-discard-manual-edits.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-inject.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-insert.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-manual-edit-evidence.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-poll.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-resume.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-server.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-status.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live-wrap.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/browser-script-parts.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/completion.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/event-validation.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/insert-ui.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/manual-apply.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/manual-edit-routes.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/manual-edits-buffer.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/session-store.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/svelte-component.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/sveltekit-adapter.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/ui-core.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/live/vocabulary.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/modern-screenshot.umd.js</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/palette.mjs</code></li><li><span class="pill new">New</span><code>.claude/skills/impeccable/scripts/pin.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/SKILL.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/adapt.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/animate.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/audit.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/bolder.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/brand.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/clarify.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/codex.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/colorize.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/craft.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/critique.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/delight.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/distill.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/document.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/extract.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/harden.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/init.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/interaction-design.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/layout.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/live.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/onboard.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/optimize.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/overdrive.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/polish.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/product.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/quieter.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/shape.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/reference/typeset.md</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/command-metadata.json</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/context-signals.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/context.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/critique-storage.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detect-csp.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detect.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/browser/injected/index.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/cli/main.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/detect-antipatterns-browser.js</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/detect-antipatterns.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/engines/browser/detect-url.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/engines/regex/detect-text.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/engines/static-html/css-cascade.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/engines/static-html/detect-html.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/engines/visual/screenshot-contrast.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/findings.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/node/file-system.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/profile/profiler.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/registry/antipatterns.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/rules/checks.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/shared/color.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/shared/constants.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/detector/shared/page.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/lib/design-parser.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/lib/impeccable-paths.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/lib/is-generated.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-accept.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-browser-dom.js</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-browser-session.js</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-browser.js</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-commit-manual-edits.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-complete.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-copy-edit-agent.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-discard-manual-edits.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-inject.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-insert.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-manual-edit-evidence.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-poll.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-resume.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-server.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-status.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live-wrap.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/browser-script-parts.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/completion.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/event-validation.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/insert-ui.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/manual-apply.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/manual-edit-routes.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/manual-edits-buffer.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/session-store.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/svelte-component.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/sveltekit-adapter.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/ui-core.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/live/vocabulary.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/modern-screenshot.umd.js</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/palette.mjs</code></li><li><span class="pill new">New</span><code>.kiro/skills/impeccable/scripts/pin.mjs</code></li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="section-card" data-section data-title="review artifacts and analysis caches were generated" data-recommendation="keep only the artifacts you want as durable documentation; delete generated caches before shipping if they are not needed.">
+      <div class="section-topline">
+        <span class="number">9</span>
+        <span class="count">32 changed paths</span>
+      </div>
+      <h2>Review artifacts and analysis caches were generated</h2>
+      <p class="audience"><strong>Who notices:</strong> The team reviewing launch readiness.</p>
+      <div class="before-after">
+        <div><h3>Before</h3><p>There was no packaged audit view for the recent polish work.</p></div>
+        <div><h3>After</h3><p>There are audit reports, screenshots, and local analysis files that document what was reviewed.</p></div>
+      </div>
+      <div class="plain-grid">
+        <div><h3>What this achieves</h3><p>This makes it easier to decide what to keep or revert.</p></div>
+        <div><h3>How the experience looks</h3><p>Customers do not see this. It is internal review material.</p></div>
+      </div>
+      <p class="recommendation"><strong>Product call:</strong> Keep only the artifacts you want as durable documentation; delete generated caches before shipping if they are not needed.</p>
+      <details>
+        <summary>Changed paths behind this section</summary>
+        <ul class="file-list">
+          <li><span class="pill new">New</span><code>.understand-anything/.understandignore</code></li><li><span class="pill new">New</span><code>.understand-anything/analysis-stats.json</code></li><li><span class="pill new">New</span><code>.understand-anything/config.json</code></li><li><span class="pill new">New</span><code>.understand-anything/domain-graph.json</code></li><li><span class="pill new">New</span><code>.understand-anything/knowledge-graph.json</code></li><li><span class="pill new">New</span><code>.understand-anything/meta.json</code></li><li><span class="pill new">New</span><code>.understand-anything/tmp/generate-graph.mjs</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-launch-polish-checklist.md</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/browser-audit-results.json</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/desktop-contact-sheet.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/index.html</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/mobile-contact-sheet.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-automations.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-chat.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-companies.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-deals.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-meetings.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-people.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-pricing.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-settings.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-skills.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-tasks.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-automations.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-chat.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-companies.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-deals.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-meetings.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-people.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-skills.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-tasks.png</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-12-launch-polish-final-pass.md</code></li><li><span class="pill new">New</span><code>docs/product/audits/2026-06-15-recent-changes-review/index.html</code></li>
+        </ul>
+      </details>
+    </article>
+
+    <article class="section-card" data-section data-title="test expectations were updated around the polish work" data-recommendation="keep tests that match kept product changes; revert tests for any product changes you reject.">
+      <div class="section-topline">
+        <span class="number">10</span>
+        <span class="count">16 changed paths</span>
+      </div>
+      <h2>Test expectations were updated around the polish work</h2>
+      <p class="audience"><strong>Who notices:</strong> The team maintaining launch quality.</p>
+      <div class="before-after">
+        <div><h3>Before</h3><p>Tests reflected the older copy, smaller controls, and older page behavior.</p></div>
+        <div><h3>After</h3><p>Tests now expect the new labels, layout behavior, account checks, and public-page resilience.</p></div>
+      </div>
+      <div class="plain-grid">
+        <div><h3>What this achieves</h3><p>The product has more guardrails around the launch polish changes.</p></div>
+        <div><h3>How the experience looks</h3><p>Users do not see tests, but tests reduce the chance of regressions.</p></div>
+      </div>
+      <p class="recommendation"><strong>Product call:</strong> Keep tests that match kept product changes; revert tests for any product changes you reject.</p>
+      <details>
+        <summary>Changed paths behind this section</summary>
+        <ul class="file-list">
+          <li><span class="pill changed">Changed</span><code>app/(dashboard)/chat/[threadId]/chat-thread-page-client.test.tsx</code></li><li><span class="pill changed">Changed</span><code>app/(dashboard)/customers/companies/__tests__/page.test.tsx</code></li><li><span class="pill changed">Changed</span><code>app/(dashboard)/customers/deals/__tests__/page.test.tsx</code></li><li><span class="pill changed">Changed</span><code>app/(dashboard)/customers/people/__tests__/page.test.tsx</code></li><li><span class="pill changed">Changed</span><code>app/api/chat/__tests__/route.test.ts</code></li><li><span class="pill changed">Changed</span><code>app/auth/confirm/page.test.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/landing/Hero.test.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/layout/app-sidebar-thread-actions.test.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/layout/app-sidebar.test.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/property/__tests__/market-cta.test.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/settings/messaging-channels/__tests__/disabled-channel-row.test.tsx</code></li><li><span class="pill changed">Changed</span><code>src/components/settings/messaging-channels/__tests__/telegram-connect-row.test.tsx</code></li><li><span class="pill deleted">Deleted</span><code>src/lib/auth.test.ts</code></li><li><span class="pill changed">Changed</span><code>src/lib/connections/__tests__/queries.test.ts</code></li><li><span class="pill changed">Changed</span><code>supabase/migrations/__tests__/agent-files-text-mime-charset-variants.test.ts</code></li><li><span class="pill new">New</span><code>src/components/chat/message-quota-pill.test.tsx</code></li>
+        </ul>
+      </details>
+    </article>
+  </section>
+
+  <section class="appendix">
+    <h2>Other changed paths not mapped above</h2>
+    <p class="audience">These are still part of the recent worktree. They are listed separately because they are support files, tests, or small adjacent changes that do not need their own product story.</p>
+    <details open>
+      <summary>6 paths</summary>
+      <ul class="orphan-list"><li><span class="pill changed">Changed</span><code>agents/skills/impeccable/SKILL.md</code><span>Other</span></li>
+<li><span class="pill changed">Changed</span><code>app/(dashboard)/skills/predefined-card.tsx</code><span>Other</span></li>
+<li><span class="pill deleted">Deleted</span><code>app/settings/loading.tsx</code><span>Settings</span></li>
+<li><span class="pill changed">Changed</span><code>src/components/settings/settings-page-loading.tsx</code><span>Settings</span></li>
+<li><span class="pill changed">Changed</span><code>src/components/ui/markdown-renderer.tsx</code><span>Other</span></li>
+<li><span class="pill changed">Changed</span><code>src/lib/crm/field-definitions.ts</code><span>Customer records</span></li></ul>
+    </details>
+  </section>
+
+  <section class="appendix">
+    <h2>Every changed path</h2>
+    <div class="controls">
+      <input id="fileSearch" placeholder="Search every changed path..." />
+      <select id="categoryFilter"><option value="all">All categories</option><option value="App polish">App polish</option><option value="Automations">Automations</option><option value="Customer records">Customer records</option><option value="Design tooling">Design tooling</option><option value="Generated analysis cache">Generated analysis cache</option><option value="Other">Other</option><option value="Pricing and usage limits">Pricing and usage limits</option><option value="Public site and search visibility">Public site and search visibility</option><option value="Review artifacts">Review artifacts</option><option value="Settings">Settings</option><option value="Sign-in and account session">Sign-in and account session</option><option value="Test coverage">Test coverage</option></select>
+      <select id="statusFilter"><option value="all">All statuses</option><option>New</option><option>Changed</option><option>Deleted</option></select>
+    </div>
+    <table>
+      <thead><tr><th>Status</th><th>Product area</th><th>Path</th></tr></thead>
+      <tbody>
+  <tr data-file-row data-category="Other" data-status="Changed" data-path="agents/skills/impeccable/skill.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Other</td>
+    <td><code>agents/skills/impeccable/SKILL.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/adapt.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/adapt.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/animate.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/animate.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/audit.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/audit.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/bolder.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/bolder.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/brand.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/brand.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/clarify.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/clarify.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/reference/cognitive-load.md">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/cognitive-load.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/reference/color-and-contrast.md">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/color-and-contrast.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/colorize.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/colorize.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/craft.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/craft.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/critique.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/critique.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/delight.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/delight.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/distill.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/distill.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/document.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/document.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/extract.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/extract.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/harden.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/harden.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/reference/heuristics-scoring.md">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/heuristics-scoring.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/interaction-design.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/interaction-design.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/layout.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/layout.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/live.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/live.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/reference/motion-design.md">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/motion-design.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/onboard.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/onboard.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/optimize.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/optimize.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/overdrive.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/overdrive.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/reference/personas.md">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/personas.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/polish.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/polish.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/product.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/product.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/quieter.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/quieter.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/reference/responsive-design.md">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/responsive-design.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/shape.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/shape.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/reference/spatial-design.md">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/spatial-design.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/reference/teach.md">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/teach.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/reference/typeset.md">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/typeset.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/reference/typography.md">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/typography.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/reference/ux-writing.md">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/ux-writing.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/scripts/cleanup-deprecated.mjs">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/cleanup-deprecated.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/scripts/command-metadata.json">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/command-metadata.json</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/scripts/design-parser.mjs">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/design-parser.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/scripts/is-generated.mjs">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/is-generated.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/scripts/live-accept.mjs">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-accept.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/scripts/live-browser.js">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-browser.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/scripts/live-inject.mjs">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-inject.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/scripts/live-poll.mjs">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-poll.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/scripts/live-server.mjs">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-server.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/scripts/live-wrap.mjs">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-wrap.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/scripts/live.mjs">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".agents/skills/impeccable/scripts/load-context.mjs">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/load-context.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Changed" data-path=".agents/skills/impeccable/scripts/pin.mjs">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/pin.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="Deleted" data-path=".claude/skills/impeccable">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="app/(dashboard)/chat/[threadid]/chat-thread-page-client.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>app/(dashboard)/chat/[threadId]/chat-thread-page-client.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="app/(dashboard)/customers/companies/__tests__/page.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>app/(dashboard)/customers/companies/__tests__/page.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Customer records" data-status="Changed" data-path="app/(dashboard)/customers/companies/page.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Customer records</td>
+    <td><code>app/(dashboard)/customers/companies/page.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="app/(dashboard)/customers/deals/__tests__/page.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>app/(dashboard)/customers/deals/__tests__/page.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Customer records" data-status="Changed" data-path="app/(dashboard)/customers/deals/page.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Customer records</td>
+    <td><code>app/(dashboard)/customers/deals/page.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="app/(dashboard)/customers/people/__tests__/page.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>app/(dashboard)/customers/people/__tests__/page.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Customer records" data-status="Changed" data-path="app/(dashboard)/customers/people/page.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Customer records</td>
+    <td><code>app/(dashboard)/customers/people/page.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="App polish" data-status="Changed" data-path="app/(dashboard)/layout.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>App polish</td>
+    <td><code>app/(dashboard)/layout.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Pricing and usage limits" data-status="Changed" data-path="app/(dashboard)/pricing/page.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Pricing and usage limits</td>
+    <td><code>app/(dashboard)/pricing/page.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Other" data-status="Changed" data-path="app/(dashboard)/skills/predefined-card.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Other</td>
+    <td><code>app/(dashboard)/skills/predefined-card.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="app/api/chat/__tests__/route.test.ts">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>app/api/chat/__tests__/route.test.ts</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Sign-in and account session" data-status="Changed" data-path="app/auth/confirm/page-client.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Sign-in and account session</td>
+    <td><code>app/auth/confirm/page-client.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="app/auth/confirm/page.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>app/auth/confirm/page.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="App polish" data-status="Changed" data-path="app/globals.css">
+    <td><span class="pill changed">Changed</span></td>
+    <td>App polish</td>
+    <td><code>app/globals.css</code></td>
+  </tr>
+
+  <tr data-file-row data-category="App polish" data-status="Changed" data-path="app/layout.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>App polish</td>
+    <td><code>app/layout.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Settings" data-status="Changed" data-path="app/settings/agent/general/page.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Settings</td>
+    <td><code>app/settings/agent/general/page.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Settings" data-status="Changed" data-path="app/settings/agent/memory/page.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Settings</td>
+    <td><code>app/settings/agent/memory/page.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Settings" data-status="Deleted" data-path="app/settings/loading.tsx">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Settings</td>
+    <td><code>app/settings/loading.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Settings" data-status="Changed" data-path="app/settings/profile/page.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Settings</td>
+    <td><code>app/settings/profile/page.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Pricing and usage limits" data-status="Changed" data-path="app/settings/workspace/billing/page.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Pricing and usage limits</td>
+    <td><code>app/settings/workspace/billing/page.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Public site and search visibility" data-status="Changed" data-path="app/sitemap.ts">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Public site and search visibility</td>
+    <td><code>app/sitemap.ts</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Automations" data-status="Changed" data-path="src/components/automations/automations-list.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Automations</td>
+    <td><code>src/components/automations/automations-list.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Pricing and usage limits" data-status="Changed" data-path="src/components/chat/message-quota-pill.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Pricing and usage limits</td>
+    <td><code>src/components/chat/message-quota-pill.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Customer records" data-status="Changed" data-path="src/components/crm/view-picker.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Customer records</td>
+    <td><code>src/components/crm/view-picker.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="src/components/landing/hero.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>src/components/landing/Hero.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Public site and search visibility" data-status="Changed" data-path="src/components/landing/whatsappphonemockup.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Public site and search visibility</td>
+    <td><code>src/components/landing/WhatsAppPhoneMockup.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="src/components/layout/app-sidebar-thread-actions.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>src/components/layout/app-sidebar-thread-actions.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="src/components/layout/app-sidebar.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>src/components/layout/app-sidebar.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="App polish" data-status="Changed" data-path="src/components/layout/app-sidebar.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>App polish</td>
+    <td><code>src/components/layout/app-sidebar.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="src/components/property/__tests__/market-cta.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>src/components/property/__tests__/market-cta.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="src/components/settings/messaging-channels/__tests__/disabled-channel-row.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>src/components/settings/messaging-channels/__tests__/disabled-channel-row.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="src/components/settings/messaging-channels/__tests__/telegram-connect-row.test.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>src/components/settings/messaging-channels/__tests__/telegram-connect-row.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Settings" data-status="Changed" data-path="src/components/settings/messaging-channels/disabled-channel-row.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Settings</td>
+    <td><code>src/components/settings/messaging-channels/disabled-channel-row.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Settings" data-status="Changed" data-path="src/components/settings/messaging-channels/telegram-connect-row.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Settings</td>
+    <td><code>src/components/settings/messaging-channels/telegram-connect-row.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Settings" data-status="Changed" data-path="src/components/settings/settings-page-loading.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Settings</td>
+    <td><code>src/components/settings/settings-page-loading.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Settings" data-status="Changed" data-path="src/components/settings/settings-stub-page.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Settings</td>
+    <td><code>src/components/settings/settings-stub-page.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Customer records" data-status="Changed" data-path="src/components/ui/list-table.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Customer records</td>
+    <td><code>src/components/ui/list-table.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Other" data-status="Changed" data-path="src/components/ui/markdown-renderer.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Other</td>
+    <td><code>src/components/ui/markdown-renderer.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="App polish" data-status="Changed" data-path="src/components/ui/switch.tsx">
+    <td><span class="pill changed">Changed</span></td>
+    <td>App polish</td>
+    <td><code>src/components/ui/switch.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Customer records" data-status="Changed" data-path="src/hooks/use-crm-views.ts">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Customer records</td>
+    <td><code>src/hooks/use-crm-views.ts</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Sign-in and account session" data-status="Changed" data-path="src/hooks/use-session.ts">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Sign-in and account session</td>
+    <td><code>src/hooks/use-session.ts</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Deleted" data-path="src/lib/auth.test.ts">
+    <td><span class="pill deleted">Deleted</span></td>
+    <td>Test coverage</td>
+    <td><code>src/lib/auth.test.ts</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="src/lib/connections/__tests__/queries.test.ts">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>src/lib/connections/__tests__/queries.test.ts</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Customer records" data-status="Changed" data-path="src/lib/crm/field-definitions.ts">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Customer records</td>
+    <td><code>src/lib/crm/field-definitions.ts</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="Changed" data-path="supabase/migrations/__tests__/agent-files-text-mime-charset-variants.test.ts">
+    <td><span class="pill changed">Changed</span></td>
+    <td>Test coverage</td>
+    <td><code>supabase/migrations/__tests__/agent-files-text-mime-charset-variants.test.ts</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/agents/impeccable_asset_producer.toml">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/agents/impeccable_asset_producer.toml</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/agents/impeccable_manual_edit_applier.toml">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/agents/impeccable_manual_edit_applier.toml</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/reference/codex.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/codex.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/reference/init.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/reference/init.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/context-signals.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/context-signals.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/context.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/context.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/critique-storage.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/critique-storage.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detect.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detect.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/browser/injected/index.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/browser/injected/index.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/cli/main.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/cli/main.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/detect-antipatterns-browser.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/detect-antipatterns-browser.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/detect-antipatterns.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/detect-antipatterns.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/engines/browser/detect-url.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/engines/browser/detect-url.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/engines/regex/detect-text.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/engines/regex/detect-text.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/engines/static-html/css-cascade.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/engines/static-html/css-cascade.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/engines/static-html/detect-html.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/engines/static-html/detect-html.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/engines/visual/screenshot-contrast.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/engines/visual/screenshot-contrast.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/findings.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/findings.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/node/file-system.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/node/file-system.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/profile/profiler.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/profile/profiler.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/registry/antipatterns.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/registry/antipatterns.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/rules/checks.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/rules/checks.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/shared/color.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/shared/color.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/shared/constants.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/shared/constants.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/detector/shared/page.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/detector/shared/page.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/lib/design-parser.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/lib/design-parser.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/lib/impeccable-paths.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/lib/impeccable-paths.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/lib/is-generated.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/lib/is-generated.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live-browser-dom.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-browser-dom.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live-browser-session.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-browser-session.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live-commit-manual-edits.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-commit-manual-edits.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live-complete.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-complete.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live-copy-edit-agent.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-copy-edit-agent.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live-discard-manual-edits.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-discard-manual-edits.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live-insert.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-insert.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live-manual-edit-evidence.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-manual-edit-evidence.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live-resume.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-resume.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live-status.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live-status.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/browser-script-parts.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/browser-script-parts.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/completion.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/completion.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/event-validation.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/event-validation.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/insert-ui.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/insert-ui.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/manual-apply.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/manual-apply.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/manual-edit-routes.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/manual-edit-routes.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/manual-edits-buffer.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/manual-edits-buffer.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/session-store.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/session-store.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/svelte-component.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/svelte-component.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/sveltekit-adapter.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/sveltekit-adapter.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/ui-core.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/ui-core.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/live/vocabulary.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/live/vocabulary.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".agents/skills/impeccable/scripts/palette.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.agents/skills/impeccable/scripts/palette.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/skill.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/SKILL.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/adapt.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/adapt.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/animate.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/animate.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/audit.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/audit.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/bolder.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/bolder.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/brand.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/brand.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/clarify.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/clarify.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/codex.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/codex.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/colorize.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/colorize.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/craft.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/craft.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/critique.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/critique.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/delight.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/delight.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/distill.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/distill.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/document.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/document.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/extract.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/extract.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/harden.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/harden.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/init.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/init.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/interaction-design.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/interaction-design.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/layout.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/layout.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/live.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/live.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/onboard.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/onboard.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/optimize.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/optimize.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/overdrive.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/overdrive.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/polish.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/polish.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/product.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/product.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/quieter.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/quieter.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/shape.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/shape.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/reference/typeset.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/reference/typeset.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/command-metadata.json">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/command-metadata.json</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/context-signals.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/context-signals.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/context.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/context.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/critique-storage.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/critique-storage.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detect-csp.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detect-csp.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detect.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detect.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/browser/injected/index.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/browser/injected/index.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/cli/main.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/cli/main.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/detect-antipatterns-browser.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/detect-antipatterns-browser.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/detect-antipatterns.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/detect-antipatterns.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/engines/browser/detect-url.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/engines/browser/detect-url.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/engines/regex/detect-text.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/engines/regex/detect-text.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/engines/static-html/css-cascade.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/engines/static-html/css-cascade.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/engines/static-html/detect-html.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/engines/static-html/detect-html.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/engines/visual/screenshot-contrast.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/engines/visual/screenshot-contrast.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/findings.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/findings.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/node/file-system.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/node/file-system.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/profile/profiler.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/profile/profiler.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/registry/antipatterns.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/registry/antipatterns.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/rules/checks.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/rules/checks.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/shared/color.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/shared/color.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/shared/constants.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/shared/constants.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/detector/shared/page.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/detector/shared/page.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/lib/design-parser.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/lib/design-parser.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/lib/impeccable-paths.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/lib/impeccable-paths.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/lib/is-generated.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/lib/is-generated.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-accept.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-accept.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-browser-dom.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-browser-dom.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-browser-session.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-browser-session.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-browser.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-browser.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-commit-manual-edits.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-commit-manual-edits.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-complete.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-complete.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-copy-edit-agent.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-copy-edit-agent.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-discard-manual-edits.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-discard-manual-edits.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-inject.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-inject.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-insert.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-insert.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-manual-edit-evidence.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-manual-edit-evidence.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-poll.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-poll.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-resume.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-resume.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-server.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-server.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-status.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-status.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live-wrap.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live-wrap.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/browser-script-parts.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/browser-script-parts.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/completion.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/completion.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/event-validation.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/event-validation.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/insert-ui.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/insert-ui.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/manual-apply.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/manual-apply.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/manual-edit-routes.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/manual-edit-routes.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/manual-edits-buffer.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/manual-edits-buffer.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/session-store.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/session-store.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/svelte-component.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/svelte-component.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/sveltekit-adapter.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/sveltekit-adapter.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/ui-core.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/ui-core.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/live/vocabulary.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/live/vocabulary.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/modern-screenshot.umd.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/modern-screenshot.umd.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/palette.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/palette.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".claude/skills/impeccable/scripts/pin.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.claude/skills/impeccable/scripts/pin.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/skill.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/SKILL.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/adapt.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/adapt.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/animate.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/animate.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/audit.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/audit.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/bolder.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/bolder.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/brand.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/brand.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/clarify.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/clarify.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/codex.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/codex.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/colorize.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/colorize.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/craft.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/craft.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/critique.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/critique.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/delight.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/delight.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/distill.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/distill.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/document.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/document.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/extract.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/extract.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/harden.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/harden.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/init.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/init.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/interaction-design.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/interaction-design.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/layout.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/layout.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/live.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/live.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/onboard.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/onboard.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/optimize.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/optimize.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/overdrive.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/overdrive.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/polish.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/polish.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/product.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/product.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/quieter.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/quieter.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/shape.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/shape.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/reference/typeset.md">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/reference/typeset.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/command-metadata.json">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/command-metadata.json</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/context-signals.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/context-signals.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/context.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/context.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/critique-storage.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/critique-storage.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detect-csp.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detect-csp.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detect.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detect.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/browser/injected/index.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/browser/injected/index.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/cli/main.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/cli/main.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/detect-antipatterns-browser.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/detect-antipatterns-browser.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/detect-antipatterns.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/detect-antipatterns.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/engines/browser/detect-url.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/engines/browser/detect-url.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/engines/regex/detect-text.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/engines/regex/detect-text.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/engines/static-html/css-cascade.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/engines/static-html/css-cascade.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/engines/static-html/detect-html.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/engines/static-html/detect-html.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/engines/visual/screenshot-contrast.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/engines/visual/screenshot-contrast.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/findings.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/findings.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/node/file-system.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/node/file-system.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/profile/profiler.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/profile/profiler.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/registry/antipatterns.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/registry/antipatterns.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/rules/checks.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/rules/checks.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/shared/color.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/shared/color.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/shared/constants.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/shared/constants.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/detector/shared/page.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/detector/shared/page.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/lib/design-parser.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/lib/design-parser.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/lib/impeccable-paths.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/lib/impeccable-paths.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/lib/is-generated.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/lib/is-generated.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-accept.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-accept.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-browser-dom.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-browser-dom.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-browser-session.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-browser-session.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-browser.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-browser.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-commit-manual-edits.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-commit-manual-edits.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-complete.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-complete.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-copy-edit-agent.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-copy-edit-agent.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-discard-manual-edits.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-discard-manual-edits.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-inject.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-inject.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-insert.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-insert.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-manual-edit-evidence.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-manual-edit-evidence.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-poll.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-poll.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-resume.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-resume.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-server.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-server.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-status.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-status.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live-wrap.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live-wrap.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/browser-script-parts.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/browser-script-parts.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/completion.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/completion.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/event-validation.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/event-validation.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/insert-ui.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/insert-ui.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/manual-apply.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/manual-apply.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/manual-edit-routes.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/manual-edit-routes.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/manual-edits-buffer.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/manual-edits-buffer.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/session-store.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/session-store.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/svelte-component.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/svelte-component.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/sveltekit-adapter.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/sveltekit-adapter.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/ui-core.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/ui-core.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/live/vocabulary.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/live/vocabulary.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/modern-screenshot.umd.js">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/modern-screenshot.umd.js</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/palette.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/palette.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Design tooling" data-status="New" data-path=".kiro/skills/impeccable/scripts/pin.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Design tooling</td>
+    <td><code>.kiro/skills/impeccable/scripts/pin.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Generated analysis cache" data-status="New" data-path=".understand-anything/.understandignore">
+    <td><span class="pill new">New</span></td>
+    <td>Generated analysis cache</td>
+    <td><code>.understand-anything/.understandignore</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Generated analysis cache" data-status="New" data-path=".understand-anything/analysis-stats.json">
+    <td><span class="pill new">New</span></td>
+    <td>Generated analysis cache</td>
+    <td><code>.understand-anything/analysis-stats.json</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Generated analysis cache" data-status="New" data-path=".understand-anything/config.json">
+    <td><span class="pill new">New</span></td>
+    <td>Generated analysis cache</td>
+    <td><code>.understand-anything/config.json</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Generated analysis cache" data-status="New" data-path=".understand-anything/domain-graph.json">
+    <td><span class="pill new">New</span></td>
+    <td>Generated analysis cache</td>
+    <td><code>.understand-anything/domain-graph.json</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Generated analysis cache" data-status="New" data-path=".understand-anything/knowledge-graph.json">
+    <td><span class="pill new">New</span></td>
+    <td>Generated analysis cache</td>
+    <td><code>.understand-anything/knowledge-graph.json</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Generated analysis cache" data-status="New" data-path=".understand-anything/meta.json">
+    <td><span class="pill new">New</span></td>
+    <td>Generated analysis cache</td>
+    <td><code>.understand-anything/meta.json</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Generated analysis cache" data-status="New" data-path=".understand-anything/tmp/generate-graph.mjs">
+    <td><span class="pill new">New</span></td>
+    <td>Generated analysis cache</td>
+    <td><code>.understand-anything/tmp/generate-graph.mjs</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-launch-polish-checklist.md">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-launch-polish-checklist.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/browser-audit-results.json">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/browser-audit-results.json</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/desktop-contact-sheet.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/desktop-contact-sheet.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/index.html">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/index.html</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/mobile-contact-sheet.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/mobile-contact-sheet.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-automations.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-automations.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-chat.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-chat.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-companies.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-companies.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-deals.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-deals.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-meetings.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-meetings.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-people.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-people.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-pricing.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-pricing.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-settings.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-settings.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-skills.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-skills.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-tasks.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/desktop-tasks.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-automations.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-automations.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-chat.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-chat.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-companies.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-companies.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-deals.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-deals.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-meetings.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-meetings.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-people.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-people.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-skills.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-skills.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-tasks.png">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-11-prod-readiness-ui/screenshots/mobile-tasks.png</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-12-launch-polish-final-pass.md">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-12-launch-polish-final-pass.md</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Review artifacts" data-status="New" data-path="docs/product/audits/2026-06-15-recent-changes-review/index.html">
+    <td><span class="pill new">New</span></td>
+    <td>Review artifacts</td>
+    <td><code>docs/product/audits/2026-06-15-recent-changes-review/index.html</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Test coverage" data-status="New" data-path="src/components/chat/message-quota-pill.test.tsx">
+    <td><span class="pill new">New</span></td>
+    <td>Test coverage</td>
+    <td><code>src/components/chat/message-quota-pill.test.tsx</code></td>
+  </tr>
+
+  <tr data-file-row data-category="Settings" data-status="New" data-path="src/components/settings/settings-page-shell.tsx">
+    <td><span class="pill new">New</span></td>
+    <td>Settings</td>
+    <td><code>src/components/settings/settings-page-shell.tsx</code></td>
+  </tr></tbody>
+    </table>
+  </section>
+
+  <section class="appendix">
+    <h2>Raw size summary</h2>
+    <pre class="raw">.agents/skills/impeccable/SKILL.md                 |   151 +-
+ .agents/skills/impeccable/reference/adapt.md       |   129 +-
+ .agents/skills/impeccable/reference/animate.md     |    78 +-
+ .agents/skills/impeccable/reference/audit.md       |    19 +-
+ .agents/skills/impeccable/reference/bolder.md      |    26 +-
+ .agents/skills/impeccable/reference/brand.md       |    64 +-
+ .agents/skills/impeccable/reference/clarify.md     |   120 +-
+ .../skills/impeccable/reference/cognitive-load.md  |   106 -
+ .../impeccable/reference/color-and-contrast.md     |   105 -
+ .agents/skills/impeccable/reference/colorize.md    |   129 +-
+ .agents/skills/impeccable/reference/craft.md       |   155 +-
+ .agents/skills/impeccable/reference/critique.md    |   709 +-
+ .agents/skills/impeccable/reference/delight.md     |    12 +-
+ .agents/skills/impeccable/reference/distill.md     |    10 +-
+ .agents/skills/impeccable/reference/document.md    |   118 +-
+ .agents/skills/impeccable/reference/extract.md     |     3 +-
+ .agents/skills/impeccable/reference/harden.md      |     4 +-
+ .../impeccable/reference/heuristics-scoring.md     |   234 -
+ .../impeccable/reference/interaction-design.md     |    12 +-
+ .agents/skills/impeccable/reference/layout.md      |    86 +-
+ .agents/skills/impeccable/reference/live.md        |   433 +-
+ .../skills/impeccable/reference/motion-design.md   |    99 -
+ .agents/skills/impeccable/reference/onboard.md     |     4 +-
+ .agents/skills/impeccable/reference/optimize.md    |    10 +-
+ .agents/skills/impeccable/reference/overdrive.md   |    54 +-
+ .agents/skills/impeccable/reference/personas.md    |   178 -
+ .agents/skills/impeccable/reference/polish.md      |    67 +-
+ .agents/skills/impeccable/reference/product.md     |    16 +-
+ .agents/skills/impeccable/reference/quieter.md     |    24 +-
+ .../impeccable/reference/responsive-design.md      |   114 -
+ .agents/skills/impeccable/reference/shape.md       |    55 +-
+ .../skills/impeccable/reference/spatial-design.md  |   100 -
+ .agents/skills/impeccable/reference/teach.md       |   137 -
+ .agents/skills/impeccable/reference/typeset.md     |   175 +-
+ .agents/skills/impeccable/reference/typography.md  |   159 -
+ .agents/skills/impeccable/reference/ux-writing.md  |   107 -
+ .../impeccable/scripts/cleanup-deprecated.mjs      |   284 -
+ .../impeccable/scripts/command-metadata.json       |     8 +-
+ .../skills/impeccable/scripts/design-parser.mjs    |   820 --
+ .agents/skills/impeccable/scripts/is-generated.mjs |    69 -
+ .agents/skills/impeccable/scripts/live-accept.mjs  |   462 +-
+ .agents/skills/impeccable/scripts/live-browser.js  | 10592 +++++++++++++++----
+ .agents/skills/impeccable/scripts/live-inject.mjs  |   321 +-
+ .agents/skills/impeccable/scripts/live-poll.mjs    |   424 +-
+ .agents/skills/impeccable/scripts/live-server.mjs  |   659 +-
+ .agents/skills/impeccable/scripts/live-wrap.mjs    |   567 +-
+ .agents/skills/impeccable/scripts/live.mjs         |    17 +-
+ .agents/skills/impeccable/scripts/load-context.mjs |    93 -
+ .agents/skills/impeccable/scripts/pin.mjs          |     2 +-
+ .claude/skills/impeccable                          |     1 -
+ .../[threadId]/chat-thread-page-client.test.tsx    |    12 +
+ .../customers/companies/__tests__/page.test.tsx    |     2 +-
+ app/(dashboard)/customers/companies/page.tsx       |     2 +-
+ .../customers/deals/__tests__/page.test.tsx        |     2 +-
+ app/(dashboard)/customers/deals/page.tsx           |     2 +-
+ .../customers/people/__tests__/page.test.tsx       |     4 +-
+ app/(dashboard)/customers/people/page.tsx          |     7 +-
+ app/(dashboard)/layout.tsx                         |     9 +-
+ app/(dashboard)/pricing/page.tsx                   |    54 +-
+ app/(dashboard)/skills/predefined-card.tsx         |     2 +-
+ app/api/chat/__tests__/route.test.ts               |     1 +
+ app/auth/confirm/page-client.tsx                   |     6 +-
+ app/auth/confirm/page.test.tsx                     |    10 +-
+ app/globals.css                                    |    22 +-
+ app/layout.tsx                                     |     6 +-
+ app/settings/agent/general/page.tsx                |     6 +-
+ app/settings/agent/memory/page.tsx                 |     6 +-
+ app/settings/loading.tsx                           |     9 -
+ app/settings/profile/page.tsx                      |     8 +-
+ app/settings/workspace/billing/page.tsx            |     6 +-
+ app/sitemap.ts                                     |    71 +-
+ src/components/automations/automations-list.tsx    |     1 +
+ src/components/chat/message-quota-pill.tsx         |    18 +-
+ src/components/crm/view-picker.tsx                 |     1 +
+ src/components/landing/Hero.test.tsx               |     6 +-
+ src/components/landing/WhatsAppPhoneMockup.tsx     |     6 +-
+ .../layout/app-sidebar-thread-actions.test.tsx     |    24 +-
+ src/components/layout/app-sidebar.test.tsx         |     2 +-
+ src/components/layout/app-sidebar.tsx              |     2 +-
+ .../property/__tests__/market-cta.test.tsx         |     2 +-
+ .../__tests__/disabled-channel-row.test.tsx        |     4 +-
+ .../__tests__/telegram-connect-row.test.tsx        |     2 +-
+ .../messaging-channels/disabled-channel-row.tsx    |     4 +-
+ .../messaging-channels/telegram-connect-row.tsx    |     2 +-
+ src/components/settings/settings-page-loading.tsx  |     6 +-
+ src/components/settings/settings-stub-page.tsx     |     8 +-
+ src/components/ui/list-table.tsx                   |     9 +-
+ src/components/ui/markdown-renderer.tsx            |     2 +-
+ src/components/ui/switch.tsx                       |     4 +-
+ src/hooks/use-crm-views.ts                         |     8 +-
+ src/hooks/use-session.ts                           |    33 +-
+ src/lib/auth.test.ts                               |    90 -
+ src/lib/connections/__tests__/queries.test.ts      |     4 +
+ src/lib/crm/field-definitions.ts                   |     2 +-
+ .../agent-files-text-mime-charset-variants.test.ts |     2 +-
+ 95 files changed, 12861 insertions(+), 5949 deletions(-)</pre>
+  </section>
+</main>
+<script>
+const sectionSearch = document.querySelector('#sectionSearch');
+const resetSections = document.querySelector('#resetSections');
+const sections = Array.from(document.querySelectorAll('[data-section]'));
+function applySectionSearch() {
+  const q = sectionSearch.value.trim().toLowerCase();
+  sections.forEach((section) => {
+    const text = section.textContent.toLowerCase();
+    section.classList.toggle('hidden', q && !text.includes(q));
+  });
+}
+sectionSearch.addEventListener('input', applySectionSearch);
+resetSections.addEventListener('click', () => { sectionSearch.value = ''; applySectionSearch(); });
+
+const fileSearch = document.querySelector('#fileSearch');
+const categoryFilter = document.querySelector('#categoryFilter');
+const statusFilter = document.querySelector('#statusFilter');
+const rows = Array.from(document.querySelectorAll('[data-file-row]'));
+function applyFileFilters() {
+  const q = fileSearch.value.trim().toLowerCase();
+  const category = categoryFilter.value;
+  const status = statusFilter.value;
+  rows.forEach((row) => {
+    const matchesSearch = !q || row.dataset.path.includes(q);
+    const matchesCategory = category === 'all' || row.dataset.category === category;
+    const matchesStatus = status === 'all' || row.dataset.status === status;
+    row.classList.toggle('hidden', !(matchesSearch && matchesCategory && matchesStatus));
+  });
+}
+[fileSearch, categoryFilter, statusFilter].forEach((el) => el.addEventListener('input', applyFileFilters));
+[fileSearch, categoryFilter, statusFilter].forEach((el) => el.addEventListener('change', applyFileFilters));
+</script>
+</body>
+</html>
