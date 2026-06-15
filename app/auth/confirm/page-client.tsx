@@ -22,9 +22,9 @@ export default function ConfirmPageClient() {
   useEffect(() => {
     async function confirmEmail() {
       const {
-        data: { session },
+        data: { user },
         error,
-      } = await supabase.auth.getSession();
+      } = await supabase.auth.getUser();
 
       if (error) {
         setStatus("error");
@@ -32,7 +32,7 @@ export default function ConfirmPageClient() {
         return;
       }
 
-      if (session) {
+      if (user) {
         setStatus("success");
         setTimeout(() => {
           router.push("/chat");

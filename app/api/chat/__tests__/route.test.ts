@@ -327,6 +327,7 @@ describe("POST /api/chat", () => {
       thread_id: "new-thread",
       client_id: "c1",
       title: "New Chat",
+      chat_model: "anthropic/claude-sonnet-4-6",
     });
     expect(generateTitleFromUserMessage).toHaveBeenCalledWith("plan my week");
     expect(runManagedAgent).toHaveBeenCalledWith(

@@ -7,20 +7,20 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import type { Session, User } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 
 export interface SessionData {
-  session: Session | null;
+  session: null;
   user: User | null;
 }
 
-async function getSession(): Promise<SessionData> {
+async function getCurrentUser(): Promise<SessionData> {
   const {
-    data: { session },
+    data: { user },
     error,
-  } = await supabase.auth.getSession();
+  } = await supabase.auth.getUser();
   if (error) throw error;
-  return { session, user: session?.user ?? null };
+  return { session: null, user };
 }
 
 export function useSession() {
@@ -28,17 +28,26 @@ export function useSession() {
 
   const query = useQuery({
     queryKey: ["session"],
-    queryFn: getSession,
+    queryFn: getCurrentUser,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      queryClient.setQueryData(["session"], {
-        session,
-        user: session?.user ?? null,
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        queryClient.setQueryData(["session"], { session: null, user: null });
+        return;
+      }
+
+      void supabase.auth.getUser().then(({ data, error }) => {
+        if (!error) {
+          queryClient.setQueryData(["session"], {
+            session: null,
+            user: data.user,
+          });
+        }
       });
     });
 
@@ -49,6 +58,6 @@ export function useSession() {
     session: query.data?.session ?? null,
     user: query.data?.user ?? null,
     isLoading: query.isLoading,
-    isAuthenticated: !!query.data?.session,
+    isAuthenticated: !!query.data?.user,
   };
 }

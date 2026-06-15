@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import ConfirmPageClient from "./page-client";
 
 const mockPush = vi.fn();
-const mockGetSession = vi.fn();
+const mockGetUser = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -19,7 +19,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
-      getSession: (...args: unknown[]) => mockGetSession(...args),
+      getUser: (...args: unknown[]) => mockGetUser(...args),
     },
   },
 }));
@@ -31,8 +31,8 @@ describe("/auth/confirm page", () => {
   });
 
   it("redirects confirmed users to chat", async () => {
-    mockGetSession.mockResolvedValue({
-      data: { session: { user: { id: "user-1" } } },
+    mockGetUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
       error: null,
     });
 
@@ -41,7 +41,7 @@ describe("/auth/confirm page", () => {
       await Promise.resolve();
     });
 
-    expect(mockGetSession).toHaveBeenCalled();
+    expect(mockGetUser).toHaveBeenCalled();
 
     await act(async () => {
       vi.advanceTimersByTime(2000);

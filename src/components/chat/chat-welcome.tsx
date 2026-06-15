@@ -71,9 +71,9 @@ export function ChatWelcome({
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-y-auto px-4 pb-10 pt-8 sm:justify-center sm:py-10">
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-y-auto px-4 pb-10 pt-8 sm:justify-center sm:py-10">
       <div className="w-full">
-        <h1 className="type-hero-title text-center text-foreground">
+        <h1 className="font-serif text-title font-semibold text-center text-foreground">
           What can I do for you?
         </h1>
 
@@ -104,7 +104,7 @@ export function ChatWelcome({
         {/* Template section — generous separation from composer */}
         <div className="mt-10 sm:mt-12">
           {/* Category tabs with underline indicator */}
-          <div className="flex w-full gap-2 overflow-x-auto border-b border-border/40 pb-1 sm:justify-center sm:gap-6">
+          <div className="flex w-full gap-2 overflow-x-auto border-b border-app-border-subtle pb-1 sm:justify-center sm:gap-6">
             {CATEGORIES.map((category) => {
               const isActive = activeCategory === category;
               return (
@@ -154,7 +154,7 @@ function TemplateCard({
     <button
       type="button"
       onClick={() => onClick(template)}
-      className="group flex items-start gap-3 rounded-lg border border-app-border-subtle bg-background p-4 text-left transition-colors hover:border-app-border hover:bg-accent/40 active:bg-accent/60 sm:border-transparent sm:bg-transparent"
+      className="group flex items-start gap-3 rounded-lg border border-app-border-subtle bg-app-surface p-4 text-left shadow-xs transition-colors hover:border-app-border-strong hover:bg-app-hover/70 active:bg-app-hover sm:border-transparent sm:bg-transparent sm:shadow-none"
     >
       <div className="flex flex-1 flex-col">
         <span className="type-row-title text-foreground">

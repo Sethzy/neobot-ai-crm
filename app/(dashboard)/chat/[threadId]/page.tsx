@@ -6,7 +6,6 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { TelegramCtaBanner } from "@/components/agent/telegram-cta-banner";
 import { DataStreamHandler } from "@/components/chat/data-stream-handler";
 import { resolveModelId } from "@/lib/ai/models";
 import { resolveClientId } from "@/lib/chat/client-id";
@@ -54,29 +53,17 @@ export default async function ChatThreadPage({ params }: ChatThreadPageProps) {
   const [
     persistedMessages,
     initialQuota,
-    authResult,
   ] = await Promise.all([
     listMessages(supabase, threadId),
     loadCurrentMessageQuota(),
-    thread.is_primary ? supabase.auth.getUser() : Promise.resolve({ data: { user: null } }),
   ]);
   const initialMessages = persistedMessages.map(mapDbMessageToUiMessage);
   // The thread row is the source of truth — once a thread exists, its
   // model is locked. The cookie only seeds new threads.
   const initialChatModel = resolveModelId(thread.chat_model);
-  const telegramConnection = thread.is_primary && authResult.data.user
-    ? await supabase
-      .from("messaging_channel_connections")
-      .select("id")
-      .eq("user_id", authResult.data.user.id)
-      .eq("channel", "telegram")
-      .maybeSingle()
-    : null;
-  const shouldShowTelegramCta = thread.is_primary && !telegramConnection?.data;
 
   return (
     <>
-      {shouldShowTelegramCta ? <TelegramCtaBanner /> : null}
       <ChatThreadPageClient
         threadId={threadId}
         initialMessages={initialMessages}

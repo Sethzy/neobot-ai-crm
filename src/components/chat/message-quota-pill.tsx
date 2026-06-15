@@ -16,6 +16,20 @@ interface MessageQuotaPillProps {
   className?: string;
 }
 
+const INTERNAL_UNLIMITED_LIMIT = 999_000;
+
+function formatQuotaLabel(quota: MessageQuotaStatus, resetLabel: string): string {
+  if (quota.messagesRemaining <= 0) {
+    return `Limit reached — resets ${resetLabel}`;
+  }
+
+  if (quota.monthlyMessageLimit >= INTERNAL_UNLIMITED_LIMIT) {
+    return `${quota.messagesUsed} messages used`;
+  }
+
+  return `${quota.messagesUsed} / ${quota.monthlyMessageLimit} messages`;
+}
+
 export function MessageQuotaPill({ quota, className }: MessageQuotaPillProps) {
   const isExhausted = quota.messagesRemaining <= 0;
   const resetLabel = formatMessageQuotaResetDate(quota.nextResetDate);
@@ -28,9 +42,7 @@ export function MessageQuotaPill({ quota, className }: MessageQuotaPillProps) {
       )}
     >
       <span className={cn("text-muted-foreground", isExhausted && "text-destructive")}>
-        {isExhausted
-          ? `Limit reached — resets ${resetLabel}`
-          : `${quota.messagesUsed} / ${quota.monthlyMessageLimit} messages`}
+        {formatQuotaLabel(quota, resetLabel)}
       </span>
       <span className="text-muted-foreground/40">·</span>
       <Link

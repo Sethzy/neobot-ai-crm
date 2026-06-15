@@ -26,7 +26,7 @@ export const MARKDOWN_BODY_CLASSNAME = cn(
   "[&_ul]:my-4 [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-6",
   "[&_ol]:my-4 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-6",
   "[&_li]:pl-1 [&_li>p]:my-0",
-  "[&_blockquote]:my-6 [&_blockquote]:rounded-r-2xl [&_blockquote]:border-l-2 [&_blockquote]:border-stage-negotiation/35 [&_blockquote]:bg-stage-negotiation/5 [&_blockquote]:px-5 [&_blockquote]:py-3 [&_blockquote]:text-foreground/80",
+  "[&_blockquote]:my-6 [&_blockquote]:rounded-xl [&_blockquote]:border [&_blockquote]:border-stage-negotiation/20 [&_blockquote]:bg-stage-negotiation/5 [&_blockquote]:px-5 [&_blockquote]:py-3 [&_blockquote]:text-foreground/80",
   "[&_hr]:my-8 [&_hr]:border-border/60",
   "[&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:decoration-border [&_a]:underline-offset-4 [&_a:hover]:decoration-primary/60",
   "[&_img]:my-6 [&_img]:rounded-2xl [&_img]:border [&_img]:border-border/70",

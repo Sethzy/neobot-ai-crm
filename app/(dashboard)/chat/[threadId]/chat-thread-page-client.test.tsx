@@ -32,6 +32,18 @@ vi.mock("@/components/chat/chat-panel", () => ({
   ),
 }));
 
+vi.mock("@/components/chat/chat-thread-actions", () => ({
+  ChatThreadActions: ({ threadId }: { threadId: string }) => (
+    <div data-testid="chat-thread-actions">{threadId}</div>
+  ),
+}));
+
+vi.mock("@/components/chat/chat-thread-header", () => ({
+  ChatThreadHeader: ({ threadId }: { threadId: string }) => (
+    <div data-testid="chat-thread-header">{threadId}</div>
+  ),
+}));
+
 describe("ChatThreadPageClient", () => {
   it("renders ChatPanel with server-loaded initialMessages", () => {
     const initialMessages = [
