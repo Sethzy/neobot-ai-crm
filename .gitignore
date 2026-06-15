@@ -39,6 +39,9 @@ scripts/property-pipeline/venv/
 # Claude Code worktrees and project memory
 .claude/worktrees/
 .claude/projects/
+.claude/skills/impeccable/
+.kiro/
+.understand-anything/
 
 # Cached search result artifacts
 claude-codex-sdk-integrations*.json
