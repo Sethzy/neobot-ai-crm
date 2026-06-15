@@ -51,22 +51,37 @@ Approvals and review surfaces - keep external-facing work visible before it leav
 
 Product QA and design audits - preserve launch-readiness reviews, screenshots, and design-system notes as product evidence.
 
+## System Shape
+
+NeoBot is easiest to understand as a product shell around a shared agent harness:
+
+1. **Workspace shell** - dashboard routes expose chat, CRM, meetings, automations, channels, skills, billing, and settings.
+2. **Tenant state** - Supabase stores clients, threads, messages, runs, CRM records, files, approvals, triggers, and usage data.
+3. **Agent runtime** - chat, Telegram, and automations can enter the same Managed Agents loop instead of becoming separate prototypes.
+4. **Tool layer** - typed tools operate on CRM records, files, browser tasks, meetings, integrations, triggers, and messaging surfaces.
+5. **Control layer** - approvals, run records, costs, evaluator scores, and tenant filters make agent work inspectable.
+
+The important boundary is intentional: NeoBot is an AI CRM/workflow prototype for advisory-sales operators. It helps prepare, update, remember, and coordinate work; it does not replace the user's commercial judgment or make every external action autonomous.
+
 ## Architecture
 
 ```mermaid
 flowchart LR
-  Browser["Next.js App Router"] --> Auth["Supabase Auth"]
-  Browser --> DB["Supabase Postgres"]
-  Browser --> Storage["Supabase Storage"]
-  Browser --> API["Next.js API routes"]
-  API --> Agent["AI agent runtime"]
-  API --> Integrations["Messaging and CRM integrations"]
-  API --> Trigger["Trigger.dev scheduled tasks"]
-  Agent --> DB
-  Integrations --> DB
+  Entry["Web chat / Telegram / Automation"] --> API["Next.js API routes"]
+  API --> Auth["Supabase Auth + client_id"]
+  Auth --> State["Supabase product state"]
+  API --> Runtime["Managed Agents runtime"]
+  Runtime --> Tools["Typed local tool dispatcher"]
+  Tools --> CRM["CRM + tasks + notes"]
+  Tools --> Files["Files + memory"]
+  Tools --> Integrations["Browser, meetings, channels, connections"]
+  Runtime --> Approvals["Approvals + run records + evals"]
+  CRM --> State
+  Files --> State
+  Approvals --> State
 ```
 
-The app is a Next.js App Router workspace with Supabase-backed CRM data, chat and agent flows, scheduled task hooks, and integration surfaces. Product UI is organized around dashboard routes for chat, customers, meetings, automations, skills, pricing, and settings.
+The app is a Next.js App Router workspace with Supabase-backed CRM data, chat and agent flows, scheduled task hooks, and integration surfaces. Product UI is organized around dashboard routes for chat, customers, meetings, automations, skills, pricing, and settings. When AI work is needed, the request enters a reusable agent runtime with persistent sessions, typed tools, approval gates, run lifecycle tracking, and tenant-scoped state.
 
 ## Stack
 
