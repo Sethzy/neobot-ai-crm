@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <img src="./docs/assets/readme/neobot-cover-product-v2.svg" alt="NeoBot product banner" />
+  <img src="./docs/assets/readme/neobot-cover-product-v3.svg" alt="NeoBot product banner" />
 </p>
 
 <br />
