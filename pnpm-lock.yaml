@@ -254,6 +254,9 @@ importers:
       redis:
         specifier: ^5.11.0
         version: 5.11.0
+      remark-gfm:
+        specifier: 4.0.1
+        version: 4.0.1
       remotion:
         specifier: ^4.0.409
         version: 4.0.434(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
