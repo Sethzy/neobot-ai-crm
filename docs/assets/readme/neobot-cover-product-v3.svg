@@ -1,0 +1,143 @@
+<svg width="1400" height="720" viewBox="0 0 1400 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">NeoBot product workspace banner</title>
+  <desc id="desc">A product-style AI CRM workspace with a dashboard, deal pipeline, meeting prep, follow-up tasks, and assistant panel.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1400" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="0.48" stop-color="#1A1630"/>
+      <stop offset="1" stop-color="#34204C"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F6F3FF"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#7C5CFF"/>
+      <stop offset="1" stop-color="#B469FF"/>
+    </linearGradient>
+    <linearGradient id="peach" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFE7CF"/>
+      <stop offset="1" stop-color="#FFF5EA"/>
+    </linearGradient>
+    <linearGradient id="mint" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#DDFCEB"/>
+      <stop offset="1" stop-color="#F3FFF8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="26" flood-color="#070A12" flood-opacity="0.34"/>
+    </filter>
+    <pattern id="grain" width="8" height="8" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="0.7" fill="#FFFFFF" opacity="0.08"/>
+    </pattern>
+  </defs>
+
+  <rect width="1400" height="720" fill="url(#bg)"/>
+  <rect width="1400" height="720" fill="url(#grain)"/>
+  <circle cx="1186" cy="92" r="210" fill="#7C5CFF" opacity="0.18"/>
+  <circle cx="238" cy="646" r="250" fill="#22D3EE" opacity="0.09"/>
+  <path d="M1032 0L1400 360V720H1276L912 0H1032Z" fill="#FFFFFF" opacity="0.06"/>
+
+  <g transform="translate(86 70)">
+    <text x="0" y="0" fill="#D7D2FF" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="800" letter-spacing="0.12em">NEOBOT</text>
+    <text x="0" y="58" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="55" font-weight="850">AI CRM for relationship work</text>
+    <text x="3" y="96" fill="#C9D0E5" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="500">Keep meetings, follow-ups, deals, and approvals moving from one calm workspace.</text>
+  </g>
+
+  <g transform="translate(76 205)" filter="url(#shadow)">
+    <rect width="1248" height="430" rx="30" fill="#F8FAFC"/>
+    <path d="M30 0H1218C1234.6 0 1248 13.4 1248 30V70H0V30C0 13.4 13.4 0 30 0Z" fill="#101521"/>
+    <circle cx="34" cy="35" r="8" fill="#FF6B5E"/>
+    <circle cx="62" cy="35" r="8" fill="#F5C453"/>
+    <circle cx="90" cy="35" r="8" fill="#58C970"/>
+    <text x="126" y="43" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="850">NeoBot workspace</text>
+    <rect x="1036" y="21" width="164" height="30" rx="15" fill="#222B3D"/>
+    <circle cx="1060" cy="36" r="6" fill="#34D399"/>
+    <text x="1076" y="41" fill="#D1FAE5" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="800">Daily plan ready</text>
+
+    <path d="M0 70H210V430H30C13.4 430 0 416.6 0 400V70Z" fill="#111827"/>
+    <g font-family="Inter, Arial, sans-serif" font-size="15" font-weight="800">
+      <rect x="24" y="98" width="162" height="40" rx="14" fill="#FFFFFF" opacity="0.1"/>
+      <text x="58" y="124" fill="#FFFFFF">Home</text>
+      <text x="58" y="169" fill="#94A3B8">Chat</text>
+      <text x="58" y="213" fill="#94A3B8">CRM</text>
+      <text x="58" y="257" fill="#94A3B8">Meetings</text>
+      <text x="58" y="301" fill="#94A3B8">Automations</text>
+      <text x="58" y="345" fill="#94A3B8">Settings</text>
+    </g>
+    <g fill="none" stroke-linecap="round" stroke-width="3">
+      <path d="M36 118H46M41 113V123" stroke="#FFFFFF"/>
+      <path d="M36 163H47" stroke="#94A3B8"/>
+      <path d="M36 207H47M36 215H44" stroke="#94A3B8"/>
+      <path d="M36 251H47M36 259H43" stroke="#94A3B8"/>
+      <path d="M36 294C45 294 45 309 54 309" stroke="#94A3B8"/>
+      <path d="M36 339H48" stroke="#94A3B8"/>
+    </g>
+
+    <g transform="translate(242 106)">
+      <text x="0" y="0" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="850">Today</text>
+      <text x="2" y="36" fill="#64748B" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="600">A clear queue for the relationship work that matters.</text>
+
+      <g transform="translate(0 64)">
+        <rect width="212" height="104" rx="20" fill="url(#card)" stroke="#E3E7EF"/>
+        <text x="24" y="34" fill="#64748B" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">FOLLOW-UPS</text>
+        <text x="24" y="78" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="40" font-weight="850">12</text>
+        <rect x="130" y="56" width="58" height="28" rx="14" fill="#EEF2FF"/>
+        <text x="145" y="75" fill="#5B4BDB" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="850">due</text>
+      </g>
+
+      <g transform="translate(238 64)">
+        <rect width="212" height="104" rx="20" fill="url(#mint)" stroke="#C5F2D6"/>
+        <text x="24" y="34" fill="#047857" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">MEETING PREP</text>
+        <text x="24" y="78" fill="#064E3B" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="850">3 ready</text>
+      </g>
+
+      <g transform="translate(476 64)">
+        <rect width="212" height="104" rx="20" fill="url(#peach)" stroke="#FBD0A8"/>
+        <text x="24" y="34" fill="#B45309" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">APPROVALS</text>
+        <text x="24" y="78" fill="#7C2D12" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="850">2 waiting</text>
+      </g>
+
+      <g transform="translate(0 182)">
+        <text x="0" y="0" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="850">Pipeline</text>
+        <rect x="0" y="24" width="212" height="108" rx="18" fill="#FFFFFF" stroke="#E3E7EF"/>
+        <text x="20" y="58" fill="#64748B" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="850">New lead</text>
+        <rect x="20" y="78" width="172" height="34" rx="11" fill="#F8FAFC" stroke="#E3E7EF"/>
+        <text x="36" y="101" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Rachel Ng</text>
+        <rect x="20" y="120" width="142" height="8" rx="4" fill="#CBD5E1"/>
+
+        <rect x="238" y="24" width="212" height="108" rx="18" fill="#FFFFFF" stroke="#E3E7EF"/>
+        <text x="258" y="58" fill="#64748B" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="850">Active</text>
+        <rect x="258" y="78" width="172" height="34" rx="11" fill="#F5F3FF" stroke="#DDD6FE"/>
+        <text x="274" y="101" fill="#5B21B6" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="850">Marcus Loh</text>
+        <rect x="258" y="120" width="124" height="8" rx="4" fill="#C4B5FD"/>
+
+        <rect x="476" y="24" width="212" height="108" rx="18" fill="#FFFFFF" stroke="#E3E7EF"/>
+        <text x="496" y="58" fill="#64748B" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="850">Closing</text>
+        <rect x="496" y="78" width="172" height="34" rx="11" fill="#ECFDF5" stroke="#BBF7D0"/>
+        <text x="512" y="101" fill="#047857" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="850">David Lim</text>
+        <rect x="496" y="120" width="154" height="8" rx="4" fill="#86EFAC"/>
+      </g>
+    </g>
+
+    <g transform="translate(952 88)">
+      <rect width="248" height="326" rx="24" fill="#FFFFFF" stroke="#E3E7EF"/>
+      <rect x="22" y="22" width="204" height="64" rx="18" fill="#111827"/>
+      <circle cx="54" cy="54" r="14" fill="url(#violet)"/>
+      <text x="78" y="48" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="850">NeoBot</text>
+      <text x="78" y="68" fill="#C7D2FE" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700">Assistant</text>
+
+      <rect x="22" y="112" width="204" height="64" rx="16" fill="#F8FAFC" stroke="#E3E7EF"/>
+      <text x="42" y="139" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="850">Prepare meeting</text>
+      <text x="42" y="160" fill="#64748B" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650">Pull notes and open tasks</text>
+
+      <rect x="22" y="196" width="204" height="64" rx="16" fill="#FFF7ED" stroke="#FED7AA"/>
+      <text x="42" y="223" fill="#9A3412" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="850">Approve follow-up</text>
+      <text x="42" y="244" fill="#B45309" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="650">Review before send</text>
+
+      <rect x="22" y="282" width="88" height="30" rx="15" fill="url(#violet)"/>
+      <text x="45" y="302" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="850">Send</text>
+      <rect x="122" y="282" width="82" height="30" rx="15" fill="#F1F5F9"/>
+      <text x="148" y="302" fill="#475569" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="850">Edit</text>
+    </g>
+  </g>
+</svg>
