@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
-    "dev:all": "concurrently -n next,trigger -c cyan,magenta \"npm run dev\" \"npx trigger.dev@latest dev\"",
+    "dev:all": "concurrently -n next,trigger -c cyan,magenta \"pnpm dev\" \"pnpm dlx trigger.dev@latest dev\"",
     "neo": "rm -rf .next && next dev --turbopack",
     "neo-prod": "rm -rf .next && next build && next start",
     "build": "next build",

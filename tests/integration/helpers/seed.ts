@@ -135,7 +135,7 @@ export async function seedCrmData(
       client_id: clientId,
       address: "123 Test Street",
       stage: "leads",
-      price: 500000,
+      amount: 500000,
     })
     .select("deal_id")
     .single();

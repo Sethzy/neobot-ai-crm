@@ -88,7 +88,7 @@ Once this tool exists, the agent can:
 
 - **This PR:** Single origin→destination drive time. One tool, one file, register it.
 - **Follow-up (optional):** Multi-stop routing (accept array of waypoints, return leg-by-leg). Not needed for v1.
-- **Not in scope:** Distance Matrix API, transit/walking/cycling modes, Places autocomplete.
+- **Not in scope:** Distance Matrix service, transit/walking/cycling modes, Places autocomplete.
 
 ## Estimated effort
 

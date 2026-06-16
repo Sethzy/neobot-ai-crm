@@ -5,9 +5,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  MockAutomationAlreadyRunningError,
   mockAuthenticateRequest,
   mockSpawnTriggerRun,
 } = vi.hoisted(() => ({
+  MockAutomationAlreadyRunningError: class AutomationAlreadyRunningError extends Error {
+    constructor(triggerId: string) {
+      super(`Automation ${triggerId} already has a running run.`);
+      this.name = "AutomationAlreadyRunningError";
+    }
+  },
   mockAuthenticateRequest: vi.fn(),
   mockSpawnTriggerRun: vi.fn(),
 }));
@@ -18,14 +25,10 @@ vi.mock("@/lib/api/route-helpers", () => ({
     Response.json({ error: message }, { status }),
 }));
 
-vi.mock("@/lib/managed-agents/spawn-trigger-run", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/managed-agents/spawn-trigger-run")>();
-
-  return {
-    ...actual,
-    spawnTriggerRun: (...args: unknown[]) => mockSpawnTriggerRun(...args),
-  };
-});
+vi.mock("@/lib/managed-agents/spawn-trigger-run", () => ({
+  AutomationAlreadyRunningError: MockAutomationAlreadyRunningError,
+  spawnTriggerRun: (...args: unknown[]) => mockSpawnTriggerRun(...args),
+}));
 
 function createMockSupabaseWithTrigger() {
   const triggerSingle = vi.fn().mockResolvedValue({
@@ -82,10 +85,8 @@ describe("POST /api/automations/[triggerId]/run", () => {
   });
 
   it("returns 409 when spawnTriggerRun says the automation is already running", async () => {
-    const { AutomationAlreadyRunningError } = await import("@/lib/managed-agents/spawn-trigger-run");
-
     mockSpawnTriggerRun.mockRejectedValueOnce(
-      new AutomationAlreadyRunningError("trigger-1"),
+      new MockAutomationAlreadyRunningError("trigger-1"),
     );
 
     const { POST } = await import("./route");

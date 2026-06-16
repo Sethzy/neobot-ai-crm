@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./public/neobot-logo.svg" width="190" alt="NeoBot logo" />
+  <img src="./public/neobot-logo.svg" width="190" alt="Sunder logo" />
 </p>
 
 <h2 align="center">AI CRM workspace for advisory sales</h2>
@@ -13,28 +13,28 @@
 </p>
 
 <p align="center">
-  <img src="./docs/assets/readme/neobot-cover-product-v3.svg" alt="NeoBot product banner" />
+  <img src="./docs/assets/readme/neobot-cover-product-v3.svg" alt="Sunder product banner" />
 </p>
 
 <br />
 
-# Why NeoBot
+# Why Sunder
 
 Advisory sales work is full of tiny, high-context tasks: update the deal after a meeting, remember what a client cared about, prep for the next conversation, send the follow-up, check whether a task is waiting, and keep records clean enough to be useful later.
 
-Most CRMs are built as databases first. NeoBot is built as a work surface first. The goal is to make completed work visible and controllable: what changed, what needs approval, what the agent knows, and what the user should do next.
+Most CRMs are built as databases first. Sunder is built as a work surface first. The goal is to make completed work visible and controllable: what changed, what needs approval, what the agent knows, and what the user should do next.
 
 ## Quick Start
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 For a clean local restart:
 
 ```bash
-npm run neo
+pnpm neo
 ```
 
 Copy `.env.example` to `.env.local` and fill in the required Supabase, AI, and integration credentials. Do not commit local environment files.
@@ -43,7 +43,7 @@ Copy `.env.example` to `.env.local` and fill in the required Supabase, AI, and i
 
 Keep work close to the task. Chat, CRM records, meetings, automations, approvals, and memory should feel like one workspace rather than separate apps.
 
-Make agent work reviewable. NeoBot should show what the agent did, what it needs, and what still requires human approval before anything external-facing happens.
+Make agent work reviewable. Sunder should show what the agent did, what it needs, and what still requires human approval before anything external-facing happens.
 
 Design for real operators. The product should work for advisory sales users who move between mobile, meetings, desktop review, and admin cleanup.
 
@@ -69,7 +69,7 @@ Product QA and design audits - preserve launch-readiness reviews, screenshots, a
 
 ## System Shape
 
-NeoBot is easiest to understand as a product shell around a shared agent harness:
+Sunder is easiest to understand as a product shell around a shared agent harness:
 
 1. **Workspace shell** - dashboard routes expose chat, CRM, meetings, automations, channels, skills, billing, and settings.
 2. **Tenant state** - Supabase stores clients, threads, messages, runs, CRM records, files, approvals, triggers, and usage data.
@@ -77,7 +77,7 @@ NeoBot is easiest to understand as a product shell around a shared agent harness
 4. **Tool layer** - typed tools operate on CRM records, files, browser tasks, meetings, integrations, triggers, and messaging surfaces.
 5. **Control layer** - approvals, run records, costs, evaluator scores, and tenant filters make agent work inspectable.
 
-The important boundary is intentional: NeoBot is an AI CRM/workflow prototype for advisory-sales operators. It helps prepare, update, remember, and coordinate work; it does not replace the user's commercial judgment or make every external action autonomous.
+The important boundary is intentional: Sunder is an AI CRM/workflow prototype for advisory-sales operators. It helps prepare, update, remember, and coordinate work; it does not replace the user's commercial judgment or make every external action autonomous.
 
 ## Architecture
 
@@ -127,9 +127,9 @@ The app is a Next.js App Router workspace with Supabase-backed CRM data, chat an
 ## Health Checks
 
 ```bash
-npm run build
-npm run test:run
-npm run lint
+pnpm build
+pnpm test:run
+pnpm lint
 ```
 
 `next build` is configured separately from lint gating. Use lint and focused test suites to verify product changes before treating a branch as clean.

@@ -1,0 +1,15 @@
+# Historical findings reviewed for the portfolio/open-source launch audit.
+# These preserve commit history while keeping new/current secret findings visible.
+# Current publishable files are separately scanned and must remain clean.
+8bd02938a72fbbd4bd0ad83311871ff3ca7bbefd:.agents/skills/composio/rules/setup-api-keys.md:generic-api-key:66
+8bd02938a72fbbd4bd0ad83311871ff3ca7bbefd:.agents/skills/composio/rules/setup-api-keys.md:generic-api-key:70
+8bd02938a72fbbd4bd0ad83311871ff3ca7bbefd:.agents/skills/composio/rules/setup-api-keys.md:generic-api-key:76
+8bd02938a72fbbd4bd0ad83311871ff3ca7bbefd:.agents/skills/composio/rules/setup-api-keys.md:generic-api-key:78
+74266cc90290aa4beaf3779e0b0fd0188b25ff48:tests/integration/helpers/supabase-local.ts:jwt:16
+74266cc90290aa4beaf3779e0b0fd0188b25ff48:tests/integration/helpers/supabase-local.ts:jwt:18
+08c53d0c8ce7d123bc294d157e214ee5fffa8ecb:docs/product/handovers/google-maps-drive-time-tool.md:generic-api-key:91
+08c53d0c8ce7d123bc294d157e214ee5fffa8ecb:docs/product/handovers/posthog-analytics-prompt.md:generic-api-key:29
+08c53d0c8ce7d123bc294d157e214ee5fffa8ecb:docs/product/handovers/posthog-analytics-handover.md:generic-api-key:30
+08c53d0c8ce7d123bc294d157e214ee5fffa8ecb:docs/product/handovers/posthog-analytics-handover.md:generic-api-key:124
+9d94d9d451cd32476da9a6cc7b5ab73aaa85494c:.env.example:generic-api-key:12
+38d63a6b3fa1915c4bac14b8693d2f243b1a107e:scripts/property-pipeline/.env.example:generic-api-key:2

@@ -3,19 +3,169 @@
  * Connects to `supabase start` local dev instance.
  * @module tests/integration/helpers/supabase-local
  */
+import { execFileSync } from "node:child_process";
+import { createHmac, randomUUID } from "node:crypto";
+
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
 
+let cachedSupabaseStatusEnv: Record<string, string> | null = null;
+let cachedDockerSupabaseEnv: Record<string, string> | null = null;
+
 /**
- * Well-known local Supabase defaults from `supabase start`.
- * These match the values printed by `supabase status` for every local project.
+ * Reads local Supabase credentials from `supabase status -o env`.
+ * Integration tests can also set `SUPABASE_LOCAL_*` variables explicitly.
  */
-const LOCAL_SUPABASE_URL = "http://127.0.0.1:54321";
+function readSupabaseStatusEnv(): Record<string, string> {
+  if (cachedSupabaseStatusEnv) return cachedSupabaseStatusEnv;
+
+  try {
+    const output = execFileSync("supabase", ["status", "-o", "env"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+
+    cachedSupabaseStatusEnv = Object.fromEntries(
+      output
+        .split(/\r?\n/)
+        .map((line) => line.match(/^([A-Z0-9_]+)=(.*)$/))
+        .filter((match): match is RegExpMatchArray => Boolean(match))
+        .map((match) => [match[1], match[2].replace(/^"|"$/g, "")]),
+    );
+  } catch {
+    cachedSupabaseStatusEnv = {};
+  }
+
+  return cachedSupabaseStatusEnv;
+}
+
+/**
+ * Reads environment variables from the running local Supabase auth container.
+ * This covers repos without a Supabase CLI config file, where `status` cannot
+ * infer the generated Docker container names.
+ */
+function readDockerSupabaseEnv(): Record<string, string> {
+  if (cachedDockerSupabaseEnv) return cachedDockerSupabaseEnv;
+
+  try {
+    const containerNames = execFileSync(
+      "docker",
+      ["ps", "--format", "{{.Names}}"],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    )
+      .split(/\r?\n/)
+      .filter(Boolean);
+    const authContainer = containerNames.find((name) =>
+      name.startsWith("supabase_auth_"),
+    );
+
+    if (!authContainer) {
+      cachedDockerSupabaseEnv = {};
+      return cachedDockerSupabaseEnv;
+    }
+
+    const output = execFileSync(
+      "docker",
+      [
+        "inspect",
+        "--format",
+        "{{range .Config.Env}}{{println .}}{{end}}",
+        authContainer,
+      ],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+
+    cachedDockerSupabaseEnv = Object.fromEntries(
+      output
+        .split(/\r?\n/)
+        .map((line) => line.match(/^([A-Z0-9_]+)=(.*)$/))
+        .filter((match): match is RegExpMatchArray => Boolean(match))
+        .map((match) => [match[1], match[2].replace(/^"|"$/g, "")]),
+    );
+  } catch {
+    cachedDockerSupabaseEnv = {};
+  }
+
+  return cachedDockerSupabaseEnv;
+}
+
+/**
+ * Resolves a local Supabase value without storing local credentials in source.
+ */
+function getLocalSupabaseSetting(
+  envName: string,
+  statusName: string,
+  fallback?: string,
+): string {
+  const value =
+    process.env[envName] ?? readSupabaseStatusEnv()[statusName] ?? fallback;
+
+  if (!value) {
+    throw new Error(
+      `Missing ${envName}. Start local Supabase with Docker available or set ${envName} for integration tests.`,
+    );
+  }
+
+  return value;
+}
+
+/**
+ * Encodes a JWT segment using Node's base64url support.
+ */
+function encodeJwtSegment(value: Record<string, unknown>): string {
+  return Buffer.from(JSON.stringify(value)).toString("base64url");
+}
+
+/**
+ * Creates a local Supabase role token from the running container's JWT secret.
+ */
+function createLocalRoleToken(role: "anon" | "service_role"): string {
+  const jwtSecret =
+    process.env.SUPABASE_LOCAL_JWT_SECRET ??
+    readDockerSupabaseEnv().GOTRUE_JWT_SECRET;
+
+  if (!jwtSecret) {
+    throw new Error(
+      "Missing SUPABASE_LOCAL_JWT_SECRET. Start local Supabase with Docker available or set local Supabase test credentials.",
+    );
+  }
+
+  const unsignedToken = [
+    encodeJwtSegment({ alg: "HS256", typ: "JWT" }),
+    encodeJwtSegment({
+      iss: "supabase-demo",
+      ref: "127.0.0.1",
+      role,
+      exp: 1983812996,
+    }),
+  ].join(".");
+  const signature = createHmac("sha256", jwtSecret)
+    .update(unsignedToken)
+    .digest("base64url");
+
+  return `${unsignedToken}.${signature}`;
+}
+
+const LOCAL_SUPABASE_URL = getLocalSupabaseSetting(
+  "SUPABASE_LOCAL_URL",
+  "SUPABASE_URL",
+  "http://127.0.0.1:54321",
+);
 const LOCAL_SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
+  process.env.SUPABASE_LOCAL_ANON_KEY ??
+  readSupabaseStatusEnv().ANON_KEY ??
+  createLocalRoleToken("anon");
 const LOCAL_SUPABASE_SERVICE_ROLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
+  process.env.SUPABASE_LOCAL_SERVICE_ROLE_KEY ??
+  readSupabaseStatusEnv().SERVICE_ROLE_KEY ??
+  createLocalRoleToken("service_role");
 
 export type TestSupabaseClient = SupabaseClient<Database>;
 
@@ -28,7 +178,11 @@ export function createServiceClient(): TestSupabaseClient {
     LOCAL_SUPABASE_URL,
     LOCAL_SUPABASE_SERVICE_ROLE_KEY,
     {
-      auth: { persistSession: false, autoRefreshToken: false },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        storageKey: `sb-service-${randomUUID()}`,
+      },
     },
   );
 }
@@ -39,7 +193,11 @@ export function createServiceClient(): TestSupabaseClient {
  */
 export function createAnonClient(): TestSupabaseClient {
   return createClient<Database>(LOCAL_SUPABASE_URL, LOCAL_SUPABASE_ANON_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      storageKey: `sb-anon-${randomUUID()}`,
+    },
   });
 }
 

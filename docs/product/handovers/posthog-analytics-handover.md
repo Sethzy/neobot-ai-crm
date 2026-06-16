@@ -27,7 +27,7 @@ pnpm add posthog-js posthog-node
 Add to `.env.example` and `.env.local`:
 
 ```
-NEXT_PUBLIC_POSTHOG_KEY=phc_7S4UAyLFmXL9x9qgqWN6oTpKDQhwvPhYEdV7CaS0hxE
+NEXT_PUBLIC_POSTHOG_KEY=
 NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 NEXT_PUBLIC_POSTHOG_ENVIRONMENT=production
 NEXT_PUBLIC_POSTHOG_INTERNAL_EMAIL_DOMAINS=sunder.com
@@ -121,7 +121,7 @@ The best place for this is wherever the app resolves the current user session on
 
 ```
 # Analytics (PostHog)
-NEXT_PUBLIC_POSTHOG_KEY=phc_7S4UAyLFmXL9x9qgqWN6oTpKDQhwvPhYEdV7CaS0hxE
+NEXT_PUBLIC_POSTHOG_KEY=
 NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```
 

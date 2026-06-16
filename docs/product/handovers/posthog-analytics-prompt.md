@@ -26,7 +26,7 @@ Add to both `.env.example` and `.env.local`:
 
 ```
 # Analytics (PostHog)
-NEXT_PUBLIC_POSTHOG_KEY=phc_7S4UAyLFmXL9x9qgqWN6oTpKDQhwvPhYEdV7CaS0hxE
+NEXT_PUBLIC_POSTHOG_KEY=
 NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ```
 

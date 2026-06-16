@@ -63,19 +63,19 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```typescript
 // DON'T: Never hardcode API keys in your code
 const composio = new Composio({
-  apiKey: 'sk_composio_abc123xyz' // ❌ Security risk!
+  // ❌ Security risk: never paste a literal Composio key here.
 });
 
 const openai = new OpenAI({
-  apiKey: 'sk-proj-abc123' // ❌ Will be exposed in version control
+  // ❌ Security risk: never paste a literal OpenAI key here.
 });
 ```
 
 ```python
 # DON'T: Never hardcode API keys
-composio = Composio(api_key="sk_composio_abc123xyz")  # ❌ Security risk!
+composio = Composio()  # ❌ Security risk if configured with a pasted literal key
 
-client = OpenAI(api_key="sk-proj-abc123")  # ❌ Will be exposed in version control
+client = OpenAI()  # ❌ Security risk if configured with a pasted literal key
 ```
 
 ## ✅ Correct - Using Environment Variables
