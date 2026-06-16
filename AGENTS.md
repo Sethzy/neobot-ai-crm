@@ -8,13 +8,13 @@ You are an expert in Next.js, Anthropic Managed Agents, Vercel AI SDK, and Supab
 
 ## Market
 
-**Sunder** is an autopilot for solo practitioners in advisory sales — real estate agents, insurance advisors, financial planners, and similar client-facing roles.
+**NeoBot** is an autopilot for solo practitioners in advisory sales — real estate agents, insurance advisors, financial planners, and similar client-facing roles.
 
-We don't sell a tool. We sell the work done: CRM updated, follow-up sent, briefing prepared, inbound handled. Every improvement in the underlying model makes Sunder faster and cheaper — it doesn't commoditize us.
+We don't sell a tool. We sell the work done: CRM updated, follow-up sent, briefing prepared, inbound handled. Every improvement in the underlying model makes NeoBot faster and cheaper — it doesn't commoditize us.
 
-Advisory sales sits in the **autopilot quadrant**: high intelligence-to-judgement ratio, work already partially outsourced to VAs and assistants. Sunder is a vendor swap, not a reorg. The practitioner keeps the judgement (which deal to pursue, how to handle a tricky client). Sunder handles the intelligence work (data entry, scheduling, drafting, research).
+Advisory sales sits in the **autopilot quadrant**: high intelligence-to-judgement ratio, work already partially outsourced to VAs and assistants. NeoBot is a vendor swap, not a reorg. The practitioner keeps the judgement (which deal to pursue, how to handle a tricky client). NeoBot handles the intelligence work (data entry, scheduling, drafting, research).
 
-**Why Sunder wins over time:**
+**Why NeoBot wins over time:**
 
 - **Compounding memory is the data moat.** Per-client files (SOUL.md, USER.md, MEMORY.md) accumulate proprietary context with every run. This is not replicable by a better model — it's earned one outcome at a time.
 - **The approval gate is the human backstop.** Internal work auto-runs. External-facing actions require user approval. This is the autonomy slider — we dial it up as trust compounds.
@@ -24,7 +24,7 @@ User activates in <10 minutes, useful from day 1 via web chat. Both desktop and 
 
 ## Architecture
 
-Sunder is a general agent harness: a looping runner with tools that operates on behalf of the user.
+NeoBot is a general agent harness: a looping runner with tools that operates on behalf of the user.
 
 - **Runner engine:** Anthropic Managed Agents. The agent definition (system prompt, tools, skills) is registered on Anthropic's platform via `scripts/managed-agents/create-agent.ts`. At runtime, a **session** is created per thread, an SSE event stream is opened, and a `user.message` kickoff is sent. The runner consumes the stream, dispatches `agent.custom_tool_use` events to local tool handlers, and posts results back as `user.custom_tool_result`. The agent loop itself (context management, caching, compaction, multi-step) runs on Anthropic's infrastructure. Entry point: `consumeAnthropicSession()` in `src/lib/managed-agents/session-runner.ts`.
 - **Tools:** Custom tool declarations in `src/lib/managed-agents/tools/`. Registered on the agent at deploy time. At runtime, `dispatcher.ts` routes `agent.custom_tool_use` events to the matching handler. Tool response shape: `{ success: true, entity } | { success: false, error }`.
