@@ -4,7 +4,7 @@
 
 The Sunder repository is ready to publish from a portfolio page and open source publicly only when the current launch branch is verified, the intended production deployment matches the launch version, local quality gates pass, core UI flows are browser-checked, open-source setup files are tidy, and both current files plus reachable Git history have no unresolved secret findings.
 
-Current state as of 2026-06-17: not complete. Local filesystem permissions are restored, test fixes are in progress, and the latest checked public Vercel production site does not currently match this repository's Sunder CRM/autopilot app.
+Current state as of 2026-06-17: mostly complete but not fully public-launch complete. Local gates pass, redacted secret scans pass for current files and reachable history, the launch branch is committed and pushed, and the current Next.js app is deployed successfully to Vercel production. Public access still needs the registrar DNS record for `app.trysunder.com`, and open-source release still needs a license decision.
 
 ## Evidence Surface
 
@@ -78,16 +78,16 @@ To unblock, provide the missing access, confirm the external action has been com
 
 | Deliverable | Evidence Required | Status | Evidence Link / Command |
 | --- | --- | --- | --- |
-| Launch branch identified | Current branch, HEAD commit, and intended deployment target recorded | In progress | Branch `feat/twenty-aesthetic-clone`, HEAD `3cf9706e30f50b732ca173786704a9ecdb5a5073` via `git status --short --branch` and `git rev-parse HEAD`. Deployment target still needs decision because local `.vercel` project and public `www.trysunder.com` point at different Vercel projects. |
-| Source of truth checked | v2 implementation plan reviewed for remaining launch-critical work | In progress | AGENTS references `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`, but the current repo contains `docs/product/plans/2026-03-05-implementation-phasing-plan-v2-deprecate.json` and `docs/product/plans/2026-04-13-PR-list-sunder-current.json`. This documentation drift is launch hygiene to record or correct. |
+| Launch branch identified | Current branch, HEAD commit, and intended deployment target recorded | Complete | Branch `feat/twenty-aesthetic-clone`, HEAD `c18e0b6f2a43d01831d3fa88a35a749ac09cb127`, pushed to `origin/feat/twenty-aesthetic-clone`. Deployment target is Vercel project `sunder-next-migration-20260225`. |
+| Source of truth checked | v2 implementation plan reviewed for remaining launch-critical work | Complete with drift noted | AGENTS references `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`, but the current repo contains `docs/product/plans/2026-03-05-implementation-phasing-plan-v2-deprecate.json` and `docs/product/plans/2026-04-13-PR-list-sunder-current.json`. This documentation drift is recorded as non-blocking launch hygiene. |
 | Local quality gates pass | Lint, typecheck, tests, and production build pass or documented equivalents pass | Complete | `pnpm lint` passed with typography lint. `pnpm exec tsc --noEmit` passed. `pnpm test:run` passed after Vitest project split cleanup: 436 files, 2,476 tests. `pnpm build` passed on Next.js 15.5.12. Build emitted non-fatal warnings for the missing Next ESLint plugin and sitemap Supabase fallback during local static generation. |
 | Core UI verified | Browser verification of the production or local production build across key launch flows | Complete locally | Local production server `PORT=3001 pnpm start`; Playwright verified `/` title `Sunder | The AI autopilot for advisory sales`, `/login` title `Sign in · Sunder`, `/register` title `Create account · Sunder`, signed-out `/chat` redirects to `/login?redirect=%2Fchat`, signed-out `/customers/people` redirects to `/login?redirect=%2Fcustomers%2Fpeople`, and mobile 390x844 landing viewport had 0 console errors/warnings. Screenshot artifact: `.playwright-mcp/sunder-local-mobile-home.png`. |
-| Production deployment verified | Vercel production URL reachable and mapped to intended commit, or blocker documented | Blocked by mismatch | Vercel `sunder` project latest production commit was `0b56ba783fef56c1474bc72f79cb97be3a83c1ce` from repo `Sethzy/Sunder`; `https://www.trysunder.com` returns a document-processing Vite site, not this Next.js CRM/autopilot app. Local `.vercel` project `sunder-next-migration-20260225` is separate and had no current production URL in project listing. |
+| Production deployment verified | Vercel production URL reachable and mapped to intended commit, or blocker documented | Deployed; public DNS pending | `vercel --prod --yes --scope sethzys-projects` succeeded for deployment `dpl_4BSNUhigNY1Dhk43TEtgR9cR6pfs`, URL `https://sunder-next-migration-20260225-7umj3m96l-sethzys-projects.vercel.app`, status `READY`. Generated `.vercel.app` URLs are behind Vercel Authentication. `app.trysunder.com` is attached to the project and verified in Vercel, but registrar DNS is missing; add `A app.trysunder.com 76.76.21.21` before public browser verification. Existing `www.trysunder.com` remains attached to the separate `sunder` Vite project. |
 | Open-source hygiene complete | README, license, env example, ignore rules, and public-facing docs reviewed or updated | Needs license decision | README now uses Sunder naming and pnpm commands. `.env.example`, `scripts/property-pipeline/.env.example`, PostHog handover docs, Composio example docs, and Google Maps handover prose were cleaned to avoid real/example-shaped keys. `.gitleaksignore` records reviewed historical fingerprints. No root `LICENSE` exists yet; user needs to choose a license before this is truly open source. |
 | Secrets absent from working tree | Dedicated scanner or documented fallback scan reports no unresolved secrets in current files | Complete | Current publishable-files scan covers tracked plus untracked non-ignored files, excluding ignored local env/build artifacts: `gitleaks detect --source /tmp/neobot-ai-crm-current-files --no-git --redact=100 --report-format json --report-path /tmp/neobot-ai-crm-local-current-files-final.json --exit-code 0 --gitleaks-ignore-path .gitleaksignore`; result: no leaks found. `.env.local` and `scripts/property-pipeline/.env` are not tracked and are ignored by `.gitignore`. |
-| Secrets absent from Git history | Dedicated scanner or documented fallback scan reports no unresolved secrets in reachable history | Complete with reviewed ignores | Local all-ref scan: `gitleaks detect --source . --log-opts=--all --redact=100 --report-format json --report-path /tmp/neobot-ai-crm-local-all-refs-after-ignore.json --exit-code 0`; result: 1,046 commits scanned, no unresolved leaks found. Commit history preserved; historical false-positive/public-example fingerprints are documented in `.gitleaksignore`. |
+| Secrets absent from Git history | Dedicated scanner or documented fallback scan reports no unresolved secrets in reachable history | Complete with reviewed ignores | Final local all-ref scan after dependency fixes: `gitleaks detect --source . --log-opts=--all --redact=100 --report-format json --report-path /tmp/neobot-ai-crm-all-refs-final-dep-fix.json --exit-code 0`; result: 1,049 commits scanned, no unresolved leaks found. Commit history preserved; historical false-positive/public-example fingerprints are documented in `.gitleaksignore`. |
 | Sensitive findings remediated | Confirmed findings are removed, rotated externally if needed, and re-scanned | Complete for repo contents | Current confirmed/public-hygiene findings were removed from source templates/docs/tests. No private secret was confirmed in Git. No history rewrite performed. |
-| Final launch notes recorded | Final Result summarizes evidence, known limitations, and deployment URL | Not started |  |
+| Final launch notes recorded | Final Result summarizes evidence, known limitations, and deployment URL | Complete | See Final Result below. |
 
 ## Goal Prompt
 
@@ -105,5 +105,23 @@ To unblock, provide the missing access, confirm the external action has been com
 - 2026-06-17: Secret scanning now passes for current publishable files and full local reachable history. Historical gitleaks findings are preserved as reviewed fingerprints in `.gitleaksignore`; no commit history rewrite was used.
 - 2026-06-17: Local gates passed: `pnpm lint`, `pnpm exec tsc --noEmit`, `pnpm test:run` (436 files, 2,476 tests), and `pnpm build`. Vitest projects now run unit files separately from the 3 serial DB integration files.
 - 2026-06-17: Local production browser check passed on `http://localhost:3001` for landing, login, register, protected-route redirects, and mobile landing viewport with zero console errors/warnings.
+- 2026-06-17: Vercel production deploy initially failed on missing markdown-renderer dependencies. Fixed by declaring direct dependencies `@types/hast` and `remark-gfm`, then redeployed successfully to `sunder-next-migration-20260225`.
+- 2026-06-17: `app.trysunder.com` was added to Vercel project `sunder-next-migration-20260225`. Vercel still requires registrar DNS: `A app.trysunder.com 76.76.21.21`. Public generated Vercel URLs remain protected by Vercel Authentication.
+- 2026-06-17: Branch `feat/twenty-aesthetic-clone` was pushed to GitHub after retrying HTTPS with HTTP/1.1 to avoid an RPC disconnect.
 
 ## Final Result
+
+Done:
+
+- Current launch branch is committed and pushed: `feat/twenty-aesthetic-clone` at `c18e0b6f2a43d01831d3fa88a35a749ac09cb127`.
+- Local gates pass: lint, TypeScript, full Vitest run, and Next.js production build.
+- Local production browser checks pass for landing, auth pages, protected-route redirects, and mobile landing.
+- Current publishable files and reachable Git history pass redacted gitleaks scans with no unresolved leaks. Commit history was preserved; no rewrite was performed.
+- Latest Next.js app is deployed to Vercel production as deployment `dpl_4BSNUhigNY1Dhk43TEtgR9cR6pfs`.
+- `app.trysunder.com` is attached to the correct Vercel project.
+
+Remaining before calling this fully public-launch/open-source complete:
+
+- Add registrar DNS record `A app.trysunder.com 76.76.21.21`, then verify `https://app.trysunder.com` publicly in a browser.
+- Choose and add a root `LICENSE` before making the repository public.
+- Decide whether `www.trysunder.com` should remain on the separate Vite site or be moved to this Next.js app.
