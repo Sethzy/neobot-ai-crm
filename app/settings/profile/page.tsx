@@ -12,7 +12,7 @@ export default async function ProfilePage() {
     <SettingsPageShell width="wide">
       <PageHeader
         title="Profile"
-        description="Manage account-level details for your Sunder workspace."
+        description="Manage account-level details for your NeoBot workspace."
         descriptionClassName="max-w-3xl"
       />
 

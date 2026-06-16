@@ -35,7 +35,7 @@ export default function ChannelsPage() {
     <PageCanvas contentClassName="max-w-4xl gap-7">
       <PageHeader
         title="Channels"
-        description="Mobile approvals and client communication channels Sunder will support next."
+        description="Mobile approvals and client communication channels NeoBot will support next."
         descriptionClassName="max-w-2xl"
       />
 

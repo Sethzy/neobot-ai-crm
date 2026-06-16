@@ -54,7 +54,7 @@ export async function generateMetadata({
 
   const areaName = parseOptionalString(name) ?? humanizeSlug(slug);
   return {
-    title: `${areaName} Property Transactions | Sunder`,
+    title: `${areaName} Property Transactions | NeoBot`,
     description: `Area profile for ${areaName} with CEA and HDB transaction activity.`,
   };
 }

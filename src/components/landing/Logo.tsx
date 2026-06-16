@@ -1,5 +1,5 @@
 /**
- * Logo component — Sunder branding.
+ * Logo component — NeoBot branding.
  * 3D isometric mark with a simple wordmark lockup.
  */
 export function Logo({
@@ -13,7 +13,7 @@ export function Logo({
 
   return (
     <div className={`flex items-center gap-2.5 ${className ?? ''}`} {...props}>
-      {/* Sunder isometric icon mark */}
+      {/* NeoBot isometric icon mark */}
       <svg
         aria-hidden="true"
         viewBox="0 0 80 80"
@@ -40,7 +40,7 @@ export function Logo({
       </svg>
       {/* Wordmark */}
       <span className="font-sans text-lg font-semibold tracking-tight text-foreground">
-        Sunder
+        NeoBot
       </span>
     </div>
   )

@@ -105,7 +105,7 @@ describe("UnifiedTimeline", () => {
               },
             },
             actor_type: "agent",
-            actor_label: "Sunder",
+            actor_label: "NeoBot",
             happened_at: "2026-04-04T09:00:00.000Z",
             created_at: "2026-04-04T09:00:00.000Z",
             updated_at: "2026-04-04T09:00:00.000Z",
@@ -171,7 +171,7 @@ describe("UnifiedTimeline", () => {
     expect(screen.getByText("Discussed Sunday viewing")).toBeInTheDocument();
     expect(screen.getByText(/Sarah Tan was created by You/i)).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Sunder updated 2 fields on Sarah Tan/i }));
+    await user.click(screen.getByRole("button", { name: /NeoBot updated 2 fields on Sarah Tan/i }));
 
     expect(screen.getByText(/Company/i)).toBeInTheDocument();
     expect(screen.getByText(/PropNex Realty/i)).toBeInTheDocument();

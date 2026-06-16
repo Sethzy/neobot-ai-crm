@@ -7,8 +7,8 @@ import type { Metadata } from "next";
 import ForgotPasswordPageClient from "./page-client";
 
 export const metadata: Metadata = {
-  title: "Reset password · Sunder",
-  description: "Request a secure password reset link for your Sunder account.",
+  title: "Reset password · NeoBot",
+  description: "Request a secure password reset link for your NeoBot account.",
   robots: { index: false, follow: false },
 };
 

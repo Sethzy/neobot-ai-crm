@@ -42,7 +42,7 @@ export function WhatsAppCard({ messages, width, height, className, scale = 1, sh
             <AppIcon name="whatsapp" className="h-4 w-4 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-xs font-semibold leading-tight">Sunder</p>
+            <p className="text-white text-xs font-semibold leading-tight">NeoBot</p>
             <p className="text-white/70 text-[10px] leading-tight">online</p>
           </div>
           <div className="flex items-center gap-3">

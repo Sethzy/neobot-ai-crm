@@ -13,7 +13,7 @@ export function MarketCta() {
               Need this data in your next proposal?
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Sunder can pull market data automatically to help you craft
+              NeoBot can pull market data automatically to help you craft
               winning proposals.
             </p>
           </div>
@@ -22,7 +22,7 @@ export function MarketCta() {
           href="/register"
           className="shrink-0 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
         >
-          Try Sunder Free
+          Try NeoBot Free
         </Link>
       </div>
     </div>

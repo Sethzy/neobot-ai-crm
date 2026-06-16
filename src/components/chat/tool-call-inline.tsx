@@ -696,7 +696,7 @@ function ConnectionRow({
     : providerBranding.description || (
       isReauthorization
         ? "Sign in again to refresh this connection."
-        : "Sign in to link this account to Sunder."
+        : "Sign in to link this account to NeoBot."
     );
 
   return (

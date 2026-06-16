@@ -1,7 +1,7 @@
 /**
  * Publish/runtime name translation for managed-agent custom tools.
  *
- * Anthropic reserves some managed-agent tool names globally, so Sunder
+ * Anthropic reserves some managed-agent tool names globally, so NeoBot
  * publishes a small subset under workspace-specific aliases while keeping the
  * internal registry, UI, QA scenarios, and persisted transcripts stable.
  *

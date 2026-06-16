@@ -32,7 +32,7 @@ export interface ChatModel {
   pricing: ModelPricing;
 }
 
-/** Default user-facing chat model for Sunder's main chat surface. */
+/** Default user-facing chat model for NeoBot's main chat surface. */
 export const DEFAULT_CHAT_MODEL = "anthropic/claude-sonnet-4-6";
 
 /** Cookie name used to persist the user's last selected chat model across /chat loads. */

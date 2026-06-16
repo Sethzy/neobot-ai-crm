@@ -2,7 +2,7 @@
  * @module lib/managed-agents/__tests__/tool-name-aliases.test
  *
  * Tests for the publish/runtime translation layer that keeps Anthropic
- * reserved tool names from colliding with Sunder's internal registry names.
+ * reserved tool names from colliding with NeoBot's internal registry names.
  */
 import { describe, expect, it } from "vitest";
 

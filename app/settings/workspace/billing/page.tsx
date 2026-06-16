@@ -107,7 +107,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           <CardHeader className="gap-2">
             <CardDescription className="type-row-meta">Current plan</CardDescription>
             <CardTitle className="type-toolbar-title flex flex-wrap items-center gap-3">
-              {view.planName === "Free" ? "Free" : `Sunder ${view.planName}`}
+              {view.planName === "Free" ? "Free" : `NeoBot ${view.planName}`}
               {badge ? <Badge variant={badge.variant}>{badge.label}</Badge> : null}
             </CardTitle>
           </CardHeader>

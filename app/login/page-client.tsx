@@ -81,10 +81,10 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
 
   return (
     <AuthShell
-      description="Connect Google or sign in with email to pick up where Sunder left off."
+      description="Connect Google or sign in with email to pick up where NeoBot left off."
       footer={(
         <p>
-          New to Sunder?{" "}
+          New to NeoBot?{" "}
           <Link href="/register" className="font-medium text-primary hover:text-foreground">
             Create an account
           </Link>

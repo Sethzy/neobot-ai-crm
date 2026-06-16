@@ -113,7 +113,7 @@ export default function RegisterPageClient() {
   if (success) {
     return (
       <AuthShell
-        description={`We sent a confirmation link to ${email}. Once confirmed, you will be ready to use Sunder.`}
+        description={`We sent a confirmation link to ${email}. Once confirmed, you will be ready to use NeoBot.`}
         footer={(
           <p>
             Need to use a different address?{" "}
@@ -135,7 +135,7 @@ export default function RegisterPageClient() {
 
   return (
     <AuthShell
-      description="Use Google or email to set up your workspace. Sunder keeps judgment with you and handles the follow-through."
+      description="Use Google or email to set up your workspace. NeoBot keeps judgment with you and handles the follow-through."
       footer={(
         <p>
           Already registered?{" "}

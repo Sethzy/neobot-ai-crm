@@ -117,7 +117,7 @@ export function AgentContextForm({
           <CardContent className="space-y-4">
             <p className="measure-copy max-w-[34rem] type-toolbar-description">
               Use this for voice, operating style, business context, and persistent instructions
-              that should shape how Sunder acts for this workspace.
+              that should shape how NeoBot acts for this workspace.
             </p>
             <MarkdownEditor
               ariaLabel="Client profile"

@@ -76,7 +76,7 @@ function DarkDashboard() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[12px] font-bold text-black">
               S
             </div>
-            <span className="text-[14px] font-semibold text-white">Sunder</span>
+            <span className="text-[14px] font-semibold text-white">NeoBot</span>
           </div>
 
           <nav className="space-y-1">
@@ -209,7 +209,7 @@ function DarkMobileChat() {
           S
         </div>
         <div>
-          <p className="text-[11px] font-semibold leading-none text-white">Sunder</p>
+          <p className="text-[11px] font-semibold leading-none text-white">NeoBot</p>
           <p className="mt-0.5 text-[8px] text-white/30">AI Assistant</p>
         </div>
       </div>

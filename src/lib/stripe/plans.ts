@@ -27,7 +27,7 @@ export const billingPlanCatalog: Record<BillingPlanName, BillingPlanDefinition> 
     monthlyMessageLimit: 100,
     summary: "Use chat, CRM, and memory without a Stripe subscription.",
     highlights: [
-      "Chat with Sunder from day one",
+      "Chat with NeoBot from day one",
       "CRM updates and memory capture",
       "Upgrade to paid plans when you want autopilot scale",
     ],

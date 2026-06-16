@@ -111,7 +111,7 @@ const features: PrimaryFeature[] = [
     title: "Ask it to schedule. Ask it anything else.",
     value: "outreach",
     description:
-      "Sunder finds the right time, sends the invite, and handles the back-and-forth — so you don't have to.",
+      "NeoBot finds the right time, sends the invite, and handles the back-and-forth — so you don't have to.",
     icon: "send",
   },
   {
@@ -125,14 +125,14 @@ const features: PrimaryFeature[] = [
     title: "Remembers everything that's said.",
     value: "briefings",
     description:
-      "Transcripts, meeting notes, action items — Sunder captures it all and turns conversations into follow-ups automatically.",
+      "Transcripts, meeting notes, action items — NeoBot captures it all and turns conversations into follow-ups automatically.",
     icon: "note",
   },
   {
     title: "It messages you first.",
     value: "followup",
     description:
-      "Sunder creates tasks overnight, messages you with a plan, and executes the moment you approve. You wake up to work already done.",
+      "NeoBot creates tasks overnight, messages you with a plan, and executes the moment you approve. You wake up to work already done.",
     icon: "outputs",
   },
 ];
@@ -181,7 +181,7 @@ export function PrimaryFeatures() {
             </span>
           </h2>
           <p className="mt-4 text-base tracking-tight text-muted-foreground sm:mt-6 sm:text-lg">
-            Sunder already knows 30+ sales skills — from reviewing contracts
+            NeoBot already knows 30+ sales skills — from reviewing contracts
             to generating leads. No setup. Just ask.
           </p>
         </div>

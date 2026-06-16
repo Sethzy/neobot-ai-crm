@@ -7,8 +7,8 @@ import type { Metadata } from "next";
 import LoginPageClient from "./page-client";
 
 export const metadata: Metadata = {
-  title: "Sign in · Sunder",
-  description: "Sign in to your Sunder account.",
+  title: "Sign in · NeoBot",
+  description: "Sign in to your NeoBot account.",
   robots: { index: false, follow: false },
 };
 

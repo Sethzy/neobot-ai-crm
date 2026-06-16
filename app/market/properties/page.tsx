@@ -7,7 +7,7 @@ import { cleanSearchTerm } from "@/lib/property/utils";
 import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 
 export const metadata: Metadata = {
-  title: "Singapore Property Profiles | Sunder",
+  title: "Singapore Property Profiles | NeoBot",
   description:
     "Search Singapore private residential projects and view transaction histories.",
 };

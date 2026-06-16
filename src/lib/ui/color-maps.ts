@@ -1,5 +1,5 @@
 /**
- * Centralised color class maps for the Sunder design system.
+ * Centralised color class maps for the NeoBot design system.
  * All maps reference semantic (Layer 2) or domain (Layer 3) CSS tokens only —
  * never raw Tailwind palette classes like `amber-500` or `emerald-600`.
  *

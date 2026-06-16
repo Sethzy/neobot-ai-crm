@@ -7,8 +7,8 @@ import type { Metadata } from "next";
 import UpdatePasswordPageClient from "./page-client";
 
 export const metadata: Metadata = {
-  title: "Set new password · Sunder",
-  description: "Choose a new password for your Sunder account.",
+  title: "Set new password · NeoBot",
+  description: "Choose a new password for your NeoBot account.",
   robots: { index: false, follow: false },
 };
 

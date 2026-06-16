@@ -633,7 +633,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
     [clientId, onOpenChange, queryClient, router],
   );
 
-  const handleAskSunder = useCallback(() => {
+  const handleAskNeoBot = useCallback(() => {
     const trimmedQuery = query.trim();
 
     onOpenChange(false);
@@ -677,8 +677,8 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
 
     event.preventDefault();
     event.stopPropagation();
-    handleAskSunder();
-  }, [handleAskSunder, onOpenChange]);
+    handleAskNeoBot();
+  }, [handleAskNeoBot, onOpenChange]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -714,7 +714,7 @@ function CommandMenuContent({ open, onOpenChange }: CommandMenuProps) {
             />
             <button
               type="button"
-              onClick={handleAskSunder}
+              onClick={handleAskNeoBot}
               className="flex shrink-0 items-center gap-2 rounded-md px-2 py-1 text-caption text-muted-foreground transition-colors hover:text-foreground"
             >
               <span>Ask AI</span>

@@ -35,7 +35,7 @@ export default function DemoPageClient() {
           <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div className="order-2 flex flex-col justify-center lg:order-1">
               <h1 className="font-serif text-4xl font-medium tracking-tight text-zinc-900 sm:text-5xl">
-                See Sunder Handle{" "}
+                See NeoBot Handle{" "}
                 <span className="text-sunder-green italic">Your Workflows</span>
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-zinc-600">
@@ -46,7 +46,7 @@ export default function DemoPageClient() {
                 {[
                   {
                     title: "See It Work on Your Tasks",
-                    desc: "Watch Sunder handle your actual follow-ups, scheduling, and client comms live",
+                    desc: "Watch NeoBot handle your actual follow-ups, scheduling, and client comms live",
                   },
                   {
                     title: "Get Your Time Back",

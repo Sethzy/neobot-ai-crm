@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * Value comparison section — shows the cost of tools Sunder replaces,
- * GoHighLevel-style. Positions Sunder as an all-in-one platform with
+ * Value comparison section — shows the cost of tools NeoBot replaces,
+ * GoHighLevel-style. Positions NeoBot as an all-in-one platform with
  * dramatic price comparison and competitor logos.
  */
 import { Container } from '@/components/landing/Container'
@@ -96,7 +96,7 @@ export function Differentiator() {
             </span>
           </h2>
           <p className="mt-4 text-base leading-7 text-lp-muted sm:mt-6 sm:text-lg sm:leading-8">
-            CRM, scheduling, forms, document workflows, voice cloning — Sunder
+            CRM, scheduling, forms, document workflows, voice cloning — NeoBot
             runs them all behind the scenes. You just send a message.
           </p>
         </div>
@@ -123,7 +123,7 @@ export function Differentiator() {
                 </th>
                 <th scope="col" className="text-center">
                   <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-caption font-bold uppercase tracking-[0.12em] text-sunder-green-dark sm:text-xs">
-                    Sunder
+                    NeoBot
                   </span>
                 </th>
               </tr>
@@ -258,10 +258,10 @@ export function Differentiator() {
               <AppIcon name="arrowRight" className="hidden h-5 w-5 text-white/30 sm:block" />
               <div className="h-px w-12 bg-white/20 sm:hidden" />
 
-              {/* With Sunder */}
+              {/* With NeoBot */}
               <div className="text-center">
                 <p className="text-caption font-semibold uppercase tracking-[0.12em] text-white/70 sm:text-xs">
-                  With Sunder
+                  With NeoBot
                 </p>
                 <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap font-serif text-3xl font-bold text-white sm:text-4xl">
                   <span className="tabular-nums">S$99</span>
@@ -271,7 +271,7 @@ export function Differentiator() {
             </div>
 
             <p className="relative mt-6 text-center text-sm text-white/60 sm:text-base">
-              Sunder runs them all. You just send a <span className="text-white">message</span>.
+              NeoBot runs them all. You just send a <span className="text-white">message</span>.
             </p>
           </div>
         </div>

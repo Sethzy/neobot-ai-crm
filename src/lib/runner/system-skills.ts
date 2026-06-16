@@ -18,7 +18,7 @@ const SUPPORTED_PROVIDER_BULLETS = SUPPORTED_PROVIDER_NAMES_FOR_PROMPT
 const SYSTEM_SKILL_CONTENT: Record<string, string> = {
   "creating-connections/SKILL.md": `# Creating New Connections
 
-Sunder supports a small curated set of providers in v1. When the user asks to connect a supported provider, call \`create_connection\` directly. Do not search the catalog first and do not inspect capabilities before starting OAuth.
+NeoBot supports a small curated set of providers in v1. When the user asks to connect a supported provider, call \`create_connection\` directly. Do not search the catalog first and do not inspect capabilities before starting OAuth.
 
 ## Supported providers (v1)
 

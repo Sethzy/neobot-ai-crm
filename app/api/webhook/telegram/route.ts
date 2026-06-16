@@ -142,7 +142,7 @@ async function pairTelegramChat(
     await sendPlainTelegramMessage(
       ctx.bot,
       numericChatId,
-      "This pairing link is no longer valid. Generate a new one from Sunder on web.",
+      "This pairing link is no longer valid. Generate a new one from NeoBot on web.",
     );
     return;
   }
@@ -184,7 +184,7 @@ async function handleRemovedCommand(
   await sendPlainTelegramMessage(
     ctx.bot,
     numericChatId,
-    "That command was removed. Open Sunder on web and use New Task.",
+    "That command was removed. Open NeoBot on web and use New Task.",
   );
 }
 

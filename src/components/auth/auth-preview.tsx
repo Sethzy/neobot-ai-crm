@@ -49,7 +49,7 @@ export function AuthPreview() {
         <div className="flex items-center justify-between border-b border-border px-6 py-5">
           <div>
             <p className="text-caption font-semibold uppercase text-primary">
-              Sunder automations
+              NeoBot automations
             </p>
             <h2 className="mt-1 font-serif text-subhead text-foreground">
               Conversion queue

@@ -25,7 +25,7 @@ const serverEnvSchema = z.object({
   SENTRY_DSN: z.string().min(1).optional(),
   CRON_SECRET: z.string().min(1).optional(),
   TRIGGER_SECRET_KEY: z.string().min(1).optional(),
-  SUNDER_INTERNAL_SECRET: z.string().min(1).optional(),
+  NEOBOT_INTERNAL_SECRET: z.string().min(1).optional(),
 
   // Anthropic Managed Agents — one agent per model, shared environment.
   // Sonnet uses the legacy ANTHROPIC_AGENT_ID / _VERSION as fallback
@@ -85,8 +85,8 @@ export function getServerEnv(): ServerEnv {
     SENTRY_DSN: process.env.SENTRY_DSN?.trim() || undefined,
     CRON_SECRET: process.env.CRON_SECRET?.trim() || undefined,
     TRIGGER_SECRET_KEY: process.env.TRIGGER_SECRET_KEY?.trim() || undefined,
-    SUNDER_INTERNAL_SECRET:
-      process.env.SUNDER_INTERNAL_SECRET?.trim() || undefined,
+    NEOBOT_INTERNAL_SECRET:
+      process.env.NEOBOT_INTERNAL_SECRET?.trim() || undefined,
     ANTHROPIC_AGENT_ID: process.env.ANTHROPIC_AGENT_ID?.trim() || undefined,
     ANTHROPIC_AGENT_VERSION:
       process.env.ANTHROPIC_AGENT_VERSION?.trim() || undefined,

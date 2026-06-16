@@ -955,7 +955,7 @@ describe("POST /api/webhook/telegram", () => {
     expect(response.status).toBe(200);
     expect(api.sendMessage).toHaveBeenCalledWith(
       12345,
-      "That command was removed. Open Sunder on web and use New Task.",
+      "That command was removed. Open NeoBot on web and use New Task.",
       expect.anything(),
     );
     expect(
@@ -1109,7 +1109,7 @@ describe("POST /api/webhook/telegram", () => {
     expect(response.status).toBe(200);
     expect(api.sendMessage).toHaveBeenCalledWith(
       12345,
-      "That command was removed. Open Sunder on web and use New Task.",
+      "That command was removed. Open NeoBot on web and use New Task.",
       expect.anything(),
     );
     expect(mockUpsertTelegramChannelMapping).not.toHaveBeenCalled();

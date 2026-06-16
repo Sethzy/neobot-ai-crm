@@ -276,6 +276,7 @@
           <span class="pill ok">Two active product repos</span>
           <span class="pill ok">Two Vercel projects</span>
           <span class="pill ok">Two active Supabase refs</span>
+          <span class="pill ok">NeoBot app/source branding swept</span>
           <span class="pill warn">One Supabase display-name rename still needs dashboard/PAT access</span>
         </div>
       </header>
@@ -438,6 +439,39 @@
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <section class="panel">
+        <h2>Local Source Verification</h2>
+        <div class="grid three">
+          <article class="card ok">
+            <h3>Branding</h3>
+            <p class="small">
+              Public app/source surfaces now use <code>NeoBot</code> and
+              <code>https://neobot-ai-crm.vercel.app</code>. The only remaining
+              <code>Sunder</code> hit in <code>app/</code> and <code>src/</code>
+              is a regression-test guard that prevents metadata from drifting
+              back to Sunder.
+            </p>
+          </article>
+          <article class="card ok">
+            <h3>Compatibility Names</h3>
+            <p class="small">
+              Lower-case internal contracts such as <code>sunder:///agent/</code>,
+              <code>x-sunder-signature</code>, <code>sunder_web_search</code>, and
+              <code>bg-sunder-green</code> were intentionally preserved. Renaming
+              those would be a protocol/style migration, not a repo tidy-up.
+            </p>
+          </article>
+          <article class="card ok">
+            <h3>Secret Scan</h3>
+            <p class="small">
+              A tar-based tracked-file snapshot of the current working tree was
+              scanned with gitleaks. Result: no leaks found. Ignored local env
+              files were not included in this publishable-tree scan.
+            </p>
+          </article>
+        </div>
       </section>
 
       <section class="callout">

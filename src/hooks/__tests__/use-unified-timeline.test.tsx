@@ -127,7 +127,7 @@ describe("useUnifiedTimeline", () => {
             },
           },
           actor_type: "agent",
-          actor_label: "Sunder",
+          actor_label: "NeoBot",
           happened_at: "2026-04-05T09:00:00.000Z",
           created_at: "2026-04-05T09:00:00.000Z",
           updated_at: "2026-04-05T09:00:00.000Z",

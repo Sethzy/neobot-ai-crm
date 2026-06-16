@@ -58,7 +58,7 @@ export function MeetingsList({ meetings }: MeetingsListProps) {
     return (
       <div className="surface-app flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
         <p className="type-empty-title">No meetings yet</p>
-        <p className="mt-1 type-empty-copy">Record a meeting to keep notes, decisions, and follow-ups in Sunder.</p>
+        <p className="mt-1 type-empty-copy">Record a meeting to keep notes, decisions, and follow-ups in NeoBot.</p>
       </div>
     );
   }

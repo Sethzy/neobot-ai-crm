@@ -101,7 +101,7 @@ export function getTimelineActorLabel(
     return actorLabel;
   }
 
-  return actorType === "agent" ? "Sunder" : "System";
+  return actorType === "agent" ? "NeoBot" : "System";
 }
 
 export function getAuditAction(activity: TimelineActivity): "created" | "updated" | "deleted" | null {

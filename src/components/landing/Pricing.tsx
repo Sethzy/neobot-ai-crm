@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Pricing section with Free, Pro, and Teams tiers for Sunder.
+ * Pricing section with Free, Pro, and Teams tiers for NeoBot.
  */
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/landing/Button'
@@ -43,7 +43,7 @@ const plans = [
   {
     name: 'Free',
     price: 'S$0',
-    description: 'See what Sunder can do.',
+    description: 'See what NeoBot can do.',
     features: [
       '10 messages per day',
       'All skills & integrations',
@@ -73,7 +73,7 @@ const plans = [
     description: 'Give every rep an AI assistant. See everything.',
     features: [
       'Everything in Pro',
-      'Sunder for every team member',
+      'NeoBot for every team member',
       'Manager dashboard & analytics',
       'Conversation monitoring',
       'Dedicated onboarding',

@@ -321,7 +321,7 @@ export const MessageBranchPage = ({
 
 export type MessageResponseProps = ComponentProps<typeof Streamdown>;
 
-export function rewriteSunderHref(href?: string): string | undefined {
+export function rewriteNeoBotHref(href?: string): string | undefined {
   if (!href) {
     return href;
   }
@@ -340,7 +340,7 @@ function escapeEmptyListMarkers(markdown: string): string {
   return markdown.replace(/^(\d+)\.\s*$/gm, "$1\\.");
 }
 
-function rewriteSunderMarkdownLinks(markdown: string): string {
+function rewriteNeoBotMarkdownLinks(markdown: string): string {
   // Skip rewriting inside code blocks (fenced ``` or indented) to avoid mangling literal examples
   const codeBlockPattern = /(```[\s\S]*?```|`[^`]+`)/g;
   const parts = markdown.split(codeBlockPattern);
@@ -356,7 +356,7 @@ function rewriteSunderMarkdownLinks(markdown: string): string {
 
 const messageComponents: Components = {
   a: ({ href, children, ...props }) => {
-    const resolvedHref = rewriteSunderHref(href);
+    const resolvedHref = rewriteNeoBotHref(href);
 
     if (!resolvedHref) {
       return <span {...props}>{children}</span>;
@@ -401,7 +401,7 @@ export const MessageResponse = memo(
         {...props}
       >
         {content
-          ? escapeEmptyListMarkers(rewriteSunderMarkdownLinks(content))
+          ? escapeEmptyListMarkers(rewriteNeoBotMarkdownLinks(content))
           : props.children}
       </Streamdown>
     );

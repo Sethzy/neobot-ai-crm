@@ -331,7 +331,7 @@ export function WhatsAppPhoneMockup({ isVisible = false }: WhatsAppPhoneMockupPr
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] leading-tight font-semibold text-white">Sunder</p>
+              <p className="text-[11px] leading-tight font-semibold text-white">NeoBot</p>
               <p className="text-[9px] leading-tight text-white/70">online</p>
             </div>
             <div className="flex items-center gap-3">

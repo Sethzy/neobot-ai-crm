@@ -32,7 +32,7 @@ vi.mock("@/components/ai-elements/message", () => ({
   MessageToolbar: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="message-toolbar">{children}</div>
   ),
-  rewriteSunderHref: (href?: string) => {
+  rewriteNeoBotHref: (href?: string) => {
     if (!href?.startsWith("sunder:///agent/")) {
       return href;
     }

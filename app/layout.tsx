@@ -51,7 +51,7 @@ export default function RootLayout({
     "@context": "https://schema.org",
     "@type": "Organization",
     name: siteBrand.name,
-    alternateName: ["Try Sunder", "Sunder AI", "Sunder Inc"],
+    alternateName: ["NeoBot AI", "NeoBot AI CRM", "NeoBot CRM"],
     url: siteBrand.siteUrl,
     logo: siteBrand.logoUrl,
     description: siteBrand.organizationDescription,

@@ -7,8 +7,8 @@ import type { Metadata } from "next";
 import RegisterPageClient from "./page-client";
 
 export const metadata: Metadata = {
-  title: "Create account · Sunder",
-  description: "Create your Sunder account and set up your workspace.",
+  title: "Create account · NeoBot",
+  description: "Create your NeoBot account and set up your workspace.",
   robots: { index: false, follow: false },
 };
 

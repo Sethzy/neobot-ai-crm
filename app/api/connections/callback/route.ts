@@ -1,5 +1,5 @@
 /**
- * Finalizes a Composio OAuth callback into Sunder's connection metadata table.
+ * Finalizes a Composio OAuth callback into NeoBot's connection metadata table.
  * @module app/api/connections/callback/route
  */
 import { NextResponse } from "next/server";

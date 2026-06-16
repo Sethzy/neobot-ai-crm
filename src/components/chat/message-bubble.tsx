@@ -23,7 +23,7 @@ import {
   MessageActions,
   MessageContent,
   MessageResponse,
-  rewriteSunderHref,
+  rewriteNeoBotHref,
 } from "@/components/ai-elements/message";
 import {
   Reasoning,
@@ -98,7 +98,7 @@ function extractStandaloneArtifactLink(line: string): { href: string; label: str
 }
 
 function buildArtifactAttachmentFromHref(href: string, label: string): Attachment | null {
-  const resolvedHref = rewriteSunderHref(href);
+  const resolvedHref = rewriteNeoBotHref(href);
 
   if (!resolvedHref) {
     return null;

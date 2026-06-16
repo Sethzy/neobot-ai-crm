@@ -5,7 +5,7 @@ import { MarketCategoryCard } from "@/components/property/market-category-card";
 import { MarketCta } from "@/components/property/market-cta";
 
 export const metadata: Metadata = {
-  title: "Singapore Property Market Data | Sunder",
+  title: "Singapore Property Market Data | NeoBot",
   description:
     "Free property market data for Singapore real estate agents. Agent profiles, private property transactions, HDB resale data, agency rankings, and area analytics.",
 };

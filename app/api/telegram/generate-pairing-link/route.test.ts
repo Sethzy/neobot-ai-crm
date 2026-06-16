@@ -73,7 +73,7 @@ describe("POST /api/telegram/generate-pairing-link", () => {
     });
     mockGeneratePairingDisplayCode.mockReturnValue("GW-22E14A");
     mockGeneratePairingToken.mockReturnValue("pair-token-123");
-    mockGetBotUsername.mockResolvedValue("SunderBot");
+    mockGetBotUsername.mockResolvedValue("NeoBotBot");
     mockGetDefaultMessagingThreadForUser.mockResolvedValue("thread-1");
     mockClearTelegramPairingSessionsForUser.mockResolvedValue(undefined);
     mockFindTelegramClientConnectionConflict.mockResolvedValue(null);
@@ -125,10 +125,10 @@ describe("POST /api/telegram/generate-pairing-link", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      botUsername: "SunderBot",
+      botUsername: "NeoBotBot",
       displayCode: "GW-22E14A",
       expiresInSeconds: 600,
-      openUrl: "https://t.me/SunderBot?start=pair-token-123",
+      openUrl: "https://t.me/NeoBotBot?start=pair-token-123",
     });
     expect(mockGetDefaultMessagingThreadForUser).toHaveBeenCalledWith(supabase, {
       clientId: "client-1",

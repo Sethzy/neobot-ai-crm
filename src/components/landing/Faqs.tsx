@@ -11,14 +11,14 @@ import { useScrollReveal } from '@/hooks/useScrollReveal'
 
 const faqs = [
   {
-    question: 'What is Sunder?',
+    question: 'What is NeoBot?',
     answer:
       'An AI assistant that works for you. Tell it what to do, and it does it — follow-ups, scheduling, admin, all of it.',
   },
   {
     question: 'How is this different from ChatGPT?',
     answer:
-      'ChatGPT answers questions. Sunder takes action. It does not suggest a follow-up — it sends the follow-up.',
+      'ChatGPT answers questions. NeoBot takes action. It does not suggest a follow-up — it sends the follow-up.',
   },
   {
     question: 'How long does setup take?',
@@ -26,9 +26,9 @@ const faqs = [
       'One click. No technical setup, no integrations to configure. You\'re up and running in minutes.',
   },
   {
-    question: 'How do I talk to Sunder?',
+    question: 'How do I talk to NeoBot?',
     answer:
-      'Just message Sunder. In a meeting, on the MRT, wherever — it is always available.',
+      'Just message NeoBot. In a meeting, on the MRT, wherever — it is always available.',
   },
   {
     question: 'Is my data secure?',
@@ -36,7 +36,7 @@ const faqs = [
       'Yes. Dedicated infrastructure, encrypted end-to-end. We never use your data to train models.',
   },
   {
-    question: 'What if Sunder makes a mistake?',
+    question: 'What if NeoBot makes a mistake?',
     answer:
       'It learns. Correct it once and it remembers. After a couple of weeks, it adapts to how you work.',
   },
@@ -48,7 +48,7 @@ const faqs = [
   {
     question: 'What\'s the difference between Pro and Teams?',
     answer:
-      'Pro gives you full access to Sunder 24/7 with all skills. Teams adds a manager dashboard, conversation monitoring, and dedicated onboarding for your whole team.',
+      'Pro gives you full access to NeoBot 24/7 with all skills. Teams adds a manager dashboard, conversation monitoring, and dedicated onboarding for your whole team.',
   },
 ]
 
@@ -128,7 +128,7 @@ export function Faqs() {
             Frequently asked <span className="italic text-sunder-green">questions.</span>
           </h2>
           <p className="mt-4 text-base leading-7 text-muted-foreground sm:mt-6 sm:text-lg sm:leading-8">
-            Everything you need to know about Sunder.
+            Everything you need to know about NeoBot.
           </p>
         </div>
 

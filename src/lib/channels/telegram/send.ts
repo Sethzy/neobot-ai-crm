@@ -1,6 +1,6 @@
 /**
  * Telegram text/media sending helpers with HTML fallback and safe chunking.
- * Adapted from dorabot with minimal Sunder-specific drift.
+ * Adapted from dorabot with minimal NeoBot-specific drift.
  * @module lib/channels/telegram/send
  */
 import { extname } from "node:path";

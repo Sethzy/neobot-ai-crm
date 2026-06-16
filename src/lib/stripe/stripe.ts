@@ -407,7 +407,7 @@ export async function createCheckoutSession(priceId: string): Promise<string> {
     } catch {
       throw new BillingFlowError(
         billingErrorCodes.error,
-        "Stripe already has a live subscription for this workspace, but Sunder could not resynchronize its local billing state.",
+        "Stripe already has a live subscription for this workspace, but NeoBot could not resynchronize its local billing state.",
       );
     }
 

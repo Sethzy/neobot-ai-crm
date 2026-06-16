@@ -299,7 +299,7 @@ export function TelegramConnectRow({
       icon="send"
       iconTint="blue"
       title="Connect Telegram"
-      description="Link your personal Telegram chat to your Sunder account."
+      description="Link your personal Telegram chat to your NeoBot account."
       action={action}
     >
       {body}

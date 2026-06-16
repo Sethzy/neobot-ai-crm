@@ -7,7 +7,7 @@ import { cleanSearchTerm } from "@/lib/property/utils";
 import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 
 export const metadata: Metadata = {
-  title: "Singapore HDB Resale Streets | Sunder",
+  title: "Singapore HDB Resale Streets | NeoBot",
   description:
     "Browse HDB resale activity by town and street with recent pricing trends.",
 };

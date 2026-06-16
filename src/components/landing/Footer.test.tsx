@@ -9,7 +9,7 @@ import { siteBrand } from "@/lib/branding/site";
 import { Footer } from "./Footer";
 
 describe("Footer", () => {
-  it("renders the current Sunder brand and support email", () => {
+  it("renders the current NeoBot brand and support email", () => {
     render(<Footer />);
 
     expect(
@@ -20,7 +20,7 @@ describe("Footer", () => {
     expect(emailLink).toHaveAttribute("href", `mailto:${siteBrand.supportEmail}`);
 
     expect(
-      screen.getByText(/Sunder\. All rights reserved\./),
+      screen.getByText(/NeoBot\. All rights reserved\./),
     ).toBeInTheDocument();
   });
 });

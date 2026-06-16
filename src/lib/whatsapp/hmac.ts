@@ -70,7 +70,7 @@ export function verifyWebhookSignature(
 
 /**
  * Generates HMAC-SHA256 signature for outbound webhook calls.
- * Used when Sunder calls back to OpenClaw with results.
+ * Used when NeoBot calls back to OpenClaw with results.
  *
  * @param body - The request body to sign
  * @param secret - The shared HMAC secret

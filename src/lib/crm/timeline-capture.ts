@@ -40,7 +40,7 @@ const SKIPPED_DIFF_FIELDS = new Set([
 
 function getDefaultActorLabel(actorType: TimelineActorType) {
   if (actorType === "agent") {
-    return "Sunder";
+    return "NeoBot";
   }
 
   if (actorType === "system") {

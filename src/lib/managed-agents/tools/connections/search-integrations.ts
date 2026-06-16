@@ -18,7 +18,7 @@ type SearchIntegrationsInput = z.infer<typeof inputSchema>;
 export const searchIntegrationsTool: ManagedAgentTool<SearchIntegrationsInput> = {
   name: "search_integrations",
   description:
-    "Lists integrations that match one or more given keywords. Keywords are single words.\nSearches integrations built by the Sunder team as well as integrations from Composio (over 3000 total).\n\nNEVER mention integration quality scores or who built the integrations unless the user specifically asks.\n\nOnce you have the integration ID you can get more info using get_integration_capabilities.",
+    "Lists integrations that match one or more given keywords. Keywords are single words.\nSearches integrations built by the NeoBot team as well as integrations from Composio (over 3000 total).\n\nNEVER mention integration quality scores or who built the integrations unless the user specifically asks.\n\nOnce you have the integration ID you can get more info using get_integration_capabilities.",
   inputSchema,
   execute: async ({ keywords }) => {
     if (keywords.length === 0) {

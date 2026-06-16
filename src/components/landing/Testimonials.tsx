@@ -26,12 +26,12 @@ interface FeaturedTestimonial {
 const marqueeTestimonials: MarqueeTestimonial[] = [
   {
     content:
-      'Sunder follows up with my leads way faster than I ever could. I closed two deals last month that I definitely would have forgotten about.',
+      'NeoBot follows up with my leads way faster than I ever could. I closed two deals last month that I definitely would have forgotten about.',
     author: { name: 'Rachel Ng', role: 'Senior Associate, PropNex Realty', avatar: '/images/avatar-rachel-ng.webp' },
   },
   {
     content:
-      "I just forward everything to Sunder and it handles the rest. Filing, tracking, follow-ups — I barely touch admin anymore which is great.",
+      "I just forward everything to NeoBot and it handles the rest. Filing, tracking, follow-ups — I barely touch admin anymore which is great.",
     author: { name: 'Priya Sharma', role: 'Independent Insurance Broker', avatar: '/images/avatar-priya-sharma.webp' },
   },
   {
@@ -46,12 +46,12 @@ const marqueeTestimonials: MarqueeTestimonial[] = [
   },
   {
     content:
-      "I manage way more clients now than I used to and I don't feel overwhelmed. Sunder remembers all the details so I don't have to.",
+      "I manage way more clients now than I used to and I don't feel overwhelmed. NeoBot remembers all the details so I don't have to.",
     author: { name: 'Sarah Tan', role: 'Property Agent, ERA', avatar: '/images/avatar-sarah-tan.webp' },
   },
   {
     content:
-      "I send voice notes after meetings and by the time I get home Sunder's already updated everything and scheduled the follow-ups. Super useful.",
+      "I send voice notes after meetings and by the time I get home NeoBot's already updated everything and scheduled the follow-ups. Super useful.",
     author: { name: 'James Wong', role: 'Financial Consultant, Prudential', avatar: '/images/avatar-james-wong.webp' },
   },
   {
@@ -61,7 +61,7 @@ const marqueeTestimonials: MarqueeTestimonial[] = [
   },
   {
     content:
-      "My clients think I have a whole team behind me but it's literally just me and Sunder. The response time alone makes a huge difference.",
+      "My clients think I have a whole team behind me but it's literally just me and NeoBot. The response time alone makes a huge difference.",
     author: { name: 'Aisha Rahman', role: 'Real Estate Negotiator, Knight Frank', avatar: '/images/avatar-aisha-rahman.webp' },
   },
 ]

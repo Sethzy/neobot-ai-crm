@@ -103,7 +103,7 @@ describe("captureTimelineActivity", () => {
       expect.objectContaining({
         p_name: "company.deleted",
         p_actor_type: "agent",
-        p_actor_label: "Sunder",
+        p_actor_label: "NeoBot",
         p_properties: {
           before: { name: "PropNex" },
         },

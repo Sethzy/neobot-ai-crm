@@ -7,8 +7,8 @@ import type { Metadata } from "next";
 import ConfirmPageClient from "./page-client";
 
 export const metadata: Metadata = {
-  title: "Confirm email · Sunder",
-  description: "Confirm your email address to continue to Sunder.",
+  title: "Confirm email · NeoBot",
+  description: "Confirm your email address to continue to NeoBot.",
   robots: { index: false, follow: false },
 };
 

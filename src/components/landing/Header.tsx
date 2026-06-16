@@ -146,7 +146,7 @@ export function Header() {
         >
           {/* Left group: Logo + nav links */}
           <div className="flex items-center gap-x-6 sm:gap-x-8">
-            <Link href="/" aria-label="Sunder home" className="transition-opacity hover:opacity-80">
+            <Link href="/" aria-label="NeoBot home" className="transition-opacity hover:opacity-80">
               <Logo className="h-6 w-auto sm:h-7" />
             </Link>
 

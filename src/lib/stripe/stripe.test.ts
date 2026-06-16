@@ -189,7 +189,7 @@ describe("lib/stripe/stripe", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    process.env.NEXT_PUBLIC_APP_URL = "https://app.trysunder.com";
+    process.env.NEXT_PUBLIC_APP_URL = "https://neobot-ai-crm.vercel.app";
     process.env.STRIPE_SECRET_KEY = "sk_test_123";
     process.env.STRIPE_PRO_PRICE_ID = "price_pro";
     process.env.STRIPE_MAX_PRICE_ID = "price_max";
@@ -573,13 +573,13 @@ describe("lib/stripe/stripe", () => {
     });
     expect(mockCheckoutCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        cancel_url: "https://app.trysunder.com/pricing?billing=canceled",
+        cancel_url: "https://neobot-ai-crm.vercel.app/pricing?billing=canceled",
         client_reference_id: "client-1",
         customer: "cus_new",
         line_items: [{ price: "price_max", quantity: 1 }],
         mode: "subscription",
         success_url:
-          "https://app.trysunder.com/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}",
+          "https://neobot-ai-crm.vercel.app/api/stripe/checkout?session_id={CHECKOUT_SESSION_ID}",
       }),
     );
     expect(updates).toEqual([
@@ -615,7 +615,7 @@ describe("lib/stripe/stripe", () => {
     );
     expect(mockBillingPortalCreate).toHaveBeenCalledWith({
       customer: "cus_123",
-      return_url: "https://app.trysunder.com/settings/workspace/billing",
+      return_url: "https://neobot-ai-crm.vercel.app/settings/workspace/billing",
     });
   });
 

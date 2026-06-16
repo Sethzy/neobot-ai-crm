@@ -7,7 +7,7 @@ import { cleanSearchTerm } from "@/lib/property/utils";
 import { isPropertySupabaseConfigured } from "@/lib/supabase/property-env";
 
 export const metadata: Metadata = {
-  title: "Singapore Property Agents | Sunder",
+  title: "Singapore Property Agents | NeoBot",
   description:
     "Search Singapore property agent profiles by registration number, name, and agency.",
 };

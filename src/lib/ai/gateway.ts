@@ -1,5 +1,5 @@
 /**
- * @fileoverview Central AI Gateway access for Sunder's runtime model calls.
+ * @fileoverview Central AI Gateway access for NeoBot's runtime model calls.
  */
 
 import { createGateway } from "@ai-sdk/gateway";
