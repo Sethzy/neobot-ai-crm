@@ -4,7 +4,7 @@
 
 The Sunder repository is ready to publish from a portfolio page and open source publicly only when the current launch branch is verified, the intended production deployment matches the launch version, local quality gates pass, core UI flows are browser-checked, open-source setup files are tidy, and both current files plus reachable Git history have no unresolved secret findings.
 
-Current state as of 2026-06-17: mostly complete but not fully public-launch complete. Local gates pass, redacted secret scans pass for current files and reachable history, the launch branch is committed and pushed, and the current Next.js app is deployed successfully to Vercel production. Public access still needs the registrar DNS record for `app.trysunder.com`, and open-source release still needs a license decision.
+Current state as of 2026-06-17: mostly complete but not fully public-launch complete. Local gates pass, redacted secret scans pass for current files and reachable history, the launch branch has been merged to `main`, and the current Next.js app is deployed successfully to Vercel production. Public access still needs the registrar DNS record for `app.trysunder.com`, and open-source release still needs a license decision.
 
 ## Evidence Surface
 
@@ -78,7 +78,7 @@ To unblock, provide the missing access, confirm the external action has been com
 
 | Deliverable | Evidence Required | Status | Evidence Link / Command |
 | --- | --- | --- | --- |
-| Launch branch identified | Current branch, app-code commit, and intended deployment target recorded | Complete | Branch `feat/twenty-aesthetic-clone` is pushed to `origin/feat/twenty-aesthetic-clone`. Latest app-code commit is `c18e0b6f2a43d01831d3fa88a35a749ac09cb127`; goal/evidence documentation commits may sit on top. Deployment target is Vercel project `sunder-next-migration-20260225`. |
+| Launch branch identified | Current branch, app-code commit, and intended deployment target recorded | Complete | Branch `feat/twenty-aesthetic-clone` was merged into `main` with history preserved. Latest app-code commit is `c18e0b6f2a43d01831d3fa88a35a749ac09cb127`; goal/evidence documentation commits may sit on top. Deployment target is Vercel project `sunder-next-migration-20260225`. |
 | Source of truth checked | v2 implementation plan reviewed for remaining launch-critical work | Complete with drift noted | AGENTS references `docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`, but the current repo contains `docs/product/plans/2026-03-05-implementation-phasing-plan-v2-deprecate.json` and `docs/product/plans/2026-04-13-PR-list-sunder-current.json`. This documentation drift is recorded as non-blocking launch hygiene. |
 | Local quality gates pass | Lint, typecheck, tests, and production build pass or documented equivalents pass | Complete | `pnpm lint` passed with typography lint. `pnpm exec tsc --noEmit` passed. `pnpm test:run` passed after Vitest project split cleanup: 436 files, 2,476 tests. `pnpm build` passed on Next.js 15.5.12. Build emitted non-fatal warnings for the missing Next ESLint plugin and sitemap Supabase fallback during local static generation. |
 | Core UI verified | Browser verification of the production or local production build across key launch flows | Complete locally | Local production server `PORT=3001 pnpm start`; Playwright verified `/` title `Sunder | The AI autopilot for advisory sales`, `/login` title `Sign in · Sunder`, `/register` title `Create account · Sunder`, signed-out `/chat` redirects to `/login?redirect=%2Fchat`, signed-out `/customers/people` redirects to `/login?redirect=%2Fcustomers%2Fpeople`, and mobile 390x844 landing viewport had 0 console errors/warnings. Screenshot artifact: `.playwright-mcp/sunder-local-mobile-home.png`. |
@@ -108,12 +108,13 @@ To unblock, provide the missing access, confirm the external action has been com
 - 2026-06-17: Vercel production deploy initially failed on missing markdown-renderer dependencies. Fixed by declaring direct dependencies `@types/hast` and `remark-gfm`, then redeployed successfully to `sunder-next-migration-20260225`.
 - 2026-06-17: `app.trysunder.com` was added to Vercel project `sunder-next-migration-20260225`. Vercel still requires registrar DNS: `A app.trysunder.com 76.76.21.21`. Public generated Vercel URLs remain protected by Vercel Authentication.
 - 2026-06-17: Branch `feat/twenty-aesthetic-clone` was pushed to GitHub after retrying HTTPS with HTTP/1.1 to avoid an RPC disconnect.
+- 2026-06-17: `origin/main` moved while finishing the branch, so it was merged into `feat/twenty-aesthetic-clone` with a normal merge commit, preserving both histories. `main` was then fast-forwarded to the merged launch history and pushed to GitHub.
 
 ## Final Result
 
 Done:
 
-- Current launch branch is committed and pushed: `feat/twenty-aesthetic-clone`. Latest app-code commit is `c18e0b6f2a43d01831d3fa88a35a749ac09cb127`; final goal/evidence documentation is pushed on top.
+- Current launch history is merged to `main` and pushed. Latest app-code commit is `c18e0b6f2a43d01831d3fa88a35a749ac09cb127`; final goal/evidence documentation is pushed on top.
 - Local gates pass: lint, TypeScript, full Vitest run, and Next.js production build.
 - Local production browser checks pass for landing, auth pages, protected-route redirects, and mobile landing.
 - Current publishable files and reachable Git history pass redacted gitleaks scans with no unresolved leaks. Commit history was preserved; no rewrite was performed.
