@@ -1,127 +1,161 @@
 <svg width="1400" height="720" viewBox="0 0 1400 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">NeoBot product banner</title>
-  <desc id="desc">An AI CRM workspace showing chat, CRM records, automations, tools, approvals, and agent run state.</desc>
+  <title id="title">NeoBot agent control plane banner</title>
+  <desc id="desc">A dark agent trace and CRM control plane showing session lifecycle, typed tools, approvals, memory, and CRM graph state.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1400" y2="720" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F8FAFC"/>
-      <stop offset="0.52" stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#F4F2FF"/>
+      <stop stop-color="#070A12"/>
+      <stop offset="0.58" stop-color="#0D1220"/>
+      <stop offset="1" stop-color="#171023"/>
     </linearGradient>
-    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#111827"/>
-      <stop offset="1" stop-color="#34323B"/>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#121A2A"/>
+      <stop offset="1" stop-color="#0B0F19"/>
     </linearGradient>
     <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#6D5EF8"/>
-      <stop offset="1" stop-color="#B469FF"/>
+      <stop stop-color="#7C5CFF"/>
+      <stop offset="1" stop-color="#C084FC"/>
     </linearGradient>
-    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
-      <stop stop-color="#2F6FEB"/>
-      <stop offset="1" stop-color="#4FC3F7"/>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#60A5FA"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%" color-interpolation-filters="sRGB">
-      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#1F2937" flood-opacity="0.14"/>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#34D399"/>
+      <stop offset="1" stop-color="#A3E635"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0 1 0 0 0 0.55 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
-    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse">
-      <path d="M36 0H0V36" stroke="#6D5EF8" stroke-opacity="0.08" stroke-width="1"/>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M42 0H0V42" stroke="#8B5CF6" stroke-opacity="0.12" stroke-width="1"/>
+    </pattern>
+    <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="1" fill="#FFFFFF" opacity="0.035"/>
     </pattern>
   </defs>
 
-  <rect x="28" y="28" width="1344" height="664" rx="34" fill="url(#bg)" stroke="#292733" stroke-width="3"/>
-  <rect x="68" y="76" width="1264" height="508" rx="28" fill="url(#grid)"/>
+  <rect width="1400" height="720" rx="0" fill="url(#bg)"/>
+  <rect width="1400" height="720" fill="url(#grid)"/>
+  <rect width="1400" height="720" fill="url(#scan)"/>
+  <path d="M1030 -60L1510 420" stroke="#7C5CFF" stroke-opacity="0.16" stroke-width="110"/>
+  <path d="M-120 690L410 160" stroke="#22D3EE" stroke-opacity="0.08" stroke-width="86"/>
 
-  <g transform="translate(108 104)" filter="url(#shadow)">
-    <rect x="0" y="0" width="360" height="430" rx="28" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2"/>
-    <rect x="0" y="0" width="360" height="64" rx="28" fill="#111827"/>
-    <circle cx="34" cy="32" r="8" fill="#FF6B5E"/>
-    <circle cx="62" cy="32" r="8" fill="#F5C453"/>
-    <circle cx="90" cy="32" r="8" fill="#58C970"/>
-    <text x="124" y="40" fill="#F9FAFB" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800">Workspace</text>
-
-    <rect x="28" y="94" width="116" height="32" rx="16" fill="#F3F4F6"/>
-    <text x="54" y="116" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Chat</text>
-    <rect x="156" y="94" width="112" height="32" rx="16" fill="#EEF2FF"/>
-    <text x="181" y="116" fill="#5547D9" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">CRM</text>
-
-    <rect x="28" y="154" width="304" height="70" rx="18" fill="#F8FAFC" stroke="#E5E7EB"/>
-    <circle cx="60" cy="189" r="14" fill="url(#violet)"/>
-    <rect x="88" y="174" width="124" height="10" rx="5" fill="#111827"/>
-    <rect x="88" y="195" width="190" height="8" rx="4" fill="#CBD5E1"/>
-
-    <rect x="28" y="246" width="304" height="70" rx="18" fill="#FFFFFF" stroke="#E5E7EB"/>
-    <circle cx="60" cy="281" r="14" fill="#111827"/>
-    <rect x="88" y="266" width="162" height="10" rx="5" fill="#111827"/>
-    <rect x="88" y="287" width="206" height="8" rx="4" fill="#CBD5E1"/>
-
-    <rect x="28" y="338" width="304" height="54" rx="18" fill="#F6F7FF" stroke="#DCD7FF"/>
-    <text x="52" y="371" fill="#5547D9" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="800">Daily orchestrator ready</text>
+  <g transform="translate(72 68)">
+    <text x="0" y="0" fill="#94A3B8" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" font-weight="700" letter-spacing="0.12em">NEOBOT / AGENT TRACE</text>
+    <text x="0" y="58" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="56" font-weight="850">AI CRM control plane</text>
+    <text x="4" y="96" fill="#B7C3D7" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="500">Typed tools, approvals, memory, automations, and CRM state in one runtime.</text>
   </g>
 
-  <g transform="translate(512 84)" filter="url(#shadow)">
-    <rect x="0" y="0" width="536" height="492" rx="30" fill="#111827"/>
-    <rect x="28" y="28" width="210" height="436" rx="22" fill="#171F2C" stroke="#2C3748"/>
-    <text x="54" y="66" fill="#F9FAFB" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="850">Agent run</text>
-    <rect x="54" y="98" width="132" height="10" rx="5" fill="#64748B"/>
-    <rect x="54" y="132" width="152" height="42" rx="14" fill="#223047" stroke="#34425A"/>
-    <text x="72" y="158" fill="#E5E7EB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">resolve client_id</text>
-    <rect x="54" y="196" width="152" height="42" rx="14" fill="#223047" stroke="#34425A"/>
-    <text x="72" y="222" fill="#E5E7EB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">reuse session</text>
-    <rect x="54" y="260" width="152" height="42" rx="14" fill="#223047" stroke="#34425A"/>
-    <text x="72" y="286" fill="#E5E7EB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">dispatch tools</text>
-    <rect x="54" y="324" width="152" height="42" rx="14" fill="#223047" stroke="#34425A"/>
-    <text x="72" y="350" fill="#E5E7EB" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700">record evals</text>
+  <g transform="translate(72 200)">
+    <rect width="708" height="420" rx="18" fill="url(#panel)" stroke="#29344A" stroke-width="2"/>
+    <rect x="1" y="1" width="706" height="58" rx="17" fill="#080B13"/>
+    <circle cx="32" cy="30" r="7" fill="#FF6B5E"/>
+    <circle cx="58" cy="30" r="7" fill="#F5C453"/>
+    <circle cx="84" cy="30" r="7" fill="#58C970"/>
+    <text x="118" y="37" fill="#E2E8F0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="17" font-weight="800">session-runner.ts</text>
+    <rect x="536" y="18" width="132" height="24" rx="12" fill="#101828" stroke="#334155"/>
+    <circle cx="558" cy="30" r="5" fill="#34D399" filter="url(#glow)"/>
+    <text x="572" y="35" fill="#A7F3D0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="800">streaming</text>
 
-    <rect x="270" y="28" width="238" height="204" rx="22" fill="#FFFFFF"/>
-    <text x="298" y="66" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="850">CRM objects</text>
-    <rect x="298" y="98" width="160" height="12" rx="6" fill="#111827"/>
-    <rect x="298" y="128" width="186" height="10" rx="5" fill="#CBD5E1"/>
-    <rect x="298" y="154" width="140" height="10" rx="5" fill="#CBD5E1"/>
-    <rect x="298" y="182" width="74" height="24" rx="12" fill="#EEF2FF"/>
-    <text x="316" y="199" fill="#5547D9" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="800">deal</text>
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="19" font-weight="700">
+      <text x="38" y="100" fill="#64748B">01</text>
+      <text x="86" y="100" fill="#E2E8F0">resolve_client_id</text>
+      <text x="286" y="100" fill="#94A3B8">workspace=advisory-sales</text>
+      <rect x="584" y="80" width="72" height="28" rx="14" fill="#052E2B" stroke="#0F766E"/>
+      <text x="607" y="100" fill="#5EEAD4" font-size="13">ok</text>
 
-    <rect x="270" y="260" width="238" height="204" rx="22" fill="#FFFFFF"/>
-    <text x="298" y="298" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="850">Approval gate</text>
-    <rect x="298" y="330" width="182" height="54" rx="16" fill="#FFF7ED" stroke="#FED7AA"/>
-    <text x="316" y="362" fill="#9A3412" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Review before action</text>
-    <rect x="298" y="406" width="84" height="30" rx="15" fill="url(#violet)"/>
-    <text x="320" y="426" fill="#FFFFFF" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="850">Approve</text>
-    <rect x="394" y="406" width="74" height="30" rx="15" fill="#F3F4F6"/>
-    <text x="414" y="426" fill="#374151" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="850">Deny</text>
+      <text x="38" y="148" fill="#64748B">02</text>
+      <text x="86" y="148" fill="#E2E8F0">reuse_managed_session</text>
+      <text x="338" y="148" fill="#94A3B8">thread=session_42</text>
+      <rect x="584" y="128" width="72" height="28" rx="14" fill="#1E1B4B" stroke="#6D5EF8"/>
+      <text x="597" y="148" fill="#C4B5FD" font-size="13">cached</text>
+
+      <text x="38" y="196" fill="#64748B">03</text>
+      <text x="86" y="196" fill="#E2E8F0">dispatch_tool</text>
+      <text x="244" y="196" fill="#67E8F9">search_crm</text>
+      <text x="366" y="196" fill="#94A3B8">include=deals,tasks</text>
+
+      <text x="38" y="244" fill="#64748B">04</text>
+      <text x="86" y="244" fill="#E2E8F0">dispatch_tool</text>
+      <text x="244" y="244" fill="#67E8F9">write_memory</text>
+      <text x="410" y="244" fill="#94A3B8">path=/agent/memory/client.md</text>
+
+      <text x="38" y="292" fill="#64748B">05</text>
+      <text x="86" y="292" fill="#E2E8F0">request_approval</text>
+      <text x="286" y="292" fill="#FDBA74">crm.configure_crm</text>
+      <rect x="584" y="272" width="72" height="28" rx="14" fill="#451A03" stroke="#F97316"/>
+      <text x="601" y="292" fill="#FDBA74" font-size="13">pause</text>
+
+      <text x="38" y="340" fill="#64748B">06</text>
+      <text x="86" y="340" fill="#E2E8F0">record_eval</text>
+      <text x="232" y="340" fill="#A3E635">tenant_filter_passed</text>
+      <text x="520" y="340" fill="#94A3B8">cost=$0.018</text>
+    </g>
+
+    <rect x="38" y="372" width="628" height="14" rx="7" fill="#182234"/>
+    <rect x="38" y="372" width="452" height="14" rx="7" fill="url(#cyan)" opacity="0.92"/>
   </g>
 
-  <g transform="translate(1088 142)" filter="url(#shadow)">
-    <rect x="0" y="0" width="210" height="368" rx="28" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2"/>
-    <text x="34" y="48" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="850">Tool layer</text>
-    <g transform="translate(28 82)">
-      <rect width="154" height="38" rx="19" fill="#F8FAFC" stroke="#E5E7EB"/>
-      <circle cx="25" cy="19" r="7" fill="url(#blue)"/>
-      <text x="46" y="24" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">CRM</text>
+  <g transform="translate(828 176)">
+    <rect width="500" height="468" rx="20" fill="#0D1320" stroke="#29344A" stroke-width="2"/>
+    <text x="34" y="52" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="850">CRM graph and tool surface</text>
+    <text x="36" y="84" fill="#94A3B8" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="600">Every agent action lands in visible product state.</text>
+
+    <g stroke="#475569" stroke-width="2">
+      <path d="M250 214L132 142"/>
+      <path d="M250 214L386 140"/>
+      <path d="M250 214L112 300"/>
+      <path d="M250 214L392 306"/>
+      <path d="M250 214L250 376"/>
     </g>
-    <g transform="translate(28 136)">
-      <rect width="154" height="38" rx="19" fill="#F8FAFC" stroke="#E5E7EB"/>
-      <circle cx="25" cy="19" r="7" fill="url(#violet)"/>
-      <text x="46" y="24" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Files</text>
+
+    <g filter="url(#glow)">
+      <circle cx="250" cy="214" r="58" fill="#111827" stroke="url(#violet)" stroke-width="3"/>
+      <text x="214" y="207" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="850">Agent</text>
+      <text x="196" y="230" fill="#C4B5FD" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" font-weight="800">tool dispatcher</text>
     </g>
-    <g transform="translate(28 190)">
-      <rect width="154" height="38" rx="19" fill="#F8FAFC" stroke="#E5E7EB"/>
-      <circle cx="25" cy="19" r="7" fill="#10B981"/>
-      <text x="46" y="24" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Meetings</text>
-    </g>
-    <g transform="translate(28 244)">
-      <rect width="154" height="38" rx="19" fill="#F8FAFC" stroke="#E5E7EB"/>
-      <circle cx="25" cy="19" r="7" fill="#F59E0B"/>
-      <text x="46" y="24" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Triggers</text>
-    </g>
-    <g transform="translate(28 298)">
-      <rect width="154" height="38" rx="19" fill="#F8FAFC" stroke="#E5E7EB"/>
-      <circle cx="25" cy="19" r="7" fill="#111827"/>
-      <text x="46" y="24" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Browser</text>
+
+    <g font-family="Inter, Arial, sans-serif" font-weight="850">
+      <rect x="54" y="112" width="156" height="60" rx="30" fill="#111827" stroke="#334155"/>
+      <circle cx="84" cy="142" r="9" fill="#60A5FA"/>
+      <text x="104" y="149" fill="#E2E8F0" font-size="15">People</text>
+
+      <rect x="310" y="110" width="152" height="60" rx="30" fill="#111827" stroke="#334155"/>
+      <circle cx="340" cy="140" r="9" fill="#A78BFA"/>
+      <text x="360" y="147" fill="#E2E8F0" font-size="15">Deals</text>
+
+      <rect x="46" y="270" width="152" height="60" rx="30" fill="#111827" stroke="#334155"/>
+      <circle cx="76" cy="300" r="9" fill="#34D399"/>
+      <text x="96" y="307" fill="#E2E8F0" font-size="15">Meetings</text>
+
+      <rect x="308" y="276" width="168" height="60" rx="30" fill="#111827" stroke="#334155"/>
+      <circle cx="338" cy="306" r="9" fill="#F59E0B"/>
+      <text x="358" y="313" fill="#E2E8F0" font-size="15">Approvals</text>
+
+      <rect x="172" y="382" width="156" height="58" rx="29" fill="#111827" stroke="#334155"/>
+      <circle cx="202" cy="411" r="9" fill="#22D3EE"/>
+      <text x="222" y="418" fill="#E2E8F0" font-size="15">Memory</text>
     </g>
   </g>
 
-  <path d="M468 318C500 318 478 318 512 318" stroke="#6D5EF8" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 14"/>
-  <path d="M1048 318C1074 318 1062 318 1088 318" stroke="#6D5EF8" stroke-width="5" stroke-linecap="round" stroke-dasharray="2 14"/>
-
-  <text x="92" y="626" fill="#111827" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="850">AI CRM workspace for advisory sales</text>
-  <text x="94" y="668" fill="#576170" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="500">Chat, CRM, meetings, automations, memory, approvals, and tools in one tenant-aware agent harness.</text>
+  <g transform="translate(72 652)">
+    <rect width="1256" height="38" rx="19" fill="#0B1020" stroke="#253047"/>
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" font-weight="800">
+      <circle cx="34" cy="19" r="6" fill="#34D399"/>
+      <text x="52" y="24" fill="#CBD5E1">tenant-scoped state</text>
+      <circle cx="262" cy="19" r="6" fill="#60A5FA"/>
+      <text x="280" y="24" fill="#CBD5E1">typed CRM tools</text>
+      <circle cx="474" cy="19" r="6" fill="#A78BFA"/>
+      <text x="492" y="24" fill="#CBD5E1">managed sessions</text>
+      <circle cx="714" cy="19" r="6" fill="#F59E0B"/>
+      <text x="732" y="24" fill="#CBD5E1">approval gates</text>
+      <circle cx="928" cy="19" r="6" fill="#22D3EE"/>
+      <text x="946" y="24" fill="#CBD5E1">automations + memory</text>
+    </g>
+  </g>
 </svg>
