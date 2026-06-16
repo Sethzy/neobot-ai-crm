@@ -1,8 +1,23 @@
-# NeoBot
+<p align="center">
+  <img src="./public/neobot-logo.svg" width="190" alt="NeoBot logo" />
+</p>
 
-An AI CRM workspace for solo advisory sales. NeoBot helps client-facing operators keep track of people, companies, deals, meetings, follow-ups, automations, approvals, and memory without turning their day into CRM admin.
+<h2 align="center">AI CRM workspace for advisory sales</h2>
 
-## Why I Built NeoBot
+<p align="center">
+  <a href="./PRODUCT.md">Product notes</a> ·
+  <a href="./AGENTS.md">Agent guide</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#quick-start">Quick start</a>
+</p>
+
+<p align="center">
+  <img src="./docs/assets/readme/neobot-cover.svg" alt="NeoBot product banner" />
+</p>
+
+<br />
+
+# Why NeoBot
 
 Advisory sales work is full of tiny, high-context tasks: update the deal after a meeting, remember what a client cared about, prep for the next conversation, send the follow-up, check whether a task is waiting, and keep records clean enough to be useful later.
 
