@@ -342,6 +342,9 @@ importers:
       '@types/file-saver':
         specifier: ^2.0.7
         version: 2.0.7
+      '@types/hast':
+        specifier: 3.0.4
+        version: 3.0.4
       '@types/mime-types':
         specifier: ^3.0.1
         version: 3.0.1
