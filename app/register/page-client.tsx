@@ -1,19 +1,15 @@
 "use client";
 
 /**
- * Signup page with Google OAuth and email/password.
+ * Signup page with email/password authentication.
  * @module app/register/page-client
  */
 import Link from "next/link";
 import { useState } from "react";
 
 import { AuthShell } from "@/components/auth/auth-shell";
-import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { captureOrQueueEmailAuthEvent } from "@/lib/analytics/posthog-auth-events";
-import {
-  buildBrowserAuthRedirectUrl,
-  splitFullName,
-} from "@/lib/auth/browser-redirect";
+import { splitFullName } from "@/lib/auth/browser-redirect";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,25 +24,6 @@ export default function RegisterPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-
-  const handleGoogleSignUp = async () => {
-    setError(null);
-    setIsGoogleLoading(true);
-
-    const { error: authError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: buildBrowserAuthRedirectUrl("/chat", "signup"),
-      },
-    });
-
-    setIsGoogleLoading(false);
-
-    if (authError) {
-      setError(authError.message);
-    }
-  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,7 +112,7 @@ export default function RegisterPageClient() {
 
   return (
     <AuthShell
-      description="Use Google or email to set up your workspace. NeoBot keeps judgment with you and handles the follow-through."
+      description="Use email to set up your workspace. NeoBot keeps judgment with you and handles the follow-through."
       footer={(
         <p>
           Already registered?{" "}
@@ -155,18 +132,6 @@ export default function RegisterPageClient() {
       ) : null}
 
       <div className="space-y-6">
-        <GoogleAuthButton
-          label="Sign up with Google"
-          isLoading={isGoogleLoading}
-          onClick={handleGoogleSignUp}
-        />
-
-        <div className="flex items-center gap-4">
-          <span className="h-px flex-1 bg-border" />
-          <span className="text-caption font-medium uppercase text-muted-foreground">Or</span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
-
         <form className="grid grid-cols-1 gap-6" onSubmit={handleSignUp}>
           <div className="space-y-2">
             <Label htmlFor="fullName">Full name</Label>
@@ -176,7 +141,7 @@ export default function RegisterPageClient() {
               autoComplete="name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              disabled={isLoading || isGoogleLoading}
+              disabled={isLoading}
               required
               className="h-11 text-base"
             />
@@ -190,7 +155,7 @@ export default function RegisterPageClient() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading || isGoogleLoading}
+              disabled={isLoading}
               required
               className="h-11 text-base"
             />
@@ -204,7 +169,7 @@ export default function RegisterPageClient() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading || isGoogleLoading}
+              disabled={isLoading}
               required
               className="h-11 text-base"
             />
@@ -213,7 +178,7 @@ export default function RegisterPageClient() {
           <Button
             type="submit"
             className="h-12 w-full rounded-xl"
-            disabled={isLoading || isGoogleLoading}
+            disabled={isLoading}
           >
             {isLoading ? "Creating account..." : "Sign up"}
           </Button>

@@ -7,14 +7,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import RegisterPageClient from "./page-client";
 
-const mockSignInWithOAuth = vi.fn();
 const mockSignUp = vi.fn();
 const mockCaptureOrQueueEmailAuthEvent = vi.fn();
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
-      signInWithOAuth: (...args: unknown[]) => mockSignInWithOAuth(...args),
       signUp: (...args: unknown[]) => mockSignUp(...args),
     },
   },
@@ -27,7 +25,6 @@ vi.mock("@/lib/analytics/posthog-auth-events", () => ({
 describe("/register page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSignInWithOAuth.mockResolvedValue({ data: { url: "https://accounts.google.com" }, error: null });
     mockCaptureOrQueueEmailAuthEvent.mockResolvedValue(undefined);
     mockSignUp.mockResolvedValue({
       data: {
@@ -40,6 +37,13 @@ describe("/register page", () => {
       },
       error: null,
     });
+  });
+
+  it("shows email signup without a Google OAuth button", () => {
+    render(<RegisterPageClient />);
+
+    expect(screen.getByRole("heading", { name: /get started for free/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /google/i })).not.toBeInTheDocument();
   });
 
   it("submits a simplified full-name signup form with display metadata", async () => {
@@ -79,22 +83,6 @@ describe("/register page", () => {
           email: "seth@example.com",
           user_metadata: { display_name: "Seth Lim" },
           identities: [{ id: "identity-1" }],
-        },
-      });
-    });
-  });
-
-  it("starts Google OAuth from the signup screen", async () => {
-    render(<RegisterPageClient />);
-
-    fireEvent.click(screen.getByRole("button", { name: /sign up with google/i }));
-
-    await waitFor(() => {
-      expect(mockSignInWithOAuth).toHaveBeenCalledWith({
-        provider: "google",
-        options: {
-          redirectTo:
-            "http://localhost:3000/auth/callback?next=%2Fchat&auth_flow=signup",
         },
       });
     });

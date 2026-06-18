@@ -8,7 +8,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPageClient from "./page-client";
 
 const mockReplace = vi.fn();
-const mockSignInWithOAuth = vi.fn();
 const mockSignInWithPassword = vi.fn();
 const mockCaptureOrQueueEmailAuthEvent = vi.fn();
 
@@ -21,7 +20,6 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/supabase", () => ({
   supabase: {
     auth: {
-      signInWithOAuth: (...args: unknown[]) => mockSignInWithOAuth(...args),
       signInWithPassword: (...args: unknown[]) => mockSignInWithPassword(...args),
     },
   },
@@ -34,7 +32,6 @@ vi.mock("@/lib/analytics/posthog-auth-events", () => ({
 describe("/login page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSignInWithOAuth.mockResolvedValue({ data: { url: "https://accounts.google.com" }, error: null });
     mockCaptureOrQueueEmailAuthEvent.mockResolvedValue(undefined);
     mockSignInWithPassword.mockResolvedValue({
       data: {
@@ -48,22 +45,11 @@ describe("/login page", () => {
     });
   });
 
-  it("starts Google OAuth from the dedicated sign-in screen", async () => {
+  it("shows email sign-in without a Google OAuth button", async () => {
     render(<LoginPageClient />);
 
     expect(await screen.findByRole("heading", { name: /sign in to your account/i })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /sign in with google/i }));
-
-    await waitFor(() => {
-      expect(mockSignInWithOAuth).toHaveBeenCalledWith({
-        provider: "google",
-        options: {
-          redirectTo:
-            "http://localhost:3000/auth/callback?next=%2Fchat&auth_flow=signin",
-        },
-      });
-    });
+    expect(screen.queryByRole("button", { name: /google/i })).not.toBeInTheDocument();
   });
 
   it("redirects password sign-in to chat by default", async () => {

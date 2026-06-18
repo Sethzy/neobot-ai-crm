@@ -454,7 +454,7 @@ export function HeroIdentityAnimation({
         }}
         style={{
           background:
-            'radial-gradient(ellipse at center, rgba(2, 79, 70, 0.22) 0%, rgba(2, 79, 70, 0.11) 40%, rgba(2, 79, 70, 0) 74%)',
+            'radial-gradient(ellipse at center, rgba(26, 26, 26, 0.08) 0%, rgba(26, 26, 26, 0.04) 40%, rgba(26, 26, 26, 0) 74%)',
           filter: 'blur(24px)',
         }}
       />

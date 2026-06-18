@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Login page with Google OAuth and email/password.
+ * Login page with email/password authentication.
  * @module app/login/page-client
  */
 import Link from "next/link";
@@ -9,12 +9,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AuthShell } from "@/components/auth/auth-shell";
-import { GoogleAuthButton } from "@/components/auth/google-auth-button";
 import { captureOrQueueEmailAuthEvent } from "@/lib/analytics/posthog-auth-events";
-import {
-  buildBrowserAuthRedirectUrl,
-  getSafeNextPath,
-} from "@/lib/auth/browser-redirect";
+import { getSafeNextPath } from "@/lib/auth/browser-redirect";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,25 +27,6 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-
-  const handleGoogleSignIn = async () => {
-    setError(null);
-    setIsGoogleLoading(true);
-
-    const { error: authError } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: buildBrowserAuthRedirectUrl(nextPath, "signin"),
-      },
-    });
-
-    setIsGoogleLoading(false);
-
-    if (authError) {
-      setError(authError.message);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +58,7 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
 
   return (
     <AuthShell
-      description="Connect Google or sign in with email to pick up where NeoBot left off."
+      description="Sign in with email to pick up where NeoBot left off."
       footer={(
         <p>
           New to NeoBot?{" "}
@@ -101,18 +78,6 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
       ) : null}
 
       <div className="space-y-6">
-        <GoogleAuthButton
-          label="Sign in with Google"
-          isLoading={isGoogleLoading}
-          onClick={handleGoogleSignIn}
-        />
-
-        <div className="flex items-center gap-4">
-          <span className="h-px flex-1 bg-border" />
-          <span className="text-caption font-medium uppercase text-muted-foreground">Or</span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
-
         <form className="grid grid-cols-1 gap-6" onSubmit={handleLogin}>
           <div className="space-y-2">
             <Label htmlFor="email">Email address</Label>
@@ -122,7 +87,7 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading || isGoogleLoading}
+              disabled={isLoading}
               required
               className="h-11 text-base"
             />
@@ -141,7 +106,7 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading || isGoogleLoading}
+              disabled={isLoading}
               required
               className="h-11 text-base"
             />
@@ -150,7 +115,7 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
           <Button
             type="submit"
             className="h-12 w-full rounded-xl"
-            disabled={isLoading || isGoogleLoading}
+            disabled={isLoading}
           >
             {isLoading ? "Signing in..." : "Sign in"}
           </Button>

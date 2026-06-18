@@ -15,14 +15,14 @@ export function Hero() {
         <div className="flex flex-col items-center text-center">
           <HeroIdentityAnimationShell className="mb-8 sm:mb-10" />
 
-          <h1 className="font-serif text-title font-normal leading-[1.05] text-lp-dark sm:text-display">
+          <h1 className="px-2 font-landing-headline text-4xl font-medium leading-snug text-lp-dark sm:px-0 sm:text-4xl md:text-5xl lg:text-5xl">
             <span className="sm:hidden">Acts before you ask.<br /></span>
             <span className="hidden sm:inline">Your AI rep acts before you ask.{' '}</span>
             <br className="hidden sm:inline" />
             <em className="text-sunder-green">Work already done.</em>
           </h1>
 
-          <p className="measure-copy mt-5 max-w-lg px-2 text-body text-lp-muted sm:mt-6 sm:max-w-2xl sm:px-0 sm:text-subhead">
+          <p className="measure-copy mt-5 max-w-lg px-2 text-body text-lp-dark/80 sm:mt-6 sm:max-w-2xl sm:px-0 sm:text-subhead">
             Runs your pipeline while you sleep. No setup needed — always on, 24/7.
           </p>
 
