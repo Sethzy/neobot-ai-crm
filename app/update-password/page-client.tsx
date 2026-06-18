@@ -67,7 +67,6 @@ export default function UpdatePasswordPageClient() {
           .
         </p>
       )}
-      modeLabel="Password reset"
       title="Set new password"
     >
       {error ? (

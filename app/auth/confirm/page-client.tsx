@@ -73,7 +73,6 @@ export default function ConfirmPageClient() {
           .
         </p>
       )}
-      modeLabel="Email confirmation"
       title={
         status === "loading"
           ? "Confirming your email..."

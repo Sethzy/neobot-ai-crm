@@ -58,7 +58,6 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
 
   return (
     <AuthShell
-      description="Sign in with email to pick up where NeoBot left off."
       footer={(
         <p>
           New to NeoBot?{" "}
@@ -68,17 +67,16 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
           .
         </p>
       )}
-      modeLabel="Sign in"
       title="Sign in to your account"
     >
       {error ? (
-        <div className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-meta text-destructive">
+        <div className="mb-6 rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
       <div className="space-y-6">
-        <form className="grid grid-cols-1 gap-6" onSubmit={handleLogin}>
+        <form className="grid grid-cols-1 gap-y-8" onSubmit={handleLogin}>
           <div className="space-y-2">
             <Label htmlFor="email">Email address</Label>
             <Input
@@ -89,7 +87,7 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
               required
-              className="h-11 text-base"
+              className="h-11 rounded-lg text-base shadow-sm"
             />
           </div>
 
@@ -108,16 +106,19 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
               required
-              className="h-11 text-base"
+              className="h-11 rounded-lg text-base shadow-sm"
             />
           </div>
 
           <Button
             type="submit"
-            className="h-12 w-full rounded-xl"
+            className="h-12 w-full rounded-full bg-sunder-green font-semibold text-white shadow-sm transition hover:bg-sunder-green-light"
             disabled={isLoading}
           >
-            {isLoading ? "Signing in..." : "Sign in"}
+            <span>
+              {isLoading ? "Signing in..." : "Sign in"}{" "}
+              <span aria-hidden="true">→</span>
+            </span>
           </Button>
         </form>
       </div>

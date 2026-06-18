@@ -54,7 +54,6 @@ export default function ForgotPasswordPageClient() {
             .
           </p>
         )}
-        modeLabel="Password reset"
         title="Check your email"
       >
         <Button asChild variant="outline" className="h-11 rounded-xl">
@@ -76,7 +75,6 @@ export default function ForgotPasswordPageClient() {
           .
         </p>
       )}
-      modeLabel="Password reset"
       title="Reset your password"
     >
       {error ? (

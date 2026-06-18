@@ -100,7 +100,6 @@ export default function RegisterPageClient() {
             .
           </p>
         )}
-        modeLabel="Verify email"
         title="Check your email"
       >
         <Button asChild variant="outline" className="h-11 rounded-xl">
@@ -112,7 +111,6 @@ export default function RegisterPageClient() {
 
   return (
     <AuthShell
-      description="Use email to set up your workspace. NeoBot keeps judgment with you and handles the follow-through."
       footer={(
         <p>
           Already registered?{" "}
@@ -122,17 +120,16 @@ export default function RegisterPageClient() {
           .
         </p>
       )}
-      modeLabel="Sign up"
       title="Get started for free"
     >
       {error ? (
-        <div className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-meta text-destructive">
+        <div className="mb-6 rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
       <div className="space-y-6">
-        <form className="grid grid-cols-1 gap-6" onSubmit={handleSignUp}>
+        <form className="grid grid-cols-1 gap-y-7" onSubmit={handleSignUp}>
           <div className="space-y-2">
             <Label htmlFor="fullName">Full name</Label>
             <Input
@@ -143,7 +140,7 @@ export default function RegisterPageClient() {
               onChange={(e) => setFullName(e.target.value)}
               disabled={isLoading}
               required
-              className="h-11 text-base"
+              className="h-11 rounded-lg text-base shadow-sm"
             />
           </div>
 
@@ -157,7 +154,7 @@ export default function RegisterPageClient() {
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
               required
-              className="h-11 text-base"
+              className="h-11 rounded-lg text-base shadow-sm"
             />
           </div>
 
@@ -171,16 +168,19 @@ export default function RegisterPageClient() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
               required
-              className="h-11 text-base"
+              className="h-11 rounded-lg text-base shadow-sm"
             />
           </div>
 
           <Button
             type="submit"
-            className="h-12 w-full rounded-xl"
+            className="h-12 w-full rounded-full bg-sunder-green font-semibold text-white shadow-sm transition hover:bg-sunder-green-light"
             disabled={isLoading}
           >
-            {isLoading ? "Creating account..." : "Sign up"}
+            <span>
+              {isLoading ? "Creating account..." : "Sign up"}{" "}
+              <span aria-hidden="true">→</span>
+            </span>
           </Button>
         </form>
       </div>
