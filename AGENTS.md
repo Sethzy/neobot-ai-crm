@@ -62,9 +62,9 @@ What the agent can do today (shipped):
 
 The product has shipped. The living reference for what's built and what remains is:
 
-**`docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json`** — PR-by-PR execution plan across 5 phases. Updated as we ship. Where the codebase has diverged from the original plan, the v2 JSON reflects the actual state.
+**`docs/product/plans/2026-04-13-PR-list-sunder-current.json`** — current PR/workstream inventory for shipped and remaining product work.
 
-Everything in `roadmap docs/` is supporting reference material — useful for understanding historical rationale but not authoritative over the v2 plan or the shipped code.
+**`docs/product/plans/2026-03-05-implementation-phasing-plan-v2-deprecate.json`** is historical. Everything in `docs/archive/roadmap/` is supporting reference material — useful for understanding rationale but not authoritative over the current PR list or shipped code.
 
 ## Tech Stack
 
