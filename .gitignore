@@ -53,6 +53,7 @@ scripts/property-pipeline/__pycache__/
 
 # Cached search result artifacts
 claude-codex-sdk-integrations*.json
+.tmp-vitest.json
 
 # QA run artifacts (generated)
 scripts/qa/output/
