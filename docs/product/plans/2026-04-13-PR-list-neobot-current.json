@@ -1,10 +1,10 @@
 {
   "meta": {
-    "title": "Sunder Next — Post-Migration Product Roadmap",
+    "title": "NeoBot — Post-Migration Product Roadmap",
     "created": "2026-04-13",
     "updated": "2026-04-14: Added ws-13 (Enforced skill bundles + editable skills), ws-14 (Third-party skill marketplace — markdown + env pattern, inspired by Gooseworks/athina-ai model), ws-15 (Memory consolidation background agents), ws-16 (Multi-agent router / specialist pattern).",
     "previousPlan": "docs/product/plans/2026-03-05-implementation-phasing-plan-v2.json",
-    "context": "Sunder moved from a custom orchestration loop (streamText + tool dispatch + compaction) to Anthropic Managed Agents. This roadmap tracks everything built on that new foundation. The v2 plan is frozen history — any remaining v2 items that still matter are carried forward here.",
+    "context": "NeoBot moved from a custom orchestration loop (streamText + tool dispatch + compaction) to Anthropic Managed Agents. This roadmap tracks everything built on that new foundation. The v2 plan is frozen history — any remaining v2 items that still matter are carried forward here.",
     "conventions": {
       "ids": "Workstreams use ws-{number}. Tasks use ws-{number}-{task}. No more PR numbers.",
       "tasklists": "Each workstream links to a standalone tasklist in docs/tasks/. The tasklist is the source of truth for implementation detail. This file tracks scope, status, and dependencies.",
@@ -58,7 +58,7 @@
       "id": "ws-13",
       "title": "Enforced Skill Bundles + Editable Skills",
       "status": "pending",
-      "goal": "Move from soft-gated managed-agent skills to Sunder-owned enforced skill loading, bundle shadowing, forks, and user-created skills.",
+      "goal": "Move from soft-gated managed-agent skills to NeoBot-owned enforced skill loading, bundle shadowing, forks, and user-created skills.",
       "tasklist": "docs/tasks/2026-04-14-enforced-skill-bundles-and-editable-skills-tasklist.md",
       "dependencies": ["ws-5", "ws-11"],
       "notes": "Current production path remains the shipped soft-gated version: all catalog skills are attached to the managed agent, install state is communicated via context engineering, and the system prompt + skill descriptions act as the short-term gate. This workstream is the clean follow-on for true enforcement. Skills remain folder bundles (`SKILL.md`, `scripts/`, `references/`, `assets/`). Runtime should discover via SQL metadata, lazily hydrate only the selected bundle into the session filesystem, and resolve shadowing with private > shared > public precedence. Future client-created/forked skills should be authored through `skill-creator`, not raw markdown editing."
@@ -141,7 +141,7 @@
       "id": "ws-16",
       "title": "Multi-Agent Router / Specialist Pattern",
       "status": "blocked",
-      "goal": "Redesign the main Sunder agent as a coordinator that delegates to pre-declared specialist agents — CRM, Research, Drafting, Meeting, Automation — each with a minimal tool set and focused system prompt.",
+      "goal": "Redesign the main NeoBot agent as a coordinator that delegates to pre-declared specialist agents — CRM, Research, Drafting, Meeting, Automation — each with a minimal tool set and focused system prompt.",
       "tasklist": null,
       "dependencies": ["ws-1"],
       "notes": "Blocked on Anthropic Managed Agents Research Preview access (apply at claude.com/form/claude-managed-agents). Architecture is fully designed: specialists are pre-declared via callable_agents on the orchestrator agent definition. One level of delegation only (platform constraint). Specialists share the session container/filesystem but run in context-isolated threads. Requirements: docs/product/ideations/2026-04-14-multi-agent-architecture-requirements.md (Part A)."

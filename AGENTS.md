@@ -62,7 +62,7 @@ What the agent can do today (shipped):
 
 The product has shipped. The living reference for what's built and what remains is:
 
-**`docs/product/plans/2026-04-13-PR-list-sunder-current.json`** — current PR/workstream inventory for shipped and remaining product work.
+**`docs/product/plans/2026-04-13-PR-list-neobot-current.json`** — current PR/workstream inventory for shipped and remaining product work.
 
 **`docs/product/plans/2026-03-05-implementation-phasing-plan-v2-deprecate.json`** is historical. Everything in `docs/archive/roadmap/` is supporting reference material — useful for understanding rationale but not authoritative over the current PR list or shipped code.
 

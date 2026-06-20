@@ -6,11 +6,11 @@ product
 
 ## Users
 
-Sunder is used by solo practitioners in advisory sales: real estate agents, insurance advisors, financial planners, and similar client-facing operators. They use the app between meetings, on mobile while moving between client work, and on desktop for focused review, CRM cleanup, approvals, and automation setup.
+NeoBot is used by solo practitioners in advisory sales: real estate agents, insurance advisors, financial planners, and similar client-facing operators. They use the app between meetings, on mobile while moving between client work, and on desktop for focused review, CRM cleanup, approvals, and automation setup.
 
 ## Product Purpose
 
-Sunder is an autopilot for advisory sales work. The product should make completed work visible and controllable: CRM updates, follow-ups, meeting prep, inbound handling, automations, approvals, and memory. Success means the practitioner can trust the system, review the agent's work quickly, approve external-facing actions confidently, and recover context without hunting.
+NeoBot is an autopilot for advisory sales work. The product should make completed work visible and controllable: CRM updates, follow-ups, meeting prep, inbound handling, automations, approvals, and memory. Success means the practitioner can trust the system, review the agent's work quickly, approve external-facing actions confidently, and recover context without hunting.
 
 ## Brand Personality
 

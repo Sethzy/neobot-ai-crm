@@ -121,10 +121,19 @@ tools, approval gates, run lifecycle tracking, and tenant-scoped state.
 ## Agent Workbench
 
 The repository also contains checked-in assistant workbench folders such as
-`.agents/`, `.claude/`, `.codex/`, `.kiro/`, and `.windsurf/`. These are
-development workflow assets, not product runtime code. The production agent
-runtime lives in `src/lib/managed-agents/`, `managed-agents/skills/`, and
+`.agents/`, `.claude/`, `.codex/`, `.context/`, `.kiro/`, `.windsurf/`,
+`skills/`, and `skills-lock.json`. These are development workflow assets, not
+product runtime code. The production agent runtime lives in
+`src/lib/managed-agents/`, `managed-agents/skills/`, and
 `scripts/managed-agents/`.
+
+## Legacy Names
+
+NeoBot is the public product name. Some internal identifiers still use the
+former `sunder-*` naming convention where renaming would touch runtime
+compatibility or history: database migrations, persisted storage keys, webhook
+headers, CSS token names, Managed Agent registry IDs, and archived planning
+material. Treat those as compatibility names, not current product copy.
 
 ## Inspection Guide
 
@@ -135,7 +144,7 @@ Start here when reviewing the project:
 3. Inspect `src/lib/managed-agents/` and `scripts/managed-agents/` for the
    core agent harness.
 4. Inspect `supabase/` for tenant-scoped database structure.
-5. Inspect `docs/product/plans/2026-04-13-PR-list-sunder-current.json` for
+5. Inspect `docs/product/plans/2026-04-13-PR-list-neobot-current.json` for
    shipped and remaining work.
 
 ## Health Checks

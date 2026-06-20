@@ -1,4 +1,4 @@
-# Sunder Predefined Agent Skills
+# NeoBot Predefined Agent Skills
 
 This directory holds the predefined Anthropic Managed Agents custom skill bundles, one subdirectory per skill. Each bundle has a `SKILL.md` at its root and may include reference files.
 
