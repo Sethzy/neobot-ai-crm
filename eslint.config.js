@@ -10,7 +10,7 @@ export default defineConfig([
     '.next/**',
     '.trigger/**',
     '.claude/**',
-    'demo-video/**',
+    'internal/media/demo-video/**',
     '.agents/skills/**',
     'scripts/spike/**',
     'next-env.d.ts',

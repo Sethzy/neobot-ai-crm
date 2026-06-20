@@ -35,7 +35,7 @@
   "exclude": [
     "node_modules",
     "dist",
-    "demo-video",
+    "internal/media/demo-video",
     "tests",
     "**/*.test.ts",
     "**/*.test.tsx"
