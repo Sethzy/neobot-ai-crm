@@ -25,6 +25,7 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+.mcp.json
 .env*.local
 __pycache__/
 
@@ -32,11 +33,18 @@ __pycache__/
 data/
 scripts/property-pipeline/.env
 scripts/property-pipeline/venv/
+scripts/property-pipeline/.pytest_cache/
+scripts/property-pipeline/__pycache__/
 
 # Playwright MCP artifacts
 .playwright-mcp/
+**/auth-state.json
+**/.auth-state.json
+**/storage-state.json
+**/.storage-state.json
 
 # Claude Code worktrees and project memory
+.claude/settings.local.json
 .claude/worktrees/
 .claude/projects/
 .claude/skills/impeccable/
@@ -50,11 +58,17 @@ claude-codex-sdk-integrations*.json
 scripts/qa/output/
 docs/qa/reports/
 artifacts/
+clone-ui-runs/
+dogfood-output/
 
 # Local tool scratch (jscpd, etc.)
 .tmp/
 
 .trigger
+
+# Nested prototypes keep their own lockfiles/config, but not installs.
+internal/media/demo-video/node_modules/
+demo-video/node_modules/
 
 # Scratch screenshots at repo root
 /*.png
