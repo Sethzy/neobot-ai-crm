@@ -9,7 +9,7 @@
   <a href="./PRODUCT.md">Product notes</a> ·
   <a href="./AGENTS.md">Agent guide</a> ·
   <a href="#architecture">Architecture</a> ·
-  <a href="#quick-start">Quick start</a>
+  <a href="#run-locally">Run locally</a>
 </p>
 
 <p align="center">
@@ -18,13 +18,19 @@
 
 <br />
 
-# Why NeoBot
+# What It Is
 
-Advisory sales work is full of tiny, high-context tasks: update the deal after a meeting, remember what a client cared about, prep for the next conversation, send the follow-up, check whether a task is waiting, and keep records clean enough to be useful later.
+NeoBot is an AI CRM workspace for solo practitioners in advisory sales:
+real estate agents, insurance advisors, financial planners, and other
+client-facing operators.
 
-Most CRMs are built as databases first. NeoBot is built as a work surface first. The goal is to make completed work visible and controllable: what changed, what needs approval, what the agent knows, and what the user should do next.
+The product goal is simple: make the work visible and controllable. NeoBot
+updates CRM records, prepares follow-ups, briefs the user, coordinates
+automations, and keeps memory close to the customer context. The practitioner
+keeps judgment; the agent handles repeatable intelligence work behind an
+approval gate.
 
-## Quick Start
+## Run Locally
 
 ```bash
 pnpm install
@@ -37,47 +43,30 @@ For a clean local restart:
 pnpm neo
 ```
 
-Copy `.env.example` to `.env.local` and fill in the required Supabase, AI, and integration credentials. Do not commit local environment files.
+Copy `.env.example` to `.env.local` and fill in Supabase, AI, and integration
+credentials. Local environment files, auth state, generated screenshots, and
+test scratch are ignored.
 
-## Philosophy
+## Product Principles
 
-Keep work close to the task. Chat, CRM records, meetings, automations, approvals, and memory should feel like one workspace rather than separate apps.
-
-Make agent work reviewable. NeoBot should show what the agent did, what it needs, and what still requires human approval before anything external-facing happens.
-
-Design for real operators. The product should work for advisory sales users who move between mobile, meetings, desktop review, and admin cleanup.
-
-Prefer operational density over SaaS theater. The interface should feel calm, scannable, and useful under repeated daily use.
+- Keep work close to the task: chat, CRM records, meetings, automations,
+  approvals, and memory should feel like one workspace.
+- Make agent work reviewable: users should see what changed, what needs
+  approval, and what the agent knows.
+- Design for real operators: the UI should be calm, dense, mobile-capable, and
+  useful under repeated daily use.
+- Prefer operational density over SaaS theater.
 
 ## What It Supports
 
-CRM records - manage people, companies, deals, and related relationships.
-
-Meeting workflow - organize meeting rows, details, and handoffs into agent work.
-
-Chat workspace - run agent conversations that can connect back to CRM context and product workflows.
-
-Automations - define and inspect recurring workflows or scheduled agent tasks.
-
-Messaging channels - manage external channel setup and disabled/available channel states.
-
-Settings and profile - configure agent, memory, notifications, workspace, billing, and messaging behavior.
-
-Approvals and review surfaces - keep external-facing work visible before it leaves the workspace.
-
-Product QA and design audits - preserve launch-readiness reviews, screenshots, and design-system notes as product evidence.
-
-## System Shape
-
-NeoBot is easiest to understand as a product shell around a shared agent harness:
-
-1. **Workspace shell** - dashboard routes expose chat, CRM, meetings, automations, channels, skills, billing, and settings.
-2. **Tenant state** - Supabase stores clients, threads, messages, runs, CRM records, files, approvals, triggers, and usage data.
-3. **Agent runtime** - chat, Telegram, and automations can enter the same Managed Agents loop instead of becoming separate prototypes.
-4. **Tool layer** - typed tools operate on CRM records, files, browser tasks, meetings, integrations, triggers, and messaging surfaces.
-5. **Control layer** - approvals, run records, costs, evaluator scores, and tenant filters make agent work inspectable.
-
-The important boundary is intentional: NeoBot is an AI CRM/workflow prototype for advisory-sales operators. It helps prepare, update, remember, and coordinate work; it does not replace the user's commercial judgment or make every external action autonomous.
+- CRM records for people, companies, deals, tasks, and relationships.
+- Chat workspace for Managed Agent runs connected to CRM and memory context.
+- Automations for scheduled agent work and recurring workflows.
+- Messaging channels, including Telegram pairing and approval flows.
+- Meeting workflow surfaces for handoffs into agent work.
+- Settings for agent profile, memory, notifications, billing, and workspace
+  behavior.
+- Product QA and design audits preserved as markdown reports under `docs/`.
 
 ## Architecture
 
@@ -97,39 +86,65 @@ flowchart LR
   Approvals --> State
 ```
 
-The app is a Next.js App Router workspace with Supabase-backed CRM data, chat and agent flows, scheduled task hooks, and integration surfaces. Product UI is organized around dashboard routes for chat, customers, meetings, automations, skills, pricing, and settings. When AI work is needed, the request enters a reusable agent runtime with persistent sessions, typed tools, approval gates, run lifecycle tracking, and tenant-scoped state.
+NeoBot is a Next.js App Router workspace with Supabase-backed CRM data, chat
+and agent flows, scheduled task hooks, and integration surfaces. AI work enters
+a reusable Anthropic Managed Agents runtime with persistent sessions, typed
+tools, approval gates, run lifecycle tracking, and tenant-scoped state.
 
 ## Stack
 
-- Next.js App Router
-- React 19
+- Next.js 15 App Router and React 19
 - TypeScript
-- Supabase Auth, Postgres, and Storage
-- TanStack Query
-- ShadCN-style local UI primitives
+- Supabase Auth, Postgres, Storage, and Realtime
+- Anthropic Managed Agents for the primary agent loop
+- Vercel AI SDK for chat UI types, title generation, and compaction helpers
+- TanStack Query and TanStack Table
+- ShadCN-style local UI primitives and Tailwind 4
 - Trigger.dev for scheduled work
-- AI SDK and model/provider integrations
 - Vitest and Testing Library
 
-## Key Files
+## Repo Map
 
-- `app/(dashboard)/chat/` - chat workspace and thread pages
-- `app/(dashboard)/customers/` - companies, deals, and people CRM views
-- `app/(dashboard)/channels/` - messaging channel management
-- `app/settings/` - agent, memory, notifications, profile, workspace, and billing settings
-- `src/components/chat/` - chat welcome, quota, and message surfaces
-- `src/components/layout/` - dashboard shell and sidebar
-- `src/components/settings/` - settings page components and messaging channel rows
-- `src/hooks/use-crm-views.ts` - CRM view state and query behavior
-- `docs/product/` - audits, product plans, and launch-readiness evidence
-- `.agents/skills/impeccable/` - local product/design tooling workstream
+- `app/` - App Router pages and API routes.
+- `src/components/` - Dashboard, chat, CRM, settings, and shared UI.
+- `src/lib/managed-agents/` - session runner, event translation, dispatcher,
+  tool handlers, approvals, and cost helpers.
+- `managed-agents/skills/` - runtime skill catalog uploaded to Anthropic.
+- `scripts/managed-agents/` - agent registration, skill upload, and migration
+  utilities.
+- `supabase/` - migrations, seed data, and database support files.
+- `tests/` - cross-cutting tests and test utilities.
+- `docs/product/` - current plans, handovers, audits, and product evidence.
+- `docs/archive/roadmap/` - historical specs and reference research.
+- `internal/media/demo-video/` - standalone Remotion video prototype.
+
+## Agent Workbench
+
+The repository also contains checked-in assistant workbench folders such as
+`.agents/`, `.claude/`, `.codex/`, `.kiro/`, and `.windsurf/`. These are
+development workflow assets, not product runtime code. The production agent
+runtime lives in `src/lib/managed-agents/`, `managed-agents/skills/`, and
+`scripts/managed-agents/`.
+
+## Inspection Guide
+
+Start here when reviewing the project:
+
+1. Read `PRODUCT.md` for product framing and market positioning.
+2. Read `AGENTS.md` for architecture, conventions, and runtime boundaries.
+3. Inspect `src/lib/managed-agents/` and `scripts/managed-agents/` for the
+   core agent harness.
+4. Inspect `supabase/` for tenant-scoped database structure.
+5. Inspect `docs/product/plans/2026-04-13-PR-list-sunder-current.json` for
+   shipped and remaining work.
 
 ## Health Checks
 
 ```bash
-pnpm build
-pnpm test:run
 pnpm lint
+pnpm test:run
+pnpm build
 ```
 
-`next build` is configured separately from lint gating. Use lint and focused test suites to verify product changes before treating a branch as clean.
+`next build` is configured separately from lint gating. Use lint and focused
+test suites to verify product changes before treating a branch as clean.
