@@ -35,6 +35,7 @@ scripts/property-pipeline/.env
 scripts/property-pipeline/venv/
 scripts/property-pipeline/.pytest_cache/
 scripts/property-pipeline/__pycache__/
+scripts/property-pipeline/.herenow/
 
 # Playwright MCP artifacts
 .playwright-mcp/
@@ -66,6 +67,10 @@ dogfood-output/
 .tmp/
 
 .trigger
+
+# Supabase CLI local state
+supabase/.branches/
+supabase/.temp/
 
 # Nested prototypes keep their own lockfiles/config, but not installs.
 internal/media/demo-video/node_modules/
