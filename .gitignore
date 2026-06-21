@@ -76,8 +76,14 @@ supabase/.temp/
 internal/media/demo-video/node_modules/
 demo-video/node_modules/
 
-# Scratch screenshots at repo root
+# Scratch screenshots/media at repo root
 /*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/*.gif
+/*.mp4
+/*.mov
 
 # QA-run screenshot scratch directory
 /screenshots/
