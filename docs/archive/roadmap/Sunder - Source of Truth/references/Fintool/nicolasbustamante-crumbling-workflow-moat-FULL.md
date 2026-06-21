@@ -51,7 +51,7 @@ The aggregator wins by owning the consumer relationship, commoditizing suppliers
 
 ### THE WEB 2.0 AGGREGATION STACK
 
-![Web 2.0 Aggregation Stack](screenshots/article1-diagram1.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌─────────────────────────────────────────┐
@@ -114,7 +114,7 @@ Why? **Because the interface IS the moat.**
 
 ### THE INTERFACE MOAT IN VERTICAL SOFTWARE
 
-![Interface Moat](screenshots/article1-diagram2.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌──────────────────────────────────────────┐
@@ -164,7 +164,7 @@ When LLMs commoditize the interface, what's left? Just the data. And then it's A
 
 **The three-layer collapse:**
 
-![Three Layer Collapse](screenshots/article1-diagram3.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 OLD:  Discovery → Interface → Data
@@ -178,7 +178,7 @@ NEW:  LLM Chat → APIs
 
 ### THE VISIBILITY COLLAPSE
 
-![Visibility Collapse](screenshots/article1-diagram3.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌─────────────────────────────────────────┐
@@ -259,7 +259,7 @@ If a vertical software company's interface was 60% of their value, and LLMs elim
 
 ### VALUE DECOMPOSITION
 
-![Value Decomposition](screenshots/article1-diagram4.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌───────────────────────────────────────────┐
@@ -378,7 +378,7 @@ This created a moat: integration effort. Even if data was commoditized, the cost
 
 ### Model Context Protocol eliminates integration friction:
 
-![MCP Protocol](screenshots/article1-diagram5.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌──────────────────────────────────────────┐
@@ -409,7 +409,7 @@ This is true commodity competition.
 
 ### SWITCHING COST COLLAPSE
 
-![Switching Cost Collapse](screenshots/article1-diagram6.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌───────────────────────────────────────────┐
@@ -448,7 +448,7 @@ This is true commodity competition.
 
 ### AGGREGATION EVOLUTION
 
-![Aggregation Evolution](screenshots/article1-diagram7.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌───────────────────────────────────────────┐
@@ -517,7 +517,7 @@ The moat wasn't data. It was that knowledge workers lived inside these interface
 
 ### The New Value Matrix
 
-![Value Matrix](screenshots/article1-diagram8.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌───────────────────────────────────────────┐
@@ -586,7 +586,7 @@ But the repricing is coming in my opinion.
 
 ## The Completion of Aggregation
 
-![Completion of Aggregation](screenshots/article1-diagram9.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌───────────────────────────────────────────┐
@@ -643,17 +643,17 @@ The interface moat is dead. What remains is data. And if your data isn't proprie
 
 ## Diagrams Reference
 
-All diagrams saved in: `extracted_content/Important Articles/Fintool/screenshots/`
+Original diagram image files were pruned during repo hygiene cleanup; the retained article text keeps the conceptual summary.
 
-1. **article1-diagram1.png** - Web 2.0 Aggregation Stack
-2. **article1-diagram2.png** - Interface Moat in Vertical Software
-3. **article1-diagram3.png** - The Visibility Collapse
-4. **article1-diagram4.png** - Value Decomposition
-5. **article1-diagram5.png** - MCP Protocol Comparison
-6. **article1-diagram6.png** - Switching Cost Collapse
-7. **article1-diagram7.png** - Aggregation Evolution
-8. **article1-diagram8.png** - The New Value Matrix
-9. **article1-diagram9.png** - The Completion of Aggregation
+1. Web 2.0 Aggregation Stack
+2. Interface Moat in Vertical Software
+3. The Visibility Collapse
+4. Value Decomposition
+5. MCP Protocol Comparison
+6. Switching Cost Collapse
+7. Aggregation Evolution
+8. The New Value Matrix
+9. The Completion of Aggregation
 
 ---
 

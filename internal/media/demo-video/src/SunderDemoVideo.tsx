@@ -3,11 +3,10 @@
 // Transition: slide from bottom with spring timing (damping: 200) - smooth, no bounce
 
 import React from "react";
-import { AbsoluteFill, Sequence, staticFile, useCurrentFrame, interpolate } from "remotion";
+import { AbsoluteFill } from "remotion";
 import { TransitionSeries, springTiming, linearTiming } from "@remotion/transitions";
 import { slide } from "@remotion/transitions/slide";
 import { fade } from "@remotion/transitions/fade";
-import { Audio } from "@remotion/media";
 import { CombinedIntro, COMBINED_INTRO_DURATION } from "./scenes/CombinedIntro";
 import { Act4DocumentProcessing, DOCUMENT_PROCESSING_DURATION } from "./scenes/Act4DocumentProcessing";
 import { Act4ROI, ROI_DURATION } from "./scenes/Act4ROI";
@@ -28,15 +27,6 @@ const SCENE_DURATIONS = {
   close: CLOSE_DURATION,                        // 90 frames - Logo close
 };
 
-// Calculate scene start frames for SFX timing
-const SCENE_STARTS = {
-  combinedIntro: 0,
-  documentSplit: SCENE_DURATIONS.combinedIntro,
-  documentProcessing: SCENE_DURATIONS.combinedIntro + SCENE_DURATIONS.documentSplit,
-  roi: SCENE_DURATIONS.combinedIntro + SCENE_DURATIONS.documentSplit + SCENE_DURATIONS.documentProcessing,
-  close: SCENE_DURATIONS.combinedIntro + SCENE_DURATIONS.documentSplit + SCENE_DURATIONS.documentProcessing + SCENE_DURATIONS.roi,
-};
-
 const TOTAL_FRAMES = Object.values(SCENE_DURATIONS).reduce((a, b) => a + b, 0);
 
 // Transition durations (frames) - used by TransitionSeries
@@ -55,54 +45,9 @@ const TOTAL_TRANSITION_OVERLAP =
 // Export the calculated video duration for Root.tsx
 export const NEOBOT_VIDEO_DURATION = TOTAL_FRAMES - TOTAL_TRANSITION_OVERLAP;
 
-// Background music with fade envelope
-// Audio files should be placed in public/audio/
-// Copy from launchpad: packages/shared/videos/cuabench/public/
-const BackgroundMusic: React.FC = () => {
-  const frame = useCurrentFrame();
-
-  const volume = (() => {
-    const fadeIn = interpolate(frame, [0, 30], [0, 0.25], { extrapolateRight: "clamp" });
-    const fadeOut = interpolate(frame, [TOTAL_FRAMES - 45, TOTAL_FRAMES], [0.25, 0], { extrapolateLeft: "clamp" });
-    return Math.min(fadeIn, fadeOut);
-  })();
-
-  return <Audio src={staticFile("audio/background-music.wav")} volume={volume} />;
-};
-
-// Whoosh SFX for scene transitions
-// Uses a short fade-in (3 frames) to prevent audio click/pop artifacts
-const TransitionSFXAudio: React.FC = () => {
-  const frame = useCurrentFrame();
-  // Fade in over 3 frames to avoid click from abrupt audio start
-  const volume = interpolate(frame, [0, 3], [0, 0.4], {
-    extrapolateRight: "clamp",
-  });
-  return <Audio src={staticFile("audio/whoosh.wav")} volume={volume} />;
-};
-
-const TransitionSFX: React.FC<{ frame: number }> = ({ frame: startFrame }) => {
-  return (
-    <Sequence from={startFrame}>
-      <TransitionSFXAudio />
-    </Sequence>
-  );
-};
-
 export const NeobotDemoVideo: React.FC<NeobotDemoVideoProps> = ({ config }) => {
-  // Toggle audio on/off
-  const enableAudio = true; // Audio files available in public/audio/
-
   return (
     <AbsoluteFill style={{ backgroundColor: "#FFFFFF" }}>
-      {/* Audio Layer */}
-      {enableAudio && (
-        <>
-          {/* Background Music */}
-          <BackgroundMusic />
-        </>
-      )}
-
       {/* Video Content with fade transitions */}
       <TransitionSeries>
         {/* Scene 1: Combined Intro (word-by-word + typing + neobot reveal) */}

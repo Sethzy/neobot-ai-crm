@@ -56,10 +56,10 @@ export const StaggeredText: React.FC<StaggeredTextProps> = ({
           // CuaBench-style: slide up with cubic easing
           const localFrame = frame - wordStartFrame;
 
-          // 6 frames for the slide animation
+          // 6 frames by default for the slide animation
           const slideProgress = interpolate(
             localFrame,
-            [0, 6],
+            [0, animationDuration],
             [0, 1],
             {
               extrapolateLeft: "clamp",
@@ -71,7 +71,7 @@ export const StaggeredText: React.FC<StaggeredTextProps> = ({
           // Opacity fades in during first 3 frames
           const opacity = interpolate(
             localFrame,
-            [0, 3],
+            [0, Math.max(1, animationDuration / 2)],
             [0, 1],
             { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
           );

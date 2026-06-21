@@ -67,7 +67,7 @@ const AnimatedNumber: React.FC<{
   );
 };
 
-export const Act4ROI: React.FC<Act4ROIProps> = ({ config }) => {
+export const Act4ROI: React.FC<Act4ROIProps> = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 

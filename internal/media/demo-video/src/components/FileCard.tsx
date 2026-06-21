@@ -5,7 +5,6 @@ import {
   useVideoConfig,
   spring,
   interpolate,
-  Img,
 } from "remotion";
 import { figtree, jetbrains } from "../fonts";
 import { colors, springs } from "../theme";

@@ -45,12 +45,14 @@ scripts/property-pipeline/.herenow/
 **/.storage-state.json
 
 # Claude Code worktrees and project memory
-.claude/settings.local.json
-.claude/worktrees/
-.claude/projects/
-.claude/skills/impeccable/
+.codex/
+.context/
+.claude/
 .kiro/
+.windsurf/
 .understand-anything/
+skills/
+skills-lock.json
 
 # Cached search result artifacts
 claude-codex-sdk-integrations*.json

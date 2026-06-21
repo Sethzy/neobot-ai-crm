@@ -23,7 +23,7 @@ type Act5Props = {
   config: DemoConfig;
 };
 
-export const Act5Close: React.FC<Act5Props> = ({ config }) => {
+export const Act5Close: React.FC<Act5Props> = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 

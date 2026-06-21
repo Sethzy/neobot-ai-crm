@@ -9,7 +9,7 @@ import {
   Img,
 } from "remotion";
 import { geist } from "../fonts";
-import { colors, springs } from "../theme";
+import { springs } from "../theme";
 
 type NeobotLogoProps = {
   startFrame?: number;
@@ -56,9 +56,6 @@ export const NeobotLogo: React.FC<NeobotLogoProps> = ({
     extrapolateRight: "clamp",
   });
   const wordmarkX = interpolate(wordmarkEntrance, [0, 1], [-20, 0]);
-
-  // Combined scale (internal animation * external prop)
-  const totalScale = iconScale * externalScale;
 
   // Optional glow effect for the icon container
   const glowStyle = glowIntensity > 0 ? {

@@ -33,16 +33,16 @@ Do not build separate builder screens, detail tabs, run dashboards, or environme
 - Automations must never be a blank screen.
 - Approvals live in trigger threads, not on a separate automations approval surface.
 
-## Reference Screenshots
+## Historical Visual References
 
-These are the local screenshot references the implementer should use.
+The original screenshot pack for this archived v1 automations plan was pruned
+during repo hygiene cleanup. The retained direction is summarized below so the
+archive still explains the product rationale without carrying old binary
+artifacts.
 
 ### Primary baseline: Dorabot
 
 Use these as the main visual reference for the v1 page structure:
-
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/dorabot/Screenshot 2026-03-06 at 6.10.12 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/dorabot/Screenshot 2026-03-06 at 6.10.23 PM.png`
 
 What to copy from Dorabot:
 
@@ -55,11 +55,6 @@ What to copy from Dorabot:
 ### Secondary reference: Cursor overview and creation affordances
 
 Use these only for the top creation box and suggestion-card treatment:
-
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 1/Screenshot 2026-03-06 at 5.53.27 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 2 - from scratch/Screenshot 2026-03-06 at 5.57.04 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 3 - from template/Screenshot 2026-03-06 at 5.56.05 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 3 - from template/Screenshot 2026-03-06 at 5.56.10 PM.png`
 
 What to copy from Cursor:
 
@@ -76,17 +71,8 @@ What not to copy from Cursor in v1:
 
 ### Out of scope references
 
-These were reviewed but are not the target for v1 implementation:
-
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 1/Screenshot 2026-03-06 at 5.53.35 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 1/Screenshot 2026-03-06 at 5.54.05 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 1/Screenshot 2026-03-06 at 5.54.09 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 2 - from scratch/Screenshot 2026-03-06 at 5.57.10 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 2 - from scratch/Screenshot 2026-03-06 at 5.57.15 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 3 - from template/Screenshot 2026-03-06 at 5.56.20 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/cursor automation/example 3 - from template/Screenshot 2026-03-06 at 5.56.25 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/manus:tasklet/Screenshot 2026-03-06 at 6.13.51 PM.png`
-- `roadmap docs/Sunder - Source of Truth/ux-and-pm/automations-ux/manus:tasklet/Screenshot 2026-03-06 at 6.14.17 PM.png`
+Cursor settings/detail pages, template galleries, and Manus/Tasklet examples
+were reviewed but were not the target for v1 implementation.
 
 ## Recommended Page Layout
 

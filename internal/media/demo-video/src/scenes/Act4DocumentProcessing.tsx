@@ -29,7 +29,7 @@ import type { DemoConfig } from "../config";
 const CREAM_BG = "#FFFFFF";
 
 type Act4DocumentProcessingProps = {
-  config: DemoConfig;
+  config?: DemoConfig;
 };
 
 // ============================================
@@ -98,7 +98,7 @@ const LogoCard: React.FC<{
       height: 200,
       backgroundColor: "white",
       borderRadius: 16,
-      border: "1px solid #F0F0F0",
+      border: `1px solid ${color}20`,
       boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
       overflow: "hidden",
       display: "flex",
@@ -297,7 +297,7 @@ const ActionCard: React.FC<{
 // ============================================
 // COMPONENT: Processing Hub Icon (NeoBot icon as center processor)
 // ============================================
-const ProcessingHub: React.FC<{ scale: number; glowIntensity: number; frame: number }> = ({ scale, glowIntensity, frame }) => {
+const ProcessingHub: React.FC<{ scale: number; glowIntensity: number }> = ({ scale, glowIntensity }) => {
   const jerkPulse = glowIntensity > 0 ? Math.pow(glowIntensity, 0.5) : 0;
   const pulseScale = 1 + jerkPulse * 0.15;
 
@@ -814,7 +814,7 @@ export const Act4DocumentProcessing: React.FC<Act4DocumentProcessingProps> = () 
             zIndex: 50,
           }}
         >
-          <ProcessingHub scale={logoState.scale} glowIntensity={logoState.glow} frame={frame} />
+          <ProcessingHub scale={logoState.scale} glowIntensity={logoState.glow} />
         </div>
 
         {/* Output Action Cards - Vertically centered with logo */}

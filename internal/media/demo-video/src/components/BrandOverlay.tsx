@@ -2,7 +2,7 @@
 // Appears on all scenes except final close
 
 import React from "react";
-import { staticFile, useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
+import { Img, staticFile, useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
 import { geist } from "../fonts";
 import { colors } from "../theme";
 
@@ -40,7 +40,7 @@ export const BrandOverlay: React.FC<BrandOverlayProps> = ({ startFrame = 0 }) =>
         transform: `translateX(${x}px)`,
       }}
     >
-      <img
+      <Img
         src={staticFile("neobot-icon.svg")}
         width={36}
         height={36}

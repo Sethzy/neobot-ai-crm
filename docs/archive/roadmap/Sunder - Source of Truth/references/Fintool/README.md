@@ -103,7 +103,7 @@ Through rigorous evaluation, SQL proved more efficient than bash for structured 
 - **Self-Verification Pattern**: Agents ran SQL queries, then verified results by grepping filesystem
 - **Cost-Accuracy Tradeoff**: Hybrid used 2x tokens but eliminated errors SQL missed
 
-**Visual Assets (3 retained screenshots):**
+**Visual Concepts (screenshots pruned):**
 1. Arpit Bhayani tweet on filesystems in AI
 2. Sophisticated shell scripting example
 3. Hybrid approach comparison chart
@@ -196,30 +196,30 @@ High-stakes + critical accuracy → Hybrid (2x cost, 100% accuracy)
 
 ## Visual Assets
 
-All diagrams and screenshots are stored in `/screenshots/`:
+Original diagram and screenshot files were pruned during repo hygiene cleanup; the retained titles below summarize what they covered:
 
 ### Article 1 (Crumbling Workflow Moat) - 9 diagrams
-- `article1-diagram1.png` - Web 2.0 Aggregation Stack
-- `article1-diagram2.png` - Interface Moat in Vertical Software
-- `article1-diagram3.png` - The Visibility Collapse
-- `article1-diagram4.png` - Value Decomposition
-- `article1-diagram5.png` - MCP Protocol Comparison
-- `article1-diagram6.png` - Switching Cost Collapse
-- `article1-diagram7.png` - Aggregation Evolution
-- `article1-diagram8.png` - The New Value Matrix
-- `article1-diagram9.png` - The Completion of Aggregation
+- Web 2.0 Aggregation Stack
+- Interface Moat in Vertical Software
+- The Visibility Collapse
+- Value Decomposition
+- MCP Protocol Comparison
+- Switching Cost Collapse
+- Aggregation Evolution
+- The New Value Matrix
+- The Completion of Aggregation
 
 ### Article 2 (Model-Market Fit) - 5 diagrams
-- `article2-diagram1.png` - Model-Market Fit Framework
-- `article2-diagram2.png` - Market Explosion Timeline
-- `article2-diagram3.png` - Strategic Timing Matrix
-- `article2-diagram4.png` - The MMF Test Decision Tree
-- `article2-diagram5.png` - The Agentic Threshold
+- Model-Market Fit Framework
+- Market Explosion Timeline
+- Strategic Timing Matrix
+- The MMF Test Decision Tree
+- The Agentic Threshold
 
 ### Article 3 (Vercel: Testing Bash) - 3 screenshots
-- `vercel-bash-tweet.png` - Arpit Bhayani tweet on filesystems
-- `vercel-bash-shell-scripting.png` - Sophisticated shell command example
-- `vercel-bash-hybrid-comparison.png` - Hybrid approach results
+- Arpit Bhayani tweet on filesystems
+- Sophisticated shell command example
+- Hybrid approach results
 
 ---
 

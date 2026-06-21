@@ -18,7 +18,7 @@ There's a growing conviction in the AI community that **filesystems and bash are
 
 ### The Community Conviction
 
-![Arpit Bhayani Tweet](screenshots/vercel-bash-tweet.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 > **Arpit Bhayani (@arpit_bhayani):**
 >
@@ -88,7 +88,7 @@ Even basic filesystem tools (search, read) outperformed full bash access, hittin
 
 One surprising finding was that the bash agent generated [highly sophisticated shell commands](https://www.braintrust.dev/app/braintrust-labs/p/bash-evals/experiments/bash-claude-sonnet-4-5?c=sql-claude-sonnet-4-5&r=b665a3b6-a046-4584-a8f7-2289ef580384&s=510baab2-879b-4a8e-9f9f-c4cb716dc6f4&fs=1), chaining `find`, `grep`, `jq`, `awk`, and `xargs` in ways that rarely appear in typical agent workflows.
 
-![Sophisticated Shell Scripting](screenshots/vercel-bash-shell-scripting.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 **The model clearly has deep knowledge of shell scripting, but that knowledge didn't translate to better task performance.**
 
@@ -169,7 +169,7 @@ The hybrid approach uses roughly **2x as many tokens** as pure SQL, since it:
 └──────────────────┴──────────┴────────────┴────────┘
 ```
 
-![Hybrid Approach Comparison](screenshots/vercel-bash-hybrid-comparison.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 **The hybrid approach matched SQL on accuracy while adding self-verification**
 
@@ -344,11 +344,11 @@ For production systems, **2x cost for guaranteed accuracy** is often worth it.
 
 ## Visual Assets
 
-Retained screenshots:
+Original screenshot files were pruned during repo hygiene cleanup; the retained article text keeps the evaluation summary.
 
-1. **vercel-bash-tweet.png** - Arpit Bhayani's tweet on filesystems in AI
-2. **vercel-bash-shell-scripting.png** - Sophisticated shell scripting example
-3. **vercel-bash-hybrid-comparison.png** - Hybrid approach comparison chart
+1. Arpit Bhayani's tweet on filesystems in AI
+2. Sophisticated shell scripting example
+3. Hybrid approach comparison chart
 
 ---
 

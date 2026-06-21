@@ -23,7 +23,7 @@ type Act2Props = {
 
 export const Act2Arrival: React.FC<Act2Props> = ({ config }) => {
   const frame = useCurrentFrame();
-  const { fps, width, height } = useVideoConfig();
+  const { fps } = useVideoConfig();
 
   // Gradient wash animation - sweeps across
   const gradientProgress = spring({

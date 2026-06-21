@@ -245,7 +245,7 @@ That's the only thing that matters.
 
 ## Visual Framework: Model-Market Fit Matrix
 
-![MMF Framework](screenshots/article2-diagram1.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌───────────────────────────────────────────┐
@@ -277,7 +277,7 @@ That's the only thing that matters.
 └───────────────────────────────────────────┘
 ```
 
-![Market Explosion Timeline](screenshots/article2-diagram2.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌───────────────────────────────────────────┐
@@ -305,7 +305,7 @@ That's the only thing that matters.
 └───────────────────────────────────────────┘
 ```
 
-![Strategic Timing Matrix](screenshots/article2-diagram3.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌───────────────────────────────────────────┐
@@ -338,7 +338,7 @@ That's the only thing that matters.
 └───────────────────────────────────────────┘
 ```
 
-![The MMF Test Decision Tree](screenshots/article2-diagram4.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌───────────────────────────────────────────┐
@@ -376,7 +376,7 @@ That's the only thing that matters.
 └───────────────────────────────────────────┘
 ```
 
-![The Agentic Threshold](screenshots/article2-diagram5.png)
+_[Archived image pruned during repo hygiene cleanup.]_
 
 ```
 ┌───────────────────────────────────────────┐
@@ -428,13 +428,13 @@ That's the only thing that matters.
 
 ## Diagrams Reference
 
-All diagrams saved in: `extracted_content/Important Articles/Fintool/screenshots/`
+Original diagram image files were pruned during repo hygiene cleanup; the retained article text keeps the conceptual summary.
 
-1. **article2-diagram1.png** - Model-Market Fit Framework
-2. **article2-diagram2.png** - Market Explosion Timeline
-3. **article2-diagram3.png** - Strategic Timing Matrix
-4. **article2-diagram4.png** - The MMF Test Decision Tree
-5. **article2-diagram5.png** - The Agentic Threshold
+1. Model-Market Fit Framework
+2. Market Explosion Timeline
+3. Strategic Timing Matrix
+4. The MMF Test Decision Tree
+5. The Agentic Threshold
 
 ---
 

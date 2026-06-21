@@ -124,6 +124,8 @@ Repo-local assistant guidance is intentionally narrow:
 
 - `AGENTS.md` is the canonical instruction and architecture brief for coding
   agents working in this repository.
+- `CLAUDE.md` is a compatibility shim that points Claude Code clients back to
+  `AGENTS.md`.
 - `.agents/` contains local development skills used by this workspace. It is
   not part of the deployed product or Vercel build context.
 - `managed-agents/skills/` contains the runtime skill catalog uploaded to
@@ -131,9 +133,9 @@ Repo-local assistant guidance is intentionally narrow:
 - `scripts/managed-agents/` contains Managed Agent registration, skill upload,
   and migration utilities.
 
-Duplicate workbench exports for other agent clients are not tracked. The
-production agent runtime lives in `src/lib/managed-agents/` and uses the
-runtime catalog under `managed-agents/skills/`.
+Duplicate workbench exports and local client state for other agent clients are
+not tracked. The production agent runtime lives in `src/lib/managed-agents/`
+and uses the runtime catalog under `managed-agents/skills/`.
 
 ## Legacy Names
 

@@ -1,6 +1,6 @@
 // TypewriterText component - character-by-character text reveal
 import React from "react";
-import { useCurrentFrame, useVideoConfig, interpolate } from "remotion";
+import { useCurrentFrame, interpolate } from "remotion";
 
 type TypewriterTextProps = {
   text: string;
@@ -20,7 +20,6 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
   showCursor = true,
 }) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
 
   // Calculate how many characters to show
   const adjustedFrame = Math.max(0, frame - startFrame);

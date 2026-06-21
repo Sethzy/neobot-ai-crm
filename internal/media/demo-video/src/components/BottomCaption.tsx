@@ -4,7 +4,6 @@
 import React from "react";
 import { useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
 import { geist } from "../fonts";
-import { colors } from "../theme";
 
 type BottomCaptionProps = {
   text: string;
