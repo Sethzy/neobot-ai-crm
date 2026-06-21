@@ -1,6 +1,8 @@
 # docs/
 
-Working documents for active implementation. The historical archive still uses the former Sunder name in some paths because those files preserve original planning context.
+Working documents for active implementation. The historical archive still uses
+the former Sunder name in some paths because those files preserve original
+planning context.
 
 ## Source of Truth
 
@@ -13,9 +15,9 @@ Working documents for active implementation. The historical archive still uses t
 ```
 docs/
 ├── product/                 ← NeoBot AI CRM workspace
-│   ├── plans/               ← Current PR inventory and historical phasing plans
+│   ├── plans/               ← Current PR inventory and selected historical plans
 │   │   └── 2026-04-13-PR-list-neobot-current.json  ← SOURCE OF TRUTH
-│   ├── tasks/               ← All PR tasklists
+│   ├── tasks/               ← PR tasklists
 │   │   ├── phase-1/         ← PRs 1–12a (done)
 │   │   ├── phase-2/         ← PRs 13–20 (done)
 │   │   └── *.md             ← Phase 3+ tasklists (in progress / upcoming)
@@ -23,20 +25,19 @@ docs/
 │   ├── references/          ← Architecture comparisons, tool inventories
 │   └── reviews/             ← Code reviews
 │
-├── landing/                 ← Public site: property pages, marketing, data pipeline
+├── landing/                 ← Public site: property pages and data pipeline
 │   ├── plans/
 │   ├── tasks/
-│   ├── competitor-reference/
-│   └── ux-audit/
+│   └── competitor-reference/
 │
-├── archive/                 ← Historical roadmap/reference material
+├── archive/                 ← Historical roadmap/reference material, non-authoritative
 │
 └── qa/                      ← Manual QA checklists
 ```
 
 ## Authority Chain
 
-1. **Current PR inventory** (`docs/product/plans/2026-04-13-PR-list-neobot-current.json`) — wins on current scope and implementation state
-2. **Deprecated v2 phasing plan** (`docs/product/plans/2026-03-05-implementation-phasing-plan-v2-deprecate.json`) — historical context only
-3. **Archived App Spec** (`docs/archive/roadmap/Sunder - Source of Truth/product-dev/01-App Spec.md`) — product vision/rationale
-4. **Archived Architecture Decisions JSON** (`docs/archive/roadmap/Sunder - Source of Truth/architecture/architecture-decisions-checklist.json`) — technical rationale
+1. **Current PR inventory** (`docs/product/plans/2026-04-13-PR-list-neobot-current.json`) — wins on current scope and implementation state.
+2. **Root architecture brief** (`../AGENTS.md`) — wins on current runtime architecture, conventions, and deployment assumptions.
+3. **Current product docs** (`docs/product/tasks/`, `docs/product/designs/`, `docs/product/audits/`, `docs/qa/`) — implementation evidence and QA state.
+4. **Historical archive** (`docs/archive/`) — rationale and old research only. It does not override shipped code or the current PR inventory.

@@ -103,11 +103,10 @@ Through rigorous evaluation, SQL proved more efficient than bash for structured 
 - **Self-Verification Pattern**: Agents ran SQL queries, then verified results by grepping filesystem
 - **Cost-Accuracy Tradeoff**: Hybrid used 2x tokens but eliminated errors SQL missed
 
-**Visual Assets (4 screenshots):**
+**Visual Assets (3 retained screenshots):**
 1. Arpit Bhayani tweet on filesystems in AI
 2. Sophisticated shell scripting example
 3. Hybrid approach comparison chart
-4. Full page screenshot
 
 **Experiments (Open Source):**
 - [SQL experiment results](https://www.braintrust.dev/app/braintrust-labs/p/bash-evals/experiments/sql-claude-sonnet-4-5)
@@ -209,7 +208,6 @@ All diagrams and screenshots are stored in `/screenshots/`:
 - `article1-diagram7.png` - Aggregation Evolution
 - `article1-diagram8.png` - The New Value Matrix
 - `article1-diagram9.png` - The Completion of Aggregation
-- `article1-full.png` - Full page screenshot
 
 ### Article 2 (Model-Market Fit) - 5 diagrams
 - `article2-diagram1.png` - Model-Market Fit Framework
@@ -217,10 +215,8 @@ All diagrams and screenshots are stored in `/screenshots/`:
 - `article2-diagram3.png` - Strategic Timing Matrix
 - `article2-diagram4.png` - The MMF Test Decision Tree
 - `article2-diagram5.png` - The Agentic Threshold
-- `article2-full.png` - Full page screenshot
 
-### Article 3 (Vercel: Testing Bash) - 4 screenshots
-- `vercel-bash-full.png` - Full page screenshot
+### Article 3 (Vercel: Testing Bash) - 3 screenshots
 - `vercel-bash-tweet.png` - Arpit Bhayani tweet on filesystems
 - `vercel-bash-shell-scripting.png` - Sophisticated shell command example
 - `vercel-bash-hybrid-comparison.png` - Hybrid approach results

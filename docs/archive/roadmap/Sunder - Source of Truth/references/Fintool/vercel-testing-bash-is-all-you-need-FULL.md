@@ -344,12 +344,11 @@ For production systems, **2x cost for guaranteed accuracy** is often worth it.
 
 ## Visual Assets
 
-All screenshots saved in: `extracted_content/Important Articles/Fintool/screenshots/`
+Retained screenshots:
 
-1. **vercel-bash-full.png** - Full page screenshot
-2. **vercel-bash-tweet.png** - Arpit Bhayani's tweet on filesystems in AI
-3. **vercel-bash-shell-scripting.png** - Sophisticated shell scripting example
-4. **vercel-bash-hybrid-comparison.png** - Hybrid approach comparison chart
+1. **vercel-bash-tweet.png** - Arpit Bhayani's tweet on filesystems in AI
+2. **vercel-bash-shell-scripting.png** - Sophisticated shell scripting example
+3. **vercel-bash-hybrid-comparison.png** - Hybrid approach comparison chart
 
 ---
 

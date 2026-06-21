@@ -16,19 +16,8 @@ Final outcome:
 - Final state reads `NEO`.
 
 ## Reference Source
-Use these screenshots as the choreography source of truth:
-
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.53.40 AM.png`
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.53.47 AM.png`
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.53.51 AM.png`
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.53.59 AM.png`
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.54.06 AM.png`
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.54.10 AM.png`
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.54.15 AM.png`
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.55.03 AM.png`
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.55.09 AM.png`
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.55.15 AM.png`
-- `docs/designs/landing animation/Screenshot 2026-03-12 at 11.55.23 AM.png`
+The original frame-by-frame screenshots were pruned during repo hygiene. The
+choreography below is the retained source of truth for the shipped animation.
 
 ## Current Files To Know
 
