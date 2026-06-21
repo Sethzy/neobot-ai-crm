@@ -120,12 +120,20 @@ tools, approval gates, run lifecycle tracking, and tenant-scoped state.
 
 ## Agent Workbench
 
-The repository also contains checked-in assistant workbench folders such as
-`.agents/`, `.claude/`, `.codex/`, `.context/`, `.kiro/`, `.windsurf/`,
-`skills/`, and `skills-lock.json`. These are development workflow assets, not
-product runtime code. The production agent runtime lives in
-`src/lib/managed-agents/`, `managed-agents/skills/`, and
-`scripts/managed-agents/`.
+Repo-local assistant guidance is intentionally narrow:
+
+- `AGENTS.md` is the canonical instruction and architecture brief for coding
+  agents working in this repository.
+- `.agents/` contains local development skills used by this workspace. It is
+  not part of the deployed product or Vercel build context.
+- `managed-agents/skills/` contains the runtime skill catalog uploaded to
+  Anthropic.
+- `scripts/managed-agents/` contains Managed Agent registration, skill upload,
+  and migration utilities.
+
+Duplicate workbench exports for other agent clients are not tracked. The
+production agent runtime lives in `src/lib/managed-agents/` and uses the
+runtime catalog under `managed-agents/skills/`.
 
 ## Legacy Names
 

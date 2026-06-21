@@ -76,7 +76,7 @@ docs/qa/
 └── reports/
     └── qa-report-{surfaces}-{date}-{hash}.md
 
-.claude/skills/qa/
+.agents/skills/qa/
 ├── SKILL.md               ← skill definition (phases, workflow, guidance)
 ├── references/
 │   └── triage-guide.md    ← failure classification guide
