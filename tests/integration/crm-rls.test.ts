@@ -29,6 +29,7 @@ let authedClientA: TestSupabaseClient;
 let authedClientB: TestSupabaseClient;
 
 beforeAll(async () => {
+  if (!canRun) return;
   serviceClient = createServiceClient();
 });
 

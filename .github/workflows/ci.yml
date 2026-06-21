@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "codex/**"
+
+jobs:
+  verify:
+    name: Lint, test, and build
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+      AI_GATEWAY_API_KEY: ci-ai-gateway-key
+      NEXT_PUBLIC_SITE_URL: https://neobot-ai-crm.vercel.app
+      NEXT_PUBLIC_APP_URL: https://neobot-ai-crm.vercel.app
+      ANTHROPIC_AGENT_ID: agent_ci
+      ANTHROPIC_AGENT_VERSION: "1"
+      ANTHROPIC_ENVIRONMENT_ID: env_ci
+      ANTHROPIC_API_KEY: ci-anthropic-key
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test:run
+
+      - name: Build
+        run: pnpm build

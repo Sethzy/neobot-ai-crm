@@ -155,5 +155,14 @@ pnpm test:run
 pnpm build
 ```
 
-`next build` is configured separately from lint gating. Use lint and focused
-test suites to verify product changes before treating a branch as clean.
+`pnpm test:run` runs the unit test project and is the default fresh-clone check.
+Supabase-backed integration tests are explicit because they need a local
+Supabase stack:
+
+```bash
+supabase start
+pnpm test:integration
+```
+
+When local Supabase is unavailable, the integration project skips cleanly. Use
+lint, unit tests, and build before treating a branch as clean.

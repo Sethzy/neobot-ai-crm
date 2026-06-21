@@ -153,19 +153,41 @@ function createLocalRoleToken(role: "anon" | "service_role"): string {
   return `${unsignedToken}.${signature}`;
 }
 
-const LOCAL_SUPABASE_URL = getLocalSupabaseSetting(
-  "SUPABASE_LOCAL_URL",
-  "SUPABASE_URL",
-  "http://127.0.0.1:54321",
-);
-const LOCAL_SUPABASE_ANON_KEY =
-  process.env.SUPABASE_LOCAL_ANON_KEY ??
-  readSupabaseStatusEnv().ANON_KEY ??
-  createLocalRoleToken("anon");
-const LOCAL_SUPABASE_SERVICE_ROLE_KEY =
-  process.env.SUPABASE_LOCAL_SERVICE_ROLE_KEY ??
-  readSupabaseStatusEnv().SERVICE_ROLE_KEY ??
-  createLocalRoleToken("service_role");
+/**
+ * Returns the local Supabase URL lazily so importing integration tests can
+ * skip cleanly when the local stack is absent.
+ */
+function getLocalSupabaseUrl(): string {
+  return getLocalSupabaseSetting(
+    "SUPABASE_LOCAL_URL",
+    "SUPABASE_URL",
+    "http://127.0.0.1:54321",
+  );
+}
+
+/**
+ * Returns the local anon key lazily. This may synthesize a token from the
+ * running Docker auth container when `supabase status` cannot provide one.
+ */
+function getLocalSupabaseAnonKey(): string {
+  return (
+    process.env.SUPABASE_LOCAL_ANON_KEY ??
+    readSupabaseStatusEnv().ANON_KEY ??
+    createLocalRoleToken("anon")
+  );
+}
+
+/**
+ * Returns the local service-role key lazily. This keeps missing local
+ * credentials from failing test collection before `describe.runIf()` can skip.
+ */
+function getLocalSupabaseServiceRoleKey(): string {
+  return (
+    process.env.SUPABASE_LOCAL_SERVICE_ROLE_KEY ??
+    readSupabaseStatusEnv().SERVICE_ROLE_KEY ??
+    createLocalRoleToken("service_role")
+  );
+}
 
 export type TestSupabaseClient = SupabaseClient<Database>;
 
@@ -175,8 +197,8 @@ export type TestSupabaseClient = SupabaseClient<Database>;
  */
 export function createServiceClient(): TestSupabaseClient {
   return createClient<Database>(
-    LOCAL_SUPABASE_URL,
-    LOCAL_SUPABASE_SERVICE_ROLE_KEY,
+    getLocalSupabaseUrl(),
+    getLocalSupabaseServiceRoleKey(),
     {
       auth: {
         persistSession: false,
@@ -192,7 +214,7 @@ export function createServiceClient(): TestSupabaseClient {
  * Must be paired with `signInTestUser` to get an authenticated session.
  */
 export function createAnonClient(): TestSupabaseClient {
-  return createClient<Database>(LOCAL_SUPABASE_URL, LOCAL_SUPABASE_ANON_KEY, {
+  return createClient<Database>(getLocalSupabaseUrl(), getLocalSupabaseAnonKey(), {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

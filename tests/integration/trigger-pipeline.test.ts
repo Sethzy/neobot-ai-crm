@@ -24,6 +24,7 @@ let client: SeededClient;
 let thread: SeededThread;
 
 beforeAll(async () => {
+  if (!canRun) return;
   supabase = createServiceClient();
 });
 
