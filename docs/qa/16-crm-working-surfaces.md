@@ -397,11 +397,11 @@
 
 1. In chat, ask the agent: "Update Sarah Tan's phone to +6591234567"
 2. Open Sarah Tan's contact drawer → Timeline tab
-3. **Expected:** Entry shows "Sunder updated Phone" (not "You")
+3. **Expected:** Entry shows "NeoBot updated Phone" (not "You")
 4. **Expected:** Phone diff shows old value → +6591234567
 5. In chat, ask the agent: "Create a new company called TestCo"
 6. Open TestCo's company drawer → Timeline tab
-7. **Expected:** "TestCo was created by Sunder"
+7. **Expected:** "TestCo was created by NeoBot"
 
 **Notes / failures:**
 
@@ -440,5 +440,5 @@
 
 ## Pass / Fail Criteria
 
-- **Pass:** View toggles work and persist ad hoc preference. Board shows deals by stage with working stage movement. Calendar shows tasks by date with day drill-down. Quick edit works for high-value fields on all entity pages. Filters carry across views. Drawer quick-peek and full record pages both work for People, Companies, and Deals. Saved workspaces restore mode/open behavior, persist via URL, reset pagination, update via realtime, and never crash on stale ids. Timeline tab visible on all four drawer types. Audit entries show before→after diffs with human-readable labels. Rapid edits merge within 10 minutes. Agent-authored changes attributed to "Sunder". Timeline updates in realtime.
+- **Pass:** View toggles work and persist ad hoc preference. Board shows deals by stage with working stage movement. Calendar shows tasks by date with day drill-down. Quick edit works for high-value fields on all entity pages. Filters carry across views. Drawer quick-peek and full record pages both work for People, Companies, and Deals. Saved workspaces restore mode/open behavior, persist via URL, reset pagination, update via realtime, and never crash on stale ids. Timeline tab visible on all four drawer types. Audit entries show before->after diffs with human-readable labels. Rapid edits merge within 10 minutes. Agent-authored changes attributed to "NeoBot". Timeline updates in realtime.
 - **Fail:** Shared shell drifts across CRM pages. Row click ignores saved view open mode. Full pages and drawers diverge. Saved view pills missing, filtering broken, stale after agent creates view, or malformed state crashes a page. Timeline tab missing from any drawer. Raw UUIDs or enum values shown in diffs. Audit capture blocks or fails the CRM mutation. Dedup merge loses the original "before" snapshot.

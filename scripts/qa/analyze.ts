@@ -936,7 +936,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("\n=== Sunder QA Analyzer ===\n");
+  console.log("\n=== NeoBot QA Analyzer ===\n");
   console.log(`  Manifest: ${manifestPath}`);
   console.log(`  Langfuse: ${LANGFUSE_BASE}`);
   if (SAVE_BASELINE) console.log(`  Will save baseline after analysis.`);

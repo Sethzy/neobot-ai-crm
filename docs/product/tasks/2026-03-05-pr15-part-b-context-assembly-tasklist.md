@@ -535,7 +535,7 @@ it("includes platform instructions before system prompt when clientId is provide
 
   // Platform instructions should appear before SYSTEM_PROMPT content
   const platformIndex = result.system.indexOf("<platform-instructions>");
-  const systemPromptIndex = result.system.indexOf("You are Sunder");
+  const systemPromptIndex = result.system.indexOf("You are NeoBot");
   expect(platformIndex).toBeGreaterThanOrEqual(0);
   expect(systemPromptIndex).toBeGreaterThan(platformIndex);
 });
@@ -632,7 +632,7 @@ it("assembles system string in 7-layer order when clientId is provided", async (
 
   // Verify order: platform instructions → system prompt → soul → user → memory → system-reminder
   const platformIdx = result.system.indexOf("<platform-instructions>");
-  const sunderIdx = result.system.indexOf("You are Sunder");
+  const sunderIdx = result.system.indexOf("You are NeoBot");
   const soulIdx = result.system.indexOf("<soul>");
   const userIdx = result.system.indexOf("<user-profile>");
   const memoryIdx = result.system.indexOf("<working-memory>");

@@ -1,4 +1,4 @@
-# Sunder QA Plan — Surface-Based Testing
+# NeoBot QA Plan - Surface-Based Testing
 
 > **Created:** 2026-03-10
 > **Updated:** 2026-03-30

@@ -542,7 +542,7 @@ function setupHappyPath(overrides?: { fileContent?: string; resultText?: string 
   });
 
   mockAssembleContext.mockResolvedValue({
-    system: "You are Sunder...",
+    system: "You are NeoBot...",
     messages: [],
   });
 

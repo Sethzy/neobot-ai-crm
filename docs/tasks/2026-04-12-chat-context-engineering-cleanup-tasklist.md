@@ -25,7 +25,7 @@ Four layers of context, each with exactly one job:
 
 ### Layer 0 — Agent version (set once by `scripts/managed-agents/create-agent.ts`)
 Immutable, lives on Anthropic's side:
-- System prompt ("You are Sunder…")
+- System prompt ("You are NeoBot…")
 - Custom tool declarations (sourced from `src/lib/managed-agents/tools`)
 - Built-in toolset configs (`bash` always-ask, `web_fetch` off, `web_search` off)
 - Anthropic skills (`xlsx`, `docx`, `pptx`, `pdf`, plus 11 Sunder custom skills uploaded by the skills-migration PR)

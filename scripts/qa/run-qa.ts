@@ -260,7 +260,7 @@ function groupScenarios(filtered: QaScenario[]): ScenarioGroup[] {
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log("\n=== Sunder QA Runner ===\n");
+  console.log("\n=== NeoBot QA Runner ===\n");
   console.log(`  Base URL:  ${BASE_URL}`);
   console.log(`  Supabase:  ${SUPABASE_URL}`);
 

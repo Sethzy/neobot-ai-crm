@@ -306,7 +306,7 @@ Use ask_user_question for each of these:
 Example output (don't copy this, craft it from their answers):
 
 \\\`\\\`\\\`markdown
-# Sunder Soul
+# NeoBot Soul
 
 Be direct, skip filler. Have opinions but flag when you're guessing.
 

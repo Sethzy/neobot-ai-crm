@@ -1,6 +1,6 @@
 # QA Test Suite
 
-Automated QA pipeline for Sunder's agent. Sends chat prompts to the running app, verifies tool usage via Langfuse traces, and produces triaged reports with per-scenario cost and efficiency analysis.
+Automated QA pipeline for NeoBot's agent. Sends chat prompts to the running app, verifies tool usage via Langfuse traces, and produces triaged reports with per-scenario cost and efficiency analysis.
 
 ## How It Works
 

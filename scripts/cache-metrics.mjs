@@ -218,7 +218,7 @@ function generateDashboard(metrics) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sunder — Prompt Cache Metrics</title>
+<title>NeoBot - Prompt Cache Metrics</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -302,7 +302,7 @@ function generateDashboard(metrics) {
   </div>
 </div>
 
-<p class="footer">Sunder &middot; Langfuse cache metrics dashboard</p>
+<p class="footer">NeoBot &middot; Langfuse cache metrics dashboard</p>
 
 <script>
 const chartDefaults = { responsive: true, maintainAspectRatio: true };
@@ -457,7 +457,7 @@ async function main() {
 
   // Write HTML dashboard
   const html = generateDashboard(metrics);
-  const outPath = join(tmpdir(), "sunder-cache-metrics.html");
+  const outPath = join(tmpdir(), "neobot-cache-metrics.html");
   writeFileSync(outPath, html);
   console.log(`Dashboard written to: ${outPath}`);
 

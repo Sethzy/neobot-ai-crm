@@ -1,6 +1,6 @@
 ---
 name: onboarding
-description: "Onboards a user by interviewing them, building USER.md and SOUL.md, and personalizing Sunder. Use when the user says onboarding, personalize me, set up my personality, customize Sunder, or re-personalize."
+description: "Onboards a user by interviewing them, building USER.md and SOUL.md, and personalizing NeoBot. Use when the user says onboarding, personalize me, set up my personality, customize NeoBot, or re-personalize."
 ---
 
 # Onboard — Agent Personalization
@@ -102,7 +102,7 @@ Use ask_user_question for each of these:
 Example output (don't copy this, craft it from their answers):
 
 ```markdown
-# Sunder Soul
+# NeoBot Soul
 
 Be direct, skip filler. Have opinions but flag when you're guessing.
 

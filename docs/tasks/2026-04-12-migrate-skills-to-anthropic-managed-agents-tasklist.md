@@ -1097,7 +1097,7 @@ Lines 98 and 121 already reference `MANAGED_AGENT_SKILLS` — no changes needed 
 **Step 2: Run create-agent against dev**
 
 Run: `pnpm tsx scripts/managed-agents/create-agent.ts`
-Expected: `Sunder Managed Agent updated.` with a new `ANTHROPIC_AGENT_VERSION` printed.
+Expected: `NeoBot Managed Agent updated.` with a new `ANTHROPIC_AGENT_VERSION` printed.
 
 **Step 3: Update `.env.local`**
 

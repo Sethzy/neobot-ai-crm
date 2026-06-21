@@ -26,7 +26,7 @@ function buildSession(): BetaManagedAgentsSession {
       description: null,
       mcp_servers: [],
       model: { id: "claude-sonnet-4-6", speed: "standard" },
-      name: "Sunder",
+      name: "NeoBot",
       skills: [],
       system: null,
       tools: [],

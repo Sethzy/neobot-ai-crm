@@ -1281,7 +1281,7 @@ describe("runAgent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAssembleContext.mockResolvedValue({
-      system: "You are Sunder.",
+      system: "You are NeoBot.",
       messages: [{ role: "user", content: "Hello, Sunder!" }],
     });
   });
@@ -1304,7 +1304,7 @@ describe("runAgent", () => {
     expect(mockStreamText).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "mock-model",
-        system: "You are Sunder.",
+        system: "You are NeoBot.",
         messages: [{ role: "user", content: "Hello, Sunder!" }],
         maxSteps: 4,
         tools: {},

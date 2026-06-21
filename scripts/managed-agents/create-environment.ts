@@ -1,5 +1,5 @@
 /**
- * One-time bootstrap: creates the Sunder Managed Agents execution environment.
+ * One-time bootstrap: creates the NeoBot Managed Agents execution environment.
  *
  * Run once per deployment environment. Prints the returned `environment.id` -
  * operator stores it as `ANTHROPIC_ENVIRONMENT_ID`.
@@ -39,7 +39,7 @@ async function main() {
   });
 
   console.log("=".repeat(60));
-  console.log("Sunder Managed Agents environment created.");
+  console.log("NeoBot Managed Agents environment created.");
   console.log("=".repeat(60));
   console.log(`ANTHROPIC_ENVIRONMENT_ID=${environment.id}`);
   console.log("");

@@ -534,7 +534,7 @@ rm src/lib/ai/__tests__/system-prompt-setup.test.ts
 Delete lines 473-487 verbatim:
 
 ```typescript
-export const CRM_SETUP_SYSTEM_PROMPT = `You are Sunder in CRM setup mode.
+export const CRM_SETUP_SYSTEM_PROMPT = `You are NeoBot in CRM setup mode.
 
 Your job in this mode is to configure the CRM or reconfigure the user's existing CRM vocabulary and custom fields.
 
@@ -1834,7 +1834,7 @@ Create `scripts/managed-agents/create-agent.ts`:
 
 ```typescript
 /**
- * One-time bootstrap: creates the Sunder Managed Agent in Anthropic's API.
+ * One-time bootstrap: creates the NeoBot Managed Agent in Anthropic's API.
  *
  * Run once per environment (dev / staging / prod). Prints the returned
  * `agent.id` and `agent.version` — operator stores them as
@@ -1925,7 +1925,7 @@ async function main() {
   });
 
   console.log("=".repeat(60));
-  console.log("Sunder Managed Agent created.");
+  console.log("NeoBot Managed Agent created.");
   console.log("=".repeat(60));
   console.log(`ANTHROPIC_AGENT_ID=${agent.id}`);
   console.log(`ANTHROPIC_AGENT_VERSION=${agent.version}`);
@@ -2000,7 +2000,7 @@ Create `scripts/managed-agents/create-environment.ts`:
 
 ```typescript
 /**
- * One-time bootstrap: creates the Sunder Managed Agents execution environment.
+ * One-time bootstrap: creates the NeoBot Managed Agents execution environment.
  *
  * Run once per deployment environment. Prints the returned `environment.id` —
  * operator stores it as `ANTHROPIC_ENVIRONMENT_ID`.
@@ -2039,7 +2039,7 @@ async function main() {
   });
 
   console.log("=".repeat(60));
-  console.log("Sunder Managed Agents environment created.");
+  console.log("NeoBot Managed Agents environment created.");
   console.log("=".repeat(60));
   console.log(`ANTHROPIC_ENVIRONMENT_ID=${environment.id}`);
   console.log("");

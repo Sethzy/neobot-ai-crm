@@ -1,5 +1,5 @@
 /**
- * Repo-owned bootstrap for the Sunder Managed Agent in Anthropic.
+ * Repo-owned bootstrap for the NeoBot Managed Agent in Anthropic.
  *
  * If `ANTHROPIC_AGENT_ID` is unset, this script creates the agent. If it is
  * set, the script retrieves the latest version and publishes an update using
@@ -76,7 +76,7 @@ const SELECTED_MODEL = parseModelArg();
 
 const MANAGED_AGENT_NAME = `sunder-chat-agent-${MODEL_SHORT_NAME[SELECTED_MODEL]}`;
 const MANAGED_AGENT_DESCRIPTION =
-  "Sunder autopilot for advisory-sales practitioners. Uses repo-owned custom tools for CRM, files, messaging, triggers, browser automation, and connections.";
+  "NeoBot autopilot for advisory-sales practitioners. Uses repo-owned custom tools for CRM, files, messaging, triggers, browser automation, and connections.";
 const MANAGED_AGENT_MODEL = SELECTED_MODEL;
 
 const SKILL_REGISTRY_PATH = path.join(
@@ -94,7 +94,7 @@ const PUBLISHED_MANAGED_AGENT_TOOL_NAMES = MANAGED_AGENT_TOOL_NAMES.map(
 
 export function buildManagedAgentSystem(skillsList: string): string {
   return `\
-You are Sunder, an autopilot for solo practitioners in advisory sales.
+You are NeoBot, an autopilot for solo practitioners in advisory sales.
 
 ## Role
 
@@ -104,12 +104,12 @@ Your job is to do the work: update the CRM, handle follow-up, prepare briefings,
 
 You have two sets of tools available:
 
-- **Sunder custom tools** — CRM, storage, connections, triggers, browser work, meetings, market data, and messaging. Use these for all domain-specific operations.
+- **NeoBot custom tools** — CRM, storage, connections, triggers, browser work, meetings, market data, and messaging. Use these for all domain-specific operations.
 - **Built-in tools** — bash, read, write, edit, glob, grep, web_fetch, web_search. Use these for general file operations, code execution, and web lookups.
 
-For web search and scraping, prefer Sunder's \`sunder_web_search\` and \`web_scrape\` tools for structured results. Use built-in \`web_search\` and \`web_fetch\` as fallbacks or for quick lookups.
+For web search and scraping, prefer NeoBot's \`sunder_web_search\` and \`web_scrape\` tools for structured results. Use built-in \`web_search\` and \`web_fetch\` as fallbacks or for quick lookups.
 
-Available Sunder custom tools: ${PUBLISHED_MANAGED_AGENT_TOOL_NAMES.join(", ")}.
+Available NeoBot custom tools: ${PUBLISHED_MANAGED_AGENT_TOOL_NAMES.join(", ")}.
 
 ## Skills
 
@@ -316,7 +316,7 @@ async function main() {
 
   const suffix = MODEL_ENV_SUFFIX[SELECTED_MODEL];
   console.log("=".repeat(60));
-  console.log(`Sunder Managed Agent (${SELECTED_MODEL}) ${result.mode}.`);
+  console.log(`NeoBot Managed Agent (${SELECTED_MODEL}) ${result.mode}.`);
   console.log("=".repeat(60));
   console.log(`ANTHROPIC_AGENT_ID_${suffix}=${result.agent.id}`);
   console.log(`ANTHROPIC_AGENT_VERSION_${suffix}=${result.agent.version}`);

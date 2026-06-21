@@ -139,9 +139,17 @@ runtime catalog under `managed-agents/skills/`.
 
 NeoBot is the public product name. Some internal identifiers still use the
 former `sunder-*` naming convention where renaming would touch runtime
-compatibility or history: database migrations, persisted storage keys, webhook
-headers, CSS token names, Managed Agent registry IDs, and archived planning
-material. Treat those as compatibility names, not current product copy.
+compatibility or history. The allowlist is:
+
+- `sunder-skill:*` Anthropic skill display titles and registry values.
+- `sunder_web_search` and other published custom-tool aliases.
+- CSS tokens/classes such as `--color-sunder-green` and `bg-sunder-green`.
+- Persisted browser/local-storage keys such as `sunder:*`.
+- Database migrations, historical fixtures, archived docs, and dated
+  task/design/audit docs that preserve old implementation context.
+- Webhook headers, deployment names, and older generated artifact paths.
+
+Treat those as compatibility names, not current product copy.
 
 ## Inspection Guide
 
@@ -149,10 +157,12 @@ Start here when reviewing the project:
 
 1. Read `PRODUCT.md` for product framing and market positioning.
 2. Read `AGENTS.md` for architecture, conventions, and runtime boundaries.
-3. Inspect `src/lib/managed-agents/` and `scripts/managed-agents/` for the
+3. Read `docs/architecture.md` for the canonical runtime map and legacy-name
+   allowlist.
+4. Inspect `src/lib/managed-agents/` and `scripts/managed-agents/` for the
    core agent harness.
-4. Inspect `supabase/` for tenant-scoped database structure.
-5. Inspect `docs/product/plans/2026-04-13-PR-list-neobot-current.json` for
+5. Inspect `supabase/` for tenant-scoped database structure.
+6. Inspect `docs/product/plans/2026-04-13-PR-list-neobot-current.json` for
    shipped and remaining work.
 
 ## Health Checks

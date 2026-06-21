@@ -38,6 +38,6 @@ docs/
 ## Authority Chain
 
 1. **Current PR inventory** (`docs/product/plans/2026-04-13-PR-list-neobot-current.json`) — wins on current scope and implementation state.
-2. **Root architecture brief** (`../AGENTS.md`) — wins on current runtime architecture, conventions, and deployment assumptions.
+2. **Runtime architecture** (`docs/architecture.md` and `../AGENTS.md`) — wins on current runtime boundaries, compatibility names, and deployment assumptions.
 3. **Current product docs** (`docs/product/tasks/`, `docs/product/designs/`, `docs/product/audits/`, `docs/qa/`) — implementation evidence and QA state.
 4. **Historical archive** (`docs/archive/`) — rationale and old research only. It does not override shipped code or the current PR inventory.
