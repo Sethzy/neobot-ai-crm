@@ -3,7 +3,6 @@
  *
  * @module lib/managed-agents/tools/storage/shared
  */
-import sharp from "sharp";
 
 import { captureServerEvent } from "@/lib/analytics/posthog-server";
 import { getFileExtension } from "@/lib/file-utils";
@@ -79,6 +78,7 @@ export function classifyFileType(path: string): "directory" | "image" | "pdf" | 
 export async function resizeForModel(
   buffer: ArrayBuffer,
 ): Promise<{ data: string; mediaType: string }> {
+  const { default: sharp } = await import("sharp");
   const input = Buffer.from(buffer);
   const metadata = await sharp(input).metadata();
   const pipeline = sharp(input).autoOrient().resize(IMAGE_MAX_DIMENSION, IMAGE_MAX_DIMENSION, {

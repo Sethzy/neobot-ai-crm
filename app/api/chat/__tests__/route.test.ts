@@ -3,6 +3,10 @@
  * @module app/api/chat/__tests__/route.test
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  MessageQuotaError,
+  messageQuotaErrorCodes,
+} from "@/lib/usage/message-quota";
 
 const {
   authenticateRequest,
@@ -141,6 +145,65 @@ describe("POST /api/chat", () => {
       }),
     );
     expect(response.status).toBe(200);
+  });
+
+  it("returns a JSON error when managed-agent startup fails before streaming", async () => {
+    runManagedAgent.mockRejectedValueOnce(new Error("missing agent env"));
+
+    const response = await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "t1",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              parts: [{ type: "text", text: "hello" }],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("content-type")).toContain("application/json");
+    await expect(response.json()).resolves.toEqual({
+      error: "NeoBot could not start the agent runtime. Please try again in a minute.",
+    });
+  });
+
+  it("preserves message quota errors as structured JSON", async () => {
+    runManagedAgent.mockRejectedValueOnce(
+      new MessageQuotaError(
+        messageQuotaErrorCodes.limitReached,
+        "Monthly message limit reached.",
+      ),
+    );
+
+    const response = await POST(
+      new Request("http://localhost/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: "t1",
+          messages: [
+            {
+              id: "m1",
+              role: "user",
+              parts: [{ type: "text", text: "hello" }],
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(429);
+    await expect(response.json()).resolves.toEqual({
+      error: "Monthly message limit reached.",
+      code: "message-quota-exceeded",
+    });
   });
 
   it("returns 400 for invalid body", async () => {

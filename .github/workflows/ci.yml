@@ -20,6 +20,12 @@ jobs:
       NEXT_PUBLIC_APP_URL: https://neobot-ai-crm.vercel.app
       ANTHROPIC_AGENT_ID: agent_ci
       ANTHROPIC_AGENT_VERSION: "1"
+      ANTHROPIC_AGENT_ID_SONNET: agent_ci_sonnet
+      ANTHROPIC_AGENT_VERSION_SONNET: "1"
+      ANTHROPIC_AGENT_ID_HAIKU: agent_ci_haiku
+      ANTHROPIC_AGENT_VERSION_HAIKU: "1"
+      ANTHROPIC_AGENT_ID_OPUS: agent_ci_opus
+      ANTHROPIC_AGENT_VERSION_OPUS: "1"
       ANTHROPIC_ENVIRONMENT_ID: env_ci
       ANTHROPIC_API_KEY: ci-anthropic-key
     steps:

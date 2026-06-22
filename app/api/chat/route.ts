@@ -18,6 +18,10 @@ import {
 } from "@/lib/managed-agents/adapter";
 import { getAnthropicClient } from "@/lib/managed-agents/anthropic-client";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  isMessageQuotaError,
+  messageQuotaErrorCodes,
+} from "@/lib/usage/message-quota";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -50,6 +54,16 @@ function getUrlPath(value: string): string {
   } catch {
     return value;
   }
+}
+
+function chatJsonError(message: string, status: number, code?: string): Response {
+  return Response.json(
+    {
+      error: message,
+      ...(code ? { code } : {}),
+    },
+    { status },
+  );
 }
 
 /**
@@ -260,21 +274,39 @@ export async function POST(request: Request): Promise<Response> {
   });
 
   const tPreAdapter = performance.now();
-  const stream = await runManagedAgent({
-    anthropic: getAnthropicClient(),
-    supabase: requestResult.supabase,
-    clientId,
-    threadId: requestResult.body.id,
-    input: text ?? "",
-    fileParts,
-    userMessageSourceId: lastMessage.id,
-    clientProfile,
-    userPreferences,
-    threadTitle,
-    existingSessionId,
-    generatedTitlePromise: titlePromise,
-    selectedChatModel: threadChatModel,
-  });
+  let stream: Awaited<ReturnType<typeof runManagedAgent>>;
+  try {
+    stream = await runManagedAgent({
+      anthropic: getAnthropicClient(),
+      supabase: requestResult.supabase,
+      clientId,
+      threadId: requestResult.body.id,
+      input: text ?? "",
+      fileParts,
+      userMessageSourceId: lastMessage.id,
+      clientProfile,
+      userPreferences,
+      threadTitle,
+      existingSessionId,
+      generatedTitlePromise: titlePromise,
+      selectedChatModel: threadChatModel,
+    });
+  } catch (error) {
+    console.error("[api/chat] failed to start managed agent", error);
+
+    if (isMessageQuotaError(error)) {
+      return chatJsonError(
+        error.message,
+        error.code === messageQuotaErrorCodes.limitReached ? 429 : 500,
+        error.code,
+      );
+    }
+
+    return chatJsonError(
+      "NeoBot could not start the agent runtime. Please try again in a minute.",
+      500,
+    );
+  }
   const tPostAdapter = performance.now();
 
   console.info("[api/chat] full route timing (ms)", {
