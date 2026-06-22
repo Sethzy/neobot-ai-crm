@@ -162,6 +162,29 @@ describe("ChatComposer", () => {
     });
   });
 
+  it("keeps the draft when the parent rejects a submit attempt", async () => {
+    const onSubmit = vi.fn(() => false);
+    const onValueChange = vi.fn();
+    const user = userEvent.setup();
+
+    renderComposer(
+      <ChatComposer
+        {...baseProps}
+        value="  Keep this  "
+        onSubmit={onSubmit}
+        onValueChange={onValueChange}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /submit/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      text: "Keep this",
+      files: [],
+    });
+    expect(onValueChange).not.toHaveBeenCalledWith("");
+    expect(screen.getByPlaceholderText(/send a message/i)).toHaveValue("  Keep this  ");
+  });
+
   it("submits on Enter without Shift", async () => {
     const onSubmit = vi.fn();
     const user = userEvent.setup();

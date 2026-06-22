@@ -16,6 +16,9 @@ const mockUseMessageQuota = vi.fn();
 const mockPush = vi.fn();
 
 vi.mock("ai", () => ({
+  DefaultChatTransport: vi.fn(function DefaultChatTransport(this: { options: unknown }, options: unknown) {
+    this.options = options;
+  }),
   lastAssistantMessageIsCompleteWithApprovalResponses:
     mockLastAssistantMessageIsCompleteWithApprovalResponses,
 }));

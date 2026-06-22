@@ -14,9 +14,9 @@ import { createConsoleLogger } from "@/lib/logger";
 
 const console = createConsoleLogger();
 
-const TEXT_STREAM_CHUNK_SIZE = 48;
-const TEXT_STREAM_CHUNK_DELAY_MS = 8;
-const MAX_DELAYED_TEXT_CHUNKS = 160;
+const TEXT_STREAM_CHUNK_SIZE = 12;
+const TEXT_STREAM_CHUNK_DELAY_MS = 40;
+const MAX_DELAYED_TEXT_CHUNKS = 120;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -5,6 +5,7 @@
 "use client";
 
 import {
+  DefaultChatTransport,
   lastAssistantMessageIsCompleteWithApprovalResponses,
   type FileUIPart,
   type UIMessage,
@@ -200,10 +201,18 @@ export function ChatPanel({
   const wasStreamingRef = useRef(false);
   const [streamErrorRecovery, setStreamErrorRecovery] = useState(false);
   const [approvalRecovery, setApprovalRecovery] = useState<{ approvalId: string } | null>(null);
+  const chatTransport = useMemo(
+    () => new DefaultChatTransport({
+      api: "/api/chat",
+      fetch: (input, init) => fetch(input, init),
+    }),
+    [],
+  );
 
   const { messages, sendMessage, stop, status, error, setMessages, addToolApprovalResponse } = useChat({
     id: chatId,
     messages: initialMessages,
+    transport: chatTransport,
     generateId: () => crypto.randomUUID(),
     experimental_throttle: STREAM_UI_THROTTLE_MS,
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
@@ -388,7 +397,7 @@ export function ChatPanel({
       messageListRef.current?.scrollToBottom();
 
       if ((text.length === 0 && files.length === 0) || isLoadingRef.current) {
-        return;
+        return false;
       }
 
       const isDraftThread = typeof window !== "undefined" && window.location.pathname === "/chat";
@@ -428,6 +437,7 @@ export function ChatPanel({
         } else {
           await sendMessage({ text }, { body: { selectedChatModel } });
         }
+        return true;
       } catch (submitError) {
         const parsedSubmitError = submitError instanceof Error
           ? parseChatError(submitError)
@@ -444,6 +454,8 @@ export function ChatPanel({
             (old) => removeOptimisticDraftThread(old, chatId),
           );
         }
+
+        return false;
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- isLoadingRef (stable ref) replaces isLoading to avoid stale closure race

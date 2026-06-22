@@ -67,6 +67,9 @@ vi.mock("@/hooks/use-scroll-to-bottom", () => ({
 }));
 
 vi.mock("ai", () => ({
+  DefaultChatTransport: vi.fn(function DefaultChatTransport(this: { options: unknown }, options: unknown) {
+    this.options = options;
+  }),
   lastAssistantMessageIsCompleteWithApprovalResponses:
     mockLastAssistantMessageIsCompleteWithApprovalResponses,
 }));
@@ -234,7 +237,7 @@ describe("ChatPanel", () => {
     };
     expect(options.id).toBe("thread-1");
     expect(options.messages).toEqual(initialMessages);
-    expect(options.transport).toBeUndefined();
+    expect(options.transport).toBeDefined();
     expect(typeof options.generateId).toBe("function");
     expect(options.experimental_throttle).toBe(50);
     expect(options.generateId?.()).toMatch(

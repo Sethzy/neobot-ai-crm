@@ -34,6 +34,8 @@ interface ChatSubmitInput {
   files: ChatFilePart[];
 }
 
+type ChatSubmitResult = boolean | void | Promise<boolean | void>;
+
 interface ChatComposerProps {
   status: ChatStatus;
   /** Currently selected model ID for the next outgoing chat message. */
@@ -44,7 +46,7 @@ interface ChatComposerProps {
   onValueChange: (value: string) => void;
   /** Called when the user picks a different model from the selector. */
   onSelectedChatModelChange: (modelId: string) => void;
-  onSubmit: (message: ChatSubmitInput) => void;
+  onSubmit: (message: ChatSubmitInput) => ChatSubmitResult;
   onStop?: () => void;
   /** Optional CSS class for the outer wrapper div. */
   className?: string;
@@ -424,21 +426,41 @@ export function ChatComposer({
 
   const handleSubmit = useCallback((message: PromptInputMessage) => {
     if (isGenerating || uploadQueue.length > 0 || disabled) {
-      return;
+      return false;
     }
 
     const text = message.text.trim();
     if (text.length === 0 && attachments.length === 0) {
-      return;
+      return false;
     }
 
-    onSubmit({
+    const clearComposer = () => {
+      onValueChange("");
+      setAttachments([]);
+    };
+
+    const submitResult = onSubmit({
       text,
       files: attachments.map(toFilePart),
     });
 
-    onValueChange("");
-    setAttachments([]);
+    if (submitResult instanceof Promise) {
+      return submitResult.then((result) => {
+        if (result === false) {
+          return false;
+        }
+
+        clearComposer();
+        return true;
+      });
+    }
+
+    if (submitResult === false) {
+      return false;
+    }
+
+    clearComposer();
+    return true;
   }, [
     attachments,
     isGenerating,
