@@ -8,8 +8,8 @@
  * 4. Landing-only layout/button imports leaking back into the product app.
  * 5. Deprecated font imports that bypass the approved font stack.
  */
-import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const allowlistedTypographyFiles = [
   /^app\/global-error\.tsx$/,
@@ -57,12 +57,22 @@ const pageHeaderPrimitiveAllowlist = [
   /^app\/\(dashboard\)\/error\.tsx$/,
 ];
 
-const sourceFiles = execSync("rg --files app src", {
-  cwd: process.cwd(),
-  encoding: "utf8",
-})
-  .split("\n")
-  .filter(Boolean)
+function listSourceFiles(directoryPath: string): string[] {
+  const entries = readdirSync(directoryPath, { withFileTypes: true });
+
+  return entries.flatMap((entry) => {
+    const childPath = join(directoryPath, entry.name);
+
+    if (entry.isDirectory()) {
+      return listSourceFiles(childPath);
+    }
+
+    return entry.isFile() ? [childPath.replaceAll("\\", "/")] : [];
+  });
+}
+
+const sourceFiles = ["app", "src"]
+  .flatMap((directoryPath) => listSourceFiles(directoryPath))
   .filter((filePath) => /\.(ts|tsx|js|jsx)$/.test(filePath));
 
 const issues: string[] = [];

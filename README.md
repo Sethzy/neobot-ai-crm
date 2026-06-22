@@ -171,11 +171,14 @@ Start here when reviewing the project:
 
 ```bash
 pnpm lint
+pnpm typecheck
 pnpm test:run
 pnpm build
 ```
 
 `pnpm test:run` runs the unit test project and is the default fresh-clone check.
+Vercel deploy builds skip Next.js' duplicate lint/type validation step; GitHub
+CI and local health checks are the source of truth for those gates.
 Supabase-backed integration tests are explicit because they need a local
 Supabase stack:
 
@@ -185,4 +188,4 @@ pnpm test:integration
 ```
 
 When local Supabase is unavailable, the integration project skips cleanly. Use
-lint, unit tests, and build before treating a branch as clean.
+lint, typecheck, unit tests, and build before treating a branch as clean.

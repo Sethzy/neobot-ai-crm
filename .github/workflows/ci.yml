@@ -9,25 +9,8 @@ on:
 
 jobs:
   verify:
-    name: Lint, test, and build
+    name: Lint, typecheck, test, and build
     runs-on: ubuntu-latest
-    env:
-      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
-      SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
-      AI_GATEWAY_API_KEY: ci-ai-gateway-key
-      NEXT_PUBLIC_SITE_URL: https://neobot-ai-crm.vercel.app
-      NEXT_PUBLIC_APP_URL: https://neobot-ai-crm.vercel.app
-      ANTHROPIC_AGENT_ID: agent_ci
-      ANTHROPIC_AGENT_VERSION: "1"
-      ANTHROPIC_AGENT_ID_SONNET: agent_ci_sonnet
-      ANTHROPIC_AGENT_VERSION_SONNET: "1"
-      ANTHROPIC_AGENT_ID_HAIKU: agent_ci_haiku
-      ANTHROPIC_AGENT_VERSION_HAIKU: "1"
-      ANTHROPIC_AGENT_ID_OPUS: agent_ci_opus
-      ANTHROPIC_AGENT_VERSION_OPUS: "1"
-      ANTHROPIC_ENVIRONMENT_ID: env_ci
-      ANTHROPIC_API_KEY: ci-anthropic-key
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -35,7 +18,6 @@ jobs:
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.15.4
           run_install: false
 
       - name: Set up Node.js
@@ -50,8 +32,28 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Typecheck
+        run: pnpm typecheck
+
       - name: Unit tests
         run: pnpm test:run
 
       - name: Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-service-role-key
+          AI_GATEWAY_API_KEY: ci-ai-gateway-key
+          NEXT_PUBLIC_SITE_URL: https://neobot-ai-crm.vercel.app
+          NEXT_PUBLIC_APP_URL: https://neobot-ai-crm.vercel.app
+          ANTHROPIC_AGENT_ID: agent_ci
+          ANTHROPIC_AGENT_VERSION: "1"
+          ANTHROPIC_AGENT_ID_SONNET: agent_ci_sonnet
+          ANTHROPIC_AGENT_VERSION_SONNET: "1"
+          ANTHROPIC_AGENT_ID_HAIKU: agent_ci_haiku
+          ANTHROPIC_AGENT_VERSION_HAIKU: "1"
+          ANTHROPIC_AGENT_ID_OPUS: agent_ci_opus
+          ANTHROPIC_AGENT_VERSION_OPUS: "1"
+          ANTHROPIC_ENVIRONMENT_ID: env_ci
+          ANTHROPIC_API_KEY: ci-anthropic-key
         run: pnpm build

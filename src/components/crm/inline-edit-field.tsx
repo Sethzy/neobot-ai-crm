@@ -88,6 +88,12 @@ function toLocalIsoMidnight(date: Date): string {
 }
 
 function parseDateValue(value: string): Date | null {
+  const dateParts = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (dateParts) {
+    const [, year, month, day] = dateParts;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
   const parsedDate = new Date(value);
   if (Number.isNaN(parsedDate.getTime())) {
     return null;
