@@ -80,17 +80,17 @@ export async function downloadSessionFiles(
 
   for (const file of downloadableFiles) {
     const response = await anthropic.beta.files.download(file.id);
-    const blob = await response.blob();
+    const fileBytes = await response.arrayBuffer();
     const relativeStoragePath = `sessions/${input.sessionId}/${file.filename}`;
     const storagePath = `${input.clientId}/${relativeStoragePath}`;
     const mediaType =
       file.mime_type ??
-      blob.type ??
+      response.headers.get("content-type") ??
       "application/octet-stream";
 
     const { error: uploadError } = await input.supabase.storage
       .from(BUCKET_ID)
-      .upload(storagePath, await blob.arrayBuffer(), {
+      .upload(storagePath, fileBytes, {
         contentType: mediaType,
         upsert: true,
       });

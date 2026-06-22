@@ -8,6 +8,8 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
 
+const isVercelDeployBuild = process.env.VERCEL === "1";
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async redirects() {
@@ -101,7 +103,12 @@ const nextConfig: NextConfig = {
     ],
   },
   eslint: {
-    ignoreDuringBuilds: false,
+    ignoreDuringBuilds: isVercelDeployBuild,
+  },
+  typescript: {
+    // GitHub CI and local `pnpm build` remain strict; Vercel deploy builds skip
+    // this duplicate validation step to avoid remote builder OOM/timeouts.
+    ignoreBuildErrors: isVercelDeployBuild,
   },
   turbopack: {
     resolveAlias: {

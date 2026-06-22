@@ -18,6 +18,7 @@ environment files, auth state, generated screenshots, or tool scratch output.
 
 ```bash
 pnpm lint
+pnpm typecheck
 pnpm test:run
 pnpm build
 ```
@@ -25,6 +26,9 @@ pnpm build
 `pnpm test:run` runs the unit project. Run `pnpm test:integration` separately
 after `supabase start` when a change touches RLS, trigger RPCs, approval events,
 or other database behavior that needs real Postgres coverage.
+
+Vercel deploy builds intentionally skip Next.js' duplicate lint/type validation
+step. GitHub CI and the local commands above are the required correctness gate.
 
 Prefer focused commits using conventional commit messages, for example:
 
