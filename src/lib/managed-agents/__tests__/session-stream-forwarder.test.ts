@@ -32,6 +32,30 @@ describe("buildUiStreamCallbacks", () => {
     ]);
   });
 
+  it("splits completed agent messages into incremental text deltas", async () => {
+    const { writes, writer } = mockWriter();
+    const callbacks = buildUiStreamCallbacks(writer);
+    const text =
+      "Reliable CRM notes make every follow-up easier because context stays attached to the client.";
+
+    await callbacks.onAgentMessage?.({
+      id: "evt_1",
+      content: [{ type: "text", text }],
+    } as never);
+
+    const textDeltas = writes.filter(
+      (write): write is { type: "text-delta"; id: string; delta: string } =>
+        typeof write === "object" &&
+        write !== null &&
+        (write as { type?: string }).type === "text-delta",
+    );
+
+    expect(textDeltas.length).toBeGreaterThan(1);
+    expect(textDeltas.map((delta) => delta.delta).join("")).toBe(text);
+    expect(writes.at(0)).toEqual({ type: "text-start", id: "evt_1" });
+    expect(writes.at(-1)).toEqual({ type: "text-end", id: "evt_1" });
+  });
+
   it("emits tool-input-available for agent.custom_tool_use", async () => {
     const { writes, writer } = mockWriter();
     const callbacks = buildUiStreamCallbacks(writer);

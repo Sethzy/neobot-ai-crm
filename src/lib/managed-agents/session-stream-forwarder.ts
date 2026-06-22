@@ -14,6 +14,69 @@ import { createConsoleLogger } from "@/lib/logger";
 
 const console = createConsoleLogger();
 
+const TEXT_STREAM_CHUNK_SIZE = 48;
+const TEXT_STREAM_CHUNK_DELAY_MS = 8;
+const MAX_DELAYED_TEXT_CHUNKS = 160;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getTextBlockContent(block: {
+  type: string;
+  text?: string;
+  data?: string;
+}): string | null {
+  if (block.type !== "text") {
+    return null;
+  }
+
+  if (typeof block.text === "string") {
+    return block.text;
+  }
+
+  if (typeof block.data === "string") {
+    return block.data;
+  }
+
+  return null;
+}
+
+function splitTextForStream(text: string): string[] {
+  const chunks: string[] = [];
+
+  for (let index = 0; index < text.length; index += TEXT_STREAM_CHUNK_SIZE) {
+    chunks.push(text.slice(index, index + TEXT_STREAM_CHUNK_SIZE));
+  }
+
+  return chunks;
+}
+
+async function writeTextDeltaChunks(
+  writer: UIMessageStreamWriter,
+  id: string,
+  text: string,
+): Promise<void> {
+  const chunks = splitTextForStream(text);
+
+  for (let index = 0; index < chunks.length; index += 1) {
+    writer.write({
+      type: "text-delta",
+      id,
+      delta: chunks[index],
+    } as never);
+
+    const shouldPause =
+      TEXT_STREAM_CHUNK_DELAY_MS > 0 &&
+      index < chunks.length - 1 &&
+      index < MAX_DELAYED_TEXT_CHUNKS;
+
+    if (shouldPause) {
+      await sleep(TEXT_STREAM_CHUNK_DELAY_MS);
+    }
+  }
+}
+
 export function buildUiStreamCallbacks(
   writer: UIMessageStreamWriter,
 ): SessionRunnerCallbacks {
@@ -24,19 +87,17 @@ export function buildUiStreamCallbacks(
     onSpanModelRequestStart: () => {
       writer.write({ type: "start-step" } as never);
     },
-    onAgentMessage: (event) => {
+    onAgentMessage: async (event) => {
       const typedEvent = event as {
         id: string;
-        content: Array<{ type: string; text?: string }>;
+        content: Array<{ type: string; text?: string; data?: string }>;
       };
       let textStarted = false;
 
       for (const block of typedEvent.content) {
-        if (
-          block.type === "text" &&
-          typeof block.text === "string" &&
-          block.text.length > 0
-        ) {
+        const text = getTextBlockContent(block);
+
+        if (text && text.length > 0) {
           if (!textStarted) {
             writer.write({ type: "text-start", id: typedEvent.id } as never);
             textStarted = true;
@@ -45,11 +106,7 @@ export function buildUiStreamCallbacks(
             firstTextWritten = true;
             console.log(`[session-stream-forwarder] first text-delta written to stream — ${Math.round(performance.now() - tForwarderCreated)}ms since forwarder created`);
           }
-          writer.write({
-            type: "text-delta",
-            id: typedEvent.id,
-            delta: block.text,
-          } as never);
+          await writeTextDeltaChunks(writer, typedEvent.id, text);
         }
       }
 
