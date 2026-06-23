@@ -70,7 +70,7 @@ export default function UpdatePasswordPageClient() {
       title="Set new password"
     >
       {error ? (
-        <div className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-meta text-destructive">
+        <div className="mb-6 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-meta text-destructive">
           {error}
         </div>
       ) : null}
