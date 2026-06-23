@@ -56,7 +56,7 @@ function FaqAccordion({ faqs }: { faqs: Array<{ question: string; answer: string
   const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   return (
-    <div className="divide-y divide-zinc-200">
+    <div className="divide-y divide-lp-border">
       {faqs.map((faq, index) => (
         <div key={index} className="py-4">
           <button
@@ -64,10 +64,10 @@ function FaqAccordion({ faqs }: { faqs: Array<{ question: string; answer: string
             aria-expanded={openIndex === index}
             className="flex w-full items-center justify-between text-left"
           >
-            <span className="font-medium text-zinc-900">{faq.question}</span>
+            <span className="font-medium text-lp-dark">{faq.question}</span>
             <AppIcon
               name="chevronDown"
-              className={`h-5 w-5 text-zinc-500 transition-transform ${
+              className={`h-5 w-5 text-lp-muted transition-transform ${
                 openIndex === index ? 'rotate-180' : ''
               }`}
             />
@@ -78,7 +78,7 @@ function FaqAccordion({ faqs }: { faqs: Array<{ question: string; answer: string
             }`}
           >
             <div className="min-h-0">
-              <p className="pt-3 text-sm text-zinc-600">{faq.answer}</p>
+              <p className="pt-3 text-sm text-lp-muted">{faq.answer}</p>
             </div>
           </div>
         </div>
@@ -114,7 +114,7 @@ export function Faqs() {
       <section
       id="faq"
       aria-labelledby="faq-title"
-      className="relative overflow-hidden bg-parchment py-20 sm:py-24 md:py-32"
+      className="relative overflow-hidden bg-lp-canvas py-20 sm:py-24 md:py-32"
     >
       <Container className="relative">
         <div
@@ -123,9 +123,9 @@ export function Faqs() {
         >
           <h2
             id="faq-title"
-            className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl md:text-5xl"
+            className="text-balance text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl md:text-5xl"
           >
-            Frequently asked <span className="italic text-sunder-green">questions.</span>
+            Frequently asked <span className="text-sunder-green">questions.</span>
           </h2>
           <p className="mt-4 text-base leading-7 text-muted-foreground sm:mt-6 sm:text-lg sm:leading-8">
             Everything you need to know about NeoBot.
@@ -144,7 +144,7 @@ export function Faqs() {
         <dl className="hidden lg:mx-auto lg:mt-16 lg:grid lg:max-w-2xl lg:grid-cols-1 lg:gap-x-8 lg:gap-y-10 lg:max-w-none lg:grid-cols-3">
           {faqs.map((faq) => (
             <div key={faq.question}>
-              <dt className="font-serif text-lg leading-7 text-foreground">
+              <dt className="text-lg font-semibold leading-7 text-foreground">
                 {faq.question}
               </dt>
               <dd className="mt-4 text-sm leading-6 text-muted-foreground">

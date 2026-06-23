@@ -71,10 +71,10 @@ export function PromoVideo() {
   }
 
   return (
-    <div className="relative mx-auto w-full overflow-hidden rounded-2xl shadow-xl shadow-black/15">
+    <div className="relative mx-auto w-full overflow-hidden rounded-xl border border-lp-border bg-lp-panel shadow-sm">
       <video
         ref={videoRef}
-        className="w-full aspect-video bg-zinc-100"
+        className="w-full aspect-video bg-lp-panel-muted"
         poster="/exports/sunder-poster.jpg"
         preload="metadata"
         playsInline
@@ -93,7 +93,7 @@ export function PromoVideo() {
           className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/30 transition-colors hover:bg-black/40 group cursor-pointer focus:outline-none"
           aria-label="Watch demo with sound"
         >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-xl ring-1 ring-black/5 transition-transform group-hover:scale-110 sm:h-20 sm:w-20">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform group-hover:scale-110 sm:h-20 sm:w-20">
             <AppIcon name="play" className="h-6 w-6 text-sunder-green sm:h-8 sm:w-8" />
           </div>
           <span className="mt-4 text-sm font-medium text-white sm:text-base">

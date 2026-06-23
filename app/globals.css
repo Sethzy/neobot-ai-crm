@@ -302,12 +302,16 @@
   --color-sunder-green: #024F46;
   --color-sunder-green-light: #40916C;
   --color-sunder-green-dark: #1B4332;
-  --color-parchment: #F5EEE1;
+  --color-lp-canvas: oklch(0.9850 0.0040 155);
+  --color-lp-panel: oklch(1 0 0);
+  --color-lp-panel-muted: oklch(0.9550 0.0070 155);
+  --color-lp-border: oklch(0.8750 0.0120 155);
+  --color-parchment: var(--color-lp-canvas);
   --color-lp-gold: #C8962E;
-  --color-lp-border-warm: #E8DCC8;
+  --color-lp-border-warm: var(--color-lp-border);
   --color-lp-green-muted: #B7E4C7;
-  --color-lp-dark: #1A1A1A;
-  --color-lp-muted: #6B5E57;
+  --color-lp-dark: oklch(0.2050 0.0240 160);
+  --color-lp-muted: oklch(0.4300 0.0220 160);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-success-border: var(--success-border);
@@ -413,24 +417,24 @@
 
 /* Landing Page Specific Scoped Theme */
 .landing-page {
-  --background: #F5EEE1;
+  --background: var(--color-lp-canvas);
   --foreground: var(--color-lp-dark);
-  --card: theme('colors.white');
+  --card: var(--color-lp-panel);
   --card-foreground: var(--color-lp-dark);
-  --popover: theme('colors.white');
-  --popover-foreground: #1A1A1A;
+  --popover: var(--color-lp-panel);
+  --popover-foreground: var(--color-lp-dark);
   --primary: #024F46;
   --primary-foreground: theme('colors.white');
   --secondary: #D8F3DC;
   --secondary-foreground: #024F46;
-  --muted: theme('colors.zinc.100');
-  --muted-foreground: #6B7280;
+  --muted: var(--color-lp-panel-muted);
+  --muted-foreground: var(--color-lp-muted);
   --accent: #E8F5E9;
   --accent-foreground: #024F46;
   --destructive: theme('colors.red.500');
   --destructive-foreground: theme('colors.white');
-  --border: #E8DFD0;
-  --input: #E8DFD0;
+  --border: var(--color-lp-border);
+  --input: var(--color-lp-border);
   --ring: #024F46;
   /* Override sunder-green palette for landing page (now matches global) */
   /* --color-sunder-green: #024F46; */
@@ -464,10 +468,6 @@
 }
 
 @layer utilities {
-  .font-landing-headline {
-    font-family: var(--font-newsreader), ui-serif, Georgia, serif;
-  }
-
   .touch-target {
     min-width: 2.75rem;
     min-height: 2.75rem;

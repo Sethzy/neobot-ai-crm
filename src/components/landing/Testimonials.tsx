@@ -85,7 +85,7 @@ const featuredTestimonials: FeaturedTestimonial[] = [
 
 function MarqueeCard({ testimonial }: { testimonial: MarqueeTestimonial }) {
   return (
-    <figure className="w-[300px] shrink-0 rounded-2xl bg-parchment px-7 pt-8 pb-7 flex flex-col justify-end gap-4 text-center">
+    <figure className="flex w-[300px] shrink-0 flex-col justify-end gap-4 rounded-xl bg-lp-panel px-7 pt-8 pb-7 text-center">
       <blockquote>
         <p className="text-base leading-relaxed text-lp-dark">
           {testimonial.content}
@@ -101,7 +101,7 @@ function MarqueeCard({ testimonial }: { testimonial: MarqueeTestimonial }) {
         />
         <div className="text-left">
           <span className="font-semibold text-lp-dark">{testimonial.author.name}</span>
-          <p className="text-xs text-[#6B6B6B]">{testimonial.author.role}</p>
+          <p className="text-xs text-lp-muted">{testimonial.author.role}</p>
         </div>
       </figcaption>
     </figure>
@@ -114,9 +114,9 @@ function MarqueeCard({ testimonial }: { testimonial: MarqueeTestimonial }) {
 
 function FeaturedCard({ testimonial }: { testimonial: FeaturedTestimonial }) {
   return (
-    <figure className="relative flex-1 rounded-2xl bg-sunder-green px-8 pt-6 pb-6 sm:px-10 sm:pt-7 sm:pb-7 text-white flex flex-col">
+    <figure className="relative flex flex-1 flex-col rounded-xl bg-sunder-green px-8 pt-6 pb-6 text-white sm:px-10 sm:pt-7 sm:pb-7">
       <AppIcon name="arrowUpRight" className="absolute top-6 right-6 h-7 w-7 text-white/50 sm:top-7 sm:right-8" />
-      <h3 className="font-serif text-3xl tracking-tight sm:text-4xl pr-10">
+      <h3 className="pr-10 text-3xl font-semibold tracking-[-0.025em] sm:text-4xl">
         {testimonial.stat}
       </h3>
       <p className="mt-2 text-base text-white/80">
@@ -148,11 +148,11 @@ export function Testimonials() {
   const { ref: featuredRef, isVisible: featuredVisible } = useStaggeredReveal<HTMLDivElement>()
 
   return (
-    <div className="bg-parchment">
+    <div className="bg-lp-canvas">
     <section
       id="testimonials"
       aria-label="What our customers are saying"
-      className="relative rounded-t-[2rem] rounded-b-[2rem] sm:rounded-t-[5rem] sm:rounded-b-[5rem] pt-16 pb-10 sm:pt-24 sm:pb-14 overflow-x-clip"
+      className="relative overflow-x-clip pt-16 pb-10 sm:pt-24 sm:pb-14"
       style={{ backgroundColor: '#1A1A1A' }}
     >
       {/* Header */}
@@ -160,10 +160,8 @@ export function Testimonials() {
         ref={headerRef}
         className={`relative mx-auto max-w-3xl text-center px-6 pb-12 sm:pb-16 scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
       >
-        <h2 className="relative font-serif text-4xl tracking-tight text-[#F5EEE1] sm:text-5xl lg:text-6xl" style={{ transform: 'rotate(-4deg)' }}>
-          Kind words
-          <br />
-          <span className="italic text-[#F5EEE1]/70">from our users.</span>
+        <h2 className="relative text-balance text-4xl font-semibold tracking-[-0.03em] text-white sm:text-5xl lg:text-6xl">
+          What operators say after NeoBot takes over the admin.
         </h2>
       </div>
 

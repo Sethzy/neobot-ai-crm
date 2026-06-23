@@ -19,7 +19,7 @@ function CompetitorLogo({ name, domain }: { name: string; domain: string }) {
   if (failed) {
     return (
       <div
-        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#EDE6DB] text-caption font-bold text-[#8B7E76]"
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-lp-panel-muted text-caption font-bold text-lp-muted"
         title={name}
       >
         {name[0]}
@@ -80,7 +80,7 @@ export function Differentiator() {
     <section
       id="differentiator"
       aria-label="Built-in tools value comparison"
-      className="bg-parchment py-20 sm:py-24 md:py-32"
+      className="bg-lp-canvas py-20 sm:py-24 md:py-32"
     >
       <Container>
         {/* Header */}
@@ -88,9 +88,9 @@ export function Differentiator() {
           ref={headerRef}
           className={`mx-auto max-w-2xl md:text-center scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
         >
-          <h2 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl md:text-5xl">
+          <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl md:text-5xl">
             One subscription.{' '}
-            <span className="relative inline-block italic text-sunder-green whitespace-nowrap">
+            <span className="relative inline-block text-sunder-green whitespace-nowrap">
               Fifteen tools.
               <SparkleDecoration className="absolute -top-4 -right-10 w-12 h-12 pointer-events-none" />
             </span>
@@ -106,7 +106,7 @@ export function Differentiator() {
           ref={tableRef}
           className={`mx-auto mt-12 max-w-3xl scroll-reveal ${tableVisible ? 'is-visible' : ''}`}
         >
-          <table className="w-full overflow-hidden rounded-2xl bg-white shadow-2xl shadow-sunder-green-dark/[0.12] ring-1 ring-black/[0.08]">
+          <table className="w-full overflow-hidden rounded-xl border border-lp-border bg-lp-panel shadow-sm">
             <thead>
               <tr
                 className="grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-5 sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-5"
@@ -137,9 +137,9 @@ export function Differentiator() {
                     key={tool.capability}
                     className={cn(
                       'group grid grid-cols-[1fr_70px_48px] gap-x-2 items-center px-4 py-2.5 transition-colors sm:grid-cols-[1fr_1fr_80px_64px] sm:gap-x-4 sm:px-8 sm:py-3',
-                      i !== tools.length - 1 && 'border-b border-[#EDE6DB]/60',
-                      i % 2 === 0 ? 'bg-white' : 'bg-[#FAF7F2]',
-                      'hover:bg-[#F0EBE0]',
+                      i !== tools.length - 1 && 'border-b border-lp-border/70',
+                      i % 2 === 0 ? 'bg-lp-panel' : 'bg-lp-panel-muted/60',
+                      'hover:bg-lp-panel-muted',
                     )}
                   >
                     {/* Feature name + icon */}
@@ -148,7 +148,7 @@ export function Differentiator() {
                         className={cn(
                           'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
                           isComingSoon
-                            ? 'bg-[#EDE6DB]/50 text-[#A89E96]'
+                            ? 'bg-lp-panel-muted text-lp-muted/60'
                             : 'bg-sunder-green/[0.12] text-sunder-green group-hover:bg-sunder-green/20',
                         )}
                       >
@@ -158,7 +158,7 @@ export function Differentiator() {
                         <div
                           className={cn(
                             'text-meta font-medium sm:text-body',
-                            isComingSoon ? 'text-[#A89E96]' : 'text-foreground',
+                            isComingSoon ? 'text-lp-muted/60' : 'text-foreground',
                           )}
                         >
                           {tool.capability}
@@ -182,7 +182,7 @@ export function Differentiator() {
                       {tool.replaces.map((comp) => (
                         <CompetitorLogo key={comp.domain} name={comp.name} domain={comp.domain} />
                       ))}
-                      <span className={cn('text-sm', isComingSoon ? 'text-[#C5BBB2]' : 'text-[#8B7E76]')}>
+                      <span className={cn('text-sm', isComingSoon ? 'text-lp-muted/50' : 'text-lp-muted')}>
                         {tool.replaces.map((c) => c.name).join(', ')}
                       </span>
                     </td>
@@ -191,7 +191,7 @@ export function Differentiator() {
                     <td
                       className={cn(
                         'text-right text-sm font-medium tabular-nums',
-                        isComingSoon ? 'text-[#C5BBB2]' : 'text-[#8B6B55]',
+                        isComingSoon ? 'text-lp-muted/50' : 'text-lp-muted',
                       )}
                     >
                       ${tool.monthlyCost}/mo
@@ -238,17 +238,14 @@ export function Differentiator() {
           </table>
 
           {/* Savings callout card */}
-          <div className="relative mt-8 overflow-hidden rounded-2xl border border-sunder-green/15 bg-[#013D36] px-6 py-10 sm:px-10 sm:py-12 shadow-xl shadow-sunder-green-dark/10">
-            {/* Subtle glow */}
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,rgba(64,145,108,0.2),transparent)]" />
-
+          <div className="relative mt-8 overflow-hidden rounded-xl border border-sunder-green/20 bg-[#013D36] px-6 py-10 sm:px-10 sm:py-12">
             <div className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:justify-center sm:gap-10">
               {/* Separately */}
               <div className="text-center">
                 <p className="text-caption font-semibold uppercase tracking-[0.12em] text-white/60 sm:text-xs">
                   If you bought them all
                 </p>
-                <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap font-serif text-2xl font-bold text-white/40 line-through decoration-white/20 sm:text-3xl">
+                <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap text-2xl font-bold text-white/40 line-through decoration-white/20 sm:text-3xl">
                   <span className="tabular-nums">${totalCost}</span>
                   <span className="text-base text-white/20 no-underline">/mo</span>
                 </p>
@@ -263,7 +260,7 @@ export function Differentiator() {
                 <p className="text-caption font-semibold uppercase tracking-[0.12em] text-white/70 sm:text-xs">
                   With NeoBot
                 </p>
-                <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap font-serif text-3xl font-bold text-white sm:text-4xl">
+                <p className="mt-2 inline-flex items-baseline justify-center whitespace-nowrap text-3xl font-bold text-white sm:text-4xl">
                   <span className="tabular-nums">S$99</span>
                   <span className="text-lg text-white/60">/mo</span>
                 </p>

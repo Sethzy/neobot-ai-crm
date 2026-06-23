@@ -173,7 +173,7 @@ export function PrimaryFeatures() {
           ref={headerRef}
           className={`max-w-2xl md:mx-auto md:text-center xl:max-w-none scroll-reveal ${headerVisible ? "is-visible" : ""}`}
         >
-          <h2 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl md:text-5xl">
+          <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl md:text-5xl">
             The AI assistant that actually{" "}
             <span className="relative w-max inline-block text-foreground z-10">
               <SunburstDecoration className="absolute -left-[5%] top-[85%] w-[110%] pointer-events-none -z-10" />
@@ -203,7 +203,7 @@ export function PrimaryFeatures() {
                   "group relative py-5 text-left transition-all duration-300 select-none sm:py-6",
                   // Dashed divider for all except the last item
                   featureIndex !== features.length - 1 &&
-                    "border-b border-dashed border-zinc-200",
+                    "border-b border-dashed border-lp-border",
                   // Cursor pointer on desktop only
                   "md:cursor-pointer",
                   // Focus indicator
@@ -218,19 +218,19 @@ export function PrimaryFeatures() {
                       "text-sunder-green",
                       // Desktop: color based on hover state
                       selectedIndex !== featureIndex &&
-                        "md:text-zinc-400 md:group-hover:text-zinc-500",
+                        "md:text-lp-muted/65 md:group-hover:text-lp-muted",
                     )}
                   >
                     <AppIcon name={feature.icon} className="h-5 w-5" />
                   </div>
                   <h3
                     className={cn(
-                      "font-serif text-lg transition-colors sm:text-xl",
+                      "text-lg font-semibold transition-colors sm:text-xl",
                       // Mobile: always active color
                       "text-foreground",
                       // Desktop: color based on hover state
                       selectedIndex !== featureIndex &&
-                        "md:text-zinc-400 md:group-hover:text-zinc-600",
+                        "md:text-lp-muted/65 md:group-hover:text-lp-muted",
                     )}
                   >
                     {feature.title}

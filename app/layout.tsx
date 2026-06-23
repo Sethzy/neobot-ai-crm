@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Newsreader } from "next/font/google";
 import localFont from "next/font/local";
 import { GeistMono } from "geist/font/mono";
 import { Agentation } from "agentation";
@@ -24,13 +23,6 @@ const fraunces = localFont({
     { path: "../public/fonts/fraunces-latin-full-italic.woff2", style: "italic" },
   ],
   variable: "--font-display",
-  display: "swap",
-});
-
-const newsreader = Newsreader({
-  subsets: ["latin"],
-  style: ["normal", "italic"],
-  variable: "--font-newsreader",
   display: "swap",
 });
 
@@ -73,7 +65,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" className={cn(GeistMono.variable, figtree.variable, fraunces.variable, newsreader.variable)}>
+    <html lang="en" className={cn(GeistMono.variable, figtree.variable, fraunces.variable)}>
       <body>
         <script
           type="application/ld+json"

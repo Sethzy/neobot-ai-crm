@@ -98,15 +98,15 @@ export function Pricing() {
     <section
       id="pricing"
       aria-label="Pricing"
-      className="bg-gradient-to-b from-parchment via-[#F7ECDA] to-parchment py-20 sm:py-24 md:py-32"
+      className="bg-lp-canvas py-20 sm:py-24 md:py-32"
     >
       <Container>
         <div
           ref={headerRef}
           className={`mx-auto max-w-2xl text-center scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
         >
-          <h2 className="font-serif text-2xl tracking-tight text-foreground sm:text-3xl md:text-5xl">
-            10 hours back per week for less than <span className="italic text-sunder-green">a coffee a day.</span>
+          <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl md:text-5xl">
+            10 hours back per week for less than <span className="text-sunder-green">a coffee a day.</span>
           </h2>
           <p className="mt-4 text-base leading-7 text-lp-muted sm:mt-6 sm:text-lg sm:leading-8">
             Free forever to start. Upgrade when you need more.
@@ -131,7 +131,7 @@ export function Pricing() {
                 )}
                 <h3
                   className={cn(
-                    'font-serif text-xl font-medium',
+                    'text-xl font-semibold',
                     plan.featured ? 'text-white' : 'text-foreground'
                   )}
                 >
@@ -154,7 +154,7 @@ export function Pricing() {
                     <>
                       <span
                         className={cn(
-                          'font-serif text-4xl font-medium tracking-tight',
+                          'text-4xl font-semibold tracking-[-0.025em]',
                           plan.featured ? 'text-white' : 'text-foreground'
                         )}
                       >
@@ -208,11 +208,7 @@ export function Pricing() {
               return (
                 <article
                   key={plan.name}
-                  className="relative flex flex-col overflow-hidden rounded-2xl bg-[#024F46] p-6 text-white lg:scale-105 sm:p-8 transition-transform duration-200 hover:-translate-y-1"
-                  style={{
-                    border: '1px solid rgba(255,255,255,0.6)',
-                    boxShadow: '0 25px 50px -12px rgba(27, 50, 36, 0.25)',
-                  }}
+                  className="relative flex flex-col overflow-hidden rounded-xl border border-sunder-green bg-[#024F46] p-6 text-white transition-transform duration-200 hover:-translate-y-1 lg:scale-[1.02] sm:p-8"
                 >
                   {cardContent}
                 </article>
@@ -222,7 +218,7 @@ export function Pricing() {
             return (
               <article
                 key={plan.name}
-                className="flex flex-col rounded-2xl bg-white p-6 shadow-sm ring-1 ring-lp-border-warm sm:p-8"
+                className="flex flex-col rounded-xl border border-lp-border bg-lp-panel p-6 sm:p-8"
               >
                 {cardContent}
               </article>

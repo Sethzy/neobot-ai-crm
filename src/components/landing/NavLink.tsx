@@ -28,7 +28,7 @@ export function NavLink({
         href={href}
         onClick={handleClick}
         className={cn(
-          'inline-block text-sm font-medium text-zinc-600 transition-colors hover:text-sunder-green',
+          'inline-block text-sm font-medium text-lp-muted transition-colors hover:text-sunder-green',
           className,
         )}
       >
@@ -41,7 +41,7 @@ export function NavLink({
     <Link
       href={href}
       className={cn(
-        'inline-block text-sm font-medium text-zinc-600 transition-colors hover:text-sunder-blue',
+        'inline-block text-sm font-medium text-lp-muted transition-colors hover:text-sunder-green',
         className,
       )}
     >

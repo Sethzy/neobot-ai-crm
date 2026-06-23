@@ -140,7 +140,7 @@ export function Header() {
         <nav
           className={`flex w-full items-center justify-between px-4 py-3 transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] sm:rounded-full sm:px-6 sm:py-2.5 ${
             isScrolled
-              ? 'border-b border-zinc-200/80 bg-parchment/90 backdrop-blur-xl sm:border sm:bg-parchment/85 sm:shadow-lg sm:shadow-zinc-900/[0.04] sm:ring-1 sm:ring-zinc-900/[0.06]'
+              ? 'border-b border-lp-border bg-lp-panel/95 sm:border sm:bg-lp-panel sm:shadow-sm'
               : 'bg-transparent'
           }`}
         >
