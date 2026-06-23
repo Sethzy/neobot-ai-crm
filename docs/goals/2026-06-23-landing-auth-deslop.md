@@ -55,11 +55,11 @@ Progress is blocked if the app cannot be installed or run due to unrelated depen
 
 | Deliverable | Evidence Required | Status | Evidence Link / Command |
 | --- | --- | --- | --- |
-| Goal checkpoint commit exists before UI fixes | Commit containing this goal artifact only | Not started | `git log --oneline -1` |
-| Landing visual language de-slopped | Landing diff removes/reduces saturated AI tells while preserving route behavior | Not started | `git diff HEAD~..HEAD -- src/components/landing app/page.tsx` |
-| Auth visual language de-slopped | Auth shell diff removes glass/default hero cards and keeps auth layout usable | Not started | `git diff HEAD~..HEAD -- src/components/auth app/login app/register app/forgot-password app/update-password` |
-| Inspection completed | Desktop/mobile visual or source inspection recorded; static scan run | Not started | `node .agents/skills/impeccable/scripts/detect.mjs --json app src/components/landing src/components/auth` |
-| Verification completed | Relevant lint/type/test command run and result recorded | Not started | `pnpm lint` or narrower available command |
+| Goal checkpoint commit exists before UI fixes | Commit containing this goal artifact only | Complete | `b8803653 chore: define landing auth deslop goal` |
+| Landing visual language de-slopped | Landing diff removes/reduces saturated AI tells while preserving route behavior | Complete | `5a1d938a style: de-slop landing visual language` |
+| Auth visual language de-slopped | Auth shell diff removes glass/default hero cards and keeps auth layout usable | Complete | `bcee00d0 style: simplify auth visual shell` |
+| Inspection completed | Desktop/mobile visual or source inspection recorded; static scan run | Complete | `node .agents/skills/impeccable/scripts/detect.mjs --json app/page.tsx app/globals.css app/layout.tsx src/components/landing src/components/auth app/login app/register app/forgot-password app/update-password app/auth/confirm` returned `[]`; screenshots inspected at `/tmp/neobot-deslop-screens/*.png` |
+| Verification completed | Relevant lint/type/test command run and result recorded | Complete | `pnpm typecheck` passed; `pnpm lint` passed |
 
 ## Goal Prompt
 
@@ -69,4 +69,16 @@ Progress is blocked if the app cannot be installed or run due to unrelated depen
 
 ## Iteration Log
 
+- `b8803653` created this goal artifact before UI fixes.
+- `5a1d938a` changed the landing visual language: moved landing surfaces from warm parchment to a green-tinted neutral canvas, removed Newsreader/unused old auth-preview assets, reduced serif/italic display usage, removed glass/shadow treatments, and simplified section cards/tables.
+- `bcee00d0` simplified the auth shell: replaced the watercolor/gradient/glass feature cards with a plain dark trust panel, removed the heavy left-column shadow, and normalized oversized alert radii.
+- Verification after both UI commits: detector returned `[]`; `pnpm typecheck` passed; `pnpm lint` passed; Playwright screenshots of `/`, `/login`, and landing sections showed no horizontal overflow and no remaining glass/parchment/editorial landing pattern.
+
 ## Final Result
+
+Landing and auth de-slop work is complete. The public landing page now uses a calmer green-tinted neutral canvas, sans/product-minded headings, cleaner cards/tables, and fewer decorative shadows. The auth shell now reads as an operational trust panel instead of a generic glassmorphism SaaS split screen. The work is split into revertable commits:
+
+- `5a1d938a style: de-slop landing visual language`
+- `bcee00d0 style: simplify auth visual shell`
+
+Evidence: `pnpm typecheck` passed, `pnpm lint` passed, the impeccable detector returned `[]` for the landing/auth target set, and screenshots were inspected for desktop/mobile landing and login plus landing sections. Existing unrelated dirty files were not committed.
