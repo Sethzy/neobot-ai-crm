@@ -88,11 +88,11 @@ export function Differentiator() {
           ref={headerRef}
           className={`mx-auto max-w-2xl md:text-center scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
         >
-          <h2 className="font-serif text-balance text-4xl font-medium leading-[0.98] tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl">
+          <h2 className="max-w-full break-words font-serif text-balance text-4xl font-medium leading-[0.98] tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl">
             One subscription.{' '}
-            <span className="relative inline-block text-lp-ink whitespace-nowrap">
+            <span className="relative inline-block text-lp-ink">
               Fifteen tools.
-              <SparkleDecoration className="absolute -top-4 -right-10 w-12 h-12 pointer-events-none" />
+              <SparkleDecoration className="pointer-events-none absolute -top-2 -right-6 hidden h-8 w-8 sm:block md:-top-4 md:-right-10 md:h-12 md:w-12" />
             </span>
           </h2>
           <p className="mt-4 text-base leading-7 text-lp-ink-muted sm:mt-6 sm:text-lg sm:leading-8">

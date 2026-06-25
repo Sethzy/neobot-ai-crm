@@ -39,7 +39,7 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   return (
     <SmoothScrollShell>
-      <div className="landing-page min-h-screen selection:bg-lp-lavender selection:text-lp-ink">
+      <div className="landing-page min-h-screen overflow-x-clip selection:bg-lp-lavender selection:text-lp-ink">
         <Header />
         <main>
           <Hero />
