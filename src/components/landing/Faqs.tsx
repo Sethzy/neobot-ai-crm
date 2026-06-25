@@ -67,7 +67,7 @@ function FaqAccordion({ faqs }: { faqs: Array<{ question: string; answer: string
             <span className="font-medium text-lp-dark">{faq.question}</span>
             <AppIcon
               name="chevronDown"
-              className={`h-5 w-5 text-lp-muted transition-transform ${
+              className={`h-5 w-5 text-lp-ink-muted transition-transform ${
                 openIndex === index ? 'rotate-180' : ''
               }`}
             />
@@ -78,7 +78,7 @@ function FaqAccordion({ faqs }: { faqs: Array<{ question: string; answer: string
             }`}
           >
             <div className="min-h-0">
-              <p className="pt-3 text-sm text-lp-muted">{faq.answer}</p>
+              <p className="pt-3 text-sm text-lp-ink-muted">{faq.answer}</p>
             </div>
           </div>
         </div>
@@ -123,11 +123,11 @@ export function Faqs() {
         >
           <h2
             id="faq-title"
-            className="text-balance text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl md:text-5xl"
+            className="font-serif text-balance text-4xl font-medium leading-[0.98] tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl"
           >
-            Frequently asked <span className="text-sunder-green">questions.</span>
+            Frequently asked <span className="text-lp-ink">questions.</span>
           </h2>
-          <p className="mt-4 text-base leading-7 text-muted-foreground sm:mt-6 sm:text-lg sm:leading-8">
+          <p className="mt-4 text-base leading-7 text-lp-ink-muted sm:mt-6 sm:text-lg sm:leading-8">
             Everything you need to know about NeoBot.
           </p>
         </div>
@@ -147,7 +147,7 @@ export function Faqs() {
               <dt className="text-lg font-semibold leading-7 text-foreground">
                 {faq.question}
               </dt>
-              <dd className="mt-4 text-sm leading-6 text-muted-foreground">
+              <dd className="mt-4 text-sm leading-6 text-lp-ink-muted">
                 {faq.answer}
               </dd>
             </div>

@@ -90,13 +90,13 @@ export function PromoVideo() {
       {!hasInteracted && (
         <button
           onClick={handleUnmute}
-          className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/30 transition-colors hover:bg-black/40 group cursor-pointer focus:outline-none"
+          className="absolute inset-0 z-10 flex cursor-pointer flex-col items-center justify-center bg-lp-black/35 transition-colors hover:bg-lp-black/45 group focus:outline-none"
           aria-label="Watch demo with sound"
         >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform group-hover:scale-110 sm:h-20 sm:w-20">
-            <AppIcon name="play" className="h-6 w-6 text-sunder-green sm:h-8 sm:w-8" />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-lp-cream shadow-sm ring-1 ring-lp-black/10 transition-transform group-hover:scale-110 sm:h-20 sm:w-20">
+            <AppIcon name="play" className="h-6 w-6 text-lp-black sm:h-8 sm:w-8" />
           </div>
-          <span className="mt-4 text-sm font-medium text-white sm:text-base">
+          <span className="mt-4 text-sm font-medium text-lp-cream sm:text-base">
             Watch 27s demo
           </span>
         </button>

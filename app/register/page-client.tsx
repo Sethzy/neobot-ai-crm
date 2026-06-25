@@ -174,7 +174,7 @@ export default function RegisterPageClient() {
 
           <Button
             type="submit"
-            className="h-12 w-full rounded-full bg-sunder-green font-semibold text-white shadow-sm transition hover:bg-sunder-green-light"
+            className="h-12 w-full rounded-full bg-lp-black font-semibold text-lp-cream shadow-sm transition hover:bg-lp-lavender hover:text-lp-ink"
             disabled={isLoading}
           >
             <span>

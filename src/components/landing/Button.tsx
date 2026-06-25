@@ -16,15 +16,16 @@ const variantStyles = {
   solid: {
     slate:
       'bg-foreground text-background hover:bg-foreground/80 active:bg-foreground/90 active:text-background/80 focus-visible:outline-foreground',
-    green: 'bg-sunder-green text-white hover:bg-sunder-green-light active:bg-sunder-green-dark focus-visible:outline-sunder-green',
+    green:
+      'bg-lp-black text-lp-cream hover:bg-lp-lavender hover:text-lp-ink active:bg-lp-ink focus-visible:outline-lp-black',
     white:
-      'bg-white text-foreground hover:bg-sunder-green/5 active:bg-sunder-green/10 active:text-foreground/80 focus-visible:outline-white',
+      'bg-lp-cream text-lp-ink hover:bg-lp-lavender active:bg-lp-paper-muted active:text-lp-ink focus-visible:outline-lp-cream',
   },
   outline: {
     slate:
       'ring-border text-muted-foreground hover:text-foreground hover:ring-border/80 active:bg-muted active:text-muted-foreground focus-visible:outline-primary focus-visible:ring-border/80',
     white:
-      'ring-white/30 text-white hover:ring-white/50 active:ring-white/30 active:text-white/80 focus-visible:outline-white',
+      'ring-lp-cream/45 text-lp-cream hover:ring-lp-cream active:bg-lp-cream/10 active:text-lp-cream-muted focus-visible:outline-lp-cream',
   },
 }
 

@@ -173,7 +173,7 @@ export function PrimaryFeatures() {
           ref={headerRef}
           className={`max-w-2xl md:mx-auto md:text-center xl:max-w-none scroll-reveal ${headerVisible ? "is-visible" : ""}`}
         >
-          <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl md:text-5xl">
+          <h2 className="font-serif text-balance text-4xl font-medium leading-[0.98] tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl">
             The AI assistant that actually{" "}
             <span className="relative w-max inline-block text-foreground z-10">
               <SunburstDecoration className="absolute -left-[5%] top-[85%] w-[110%] pointer-events-none -z-10" />
@@ -207,7 +207,7 @@ export function PrimaryFeatures() {
                   // Cursor pointer on desktop only
                   "md:cursor-pointer",
                   // Focus indicator
-                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sunder-green rounded-lg",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lp-black rounded-lg",
                 )}
               >
                 <div className="flex items-center gap-4">
@@ -215,10 +215,10 @@ export function PrimaryFeatures() {
                     className={cn(
                       "flex h-10 w-10 shrink-0 items-center justify-center transition-colors",
                       // Mobile: always active color
-                      "text-sunder-green",
+                      "text-lp-black",
                       // Desktop: color based on hover state
                       selectedIndex !== featureIndex &&
-                        "md:text-lp-muted/65 md:group-hover:text-lp-muted",
+                        "md:text-lp-ink-muted md:group-hover:text-lp-ink",
                     )}
                   >
                     <AppIcon name={feature.icon} className="h-5 w-5" />
@@ -230,7 +230,7 @@ export function PrimaryFeatures() {
                       "text-foreground",
                       // Desktop: color based on hover state
                       selectedIndex !== featureIndex &&
-                        "md:text-lp-muted/65 md:group-hover:text-lp-muted",
+                        "md:text-lp-ink-muted md:group-hover:text-lp-ink",
                     )}
                   >
                     {feature.title}

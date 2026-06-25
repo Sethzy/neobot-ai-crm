@@ -105,10 +105,10 @@ export function Pricing() {
           ref={headerRef}
           className={`mx-auto max-w-2xl text-center scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
         >
-          <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-3xl md:text-5xl">
-            10 hours back per week for less than <span className="text-sunder-green">a coffee a day.</span>
+          <h2 className="font-serif text-balance text-4xl font-medium leading-[0.98] tracking-[-0.03em] text-foreground sm:text-5xl md:text-6xl">
+            10 hours back per week for less than <span className="text-lp-ink">a coffee a day.</span>
           </h2>
-          <p className="mt-4 text-base leading-7 text-lp-muted sm:mt-6 sm:text-lg sm:leading-8">
+          <p className="mt-4 text-base leading-7 text-lp-ink-muted sm:mt-6 sm:text-lg sm:leading-8">
             Free forever to start. Upgrade when you need more.
           </p>
         </div>
@@ -123,8 +123,8 @@ export function Pricing() {
                 {plan.featured && (
                   <>
                     {/* Thin top stroke for tactile edge */}
-                    <div className="absolute inset-x-0 top-0 h-px bg-white/60" />
-                    <span className="badge-shimmer mb-3 inline-block rounded-full bg-lp-gold px-3 py-1 text-caption font-bold uppercase tracking-[0.12em] text-white">
+                    <div className="absolute inset-x-0 top-0 h-px bg-lp-cream/70" />
+                    <span className="badge-shimmer mb-3 inline-block rounded-full bg-lp-lavender px-3 py-1 text-caption font-bold uppercase tracking-[0.12em] text-lp-ink">
                       Most Popular
                     </span>
                   </>
@@ -132,7 +132,7 @@ export function Pricing() {
                 <h3
                   className={cn(
                     'text-xl font-semibold',
-                    plan.featured ? 'text-white' : 'text-foreground'
+                    plan.featured ? 'text-lp-cream' : 'text-foreground'
                   )}
                 >
                   {plan.name}
@@ -140,14 +140,14 @@ export function Pricing() {
                 <p
                   className={cn(
                     'mt-1 text-sm',
-                    plan.featured ? 'text-lp-green-muted' : 'text-lp-muted'
+                    plan.featured ? 'text-lp-cream-muted' : 'text-lp-ink-muted'
                   )}
                 >
                   {plan.description}
                 </p>
                 <div className="mt-6 flex items-baseline gap-1">
                   {plan.price === 'Custom' ? (
-                    <span className="text-sm font-medium text-lp-muted">
+                    <span className="text-sm font-medium text-lp-ink-muted">
                       Custom pricing for your team
                     </span>
                   ) : (
@@ -155,7 +155,7 @@ export function Pricing() {
                       <span
                         className={cn(
                           'text-4xl font-semibold tracking-[-0.025em]',
-                          plan.featured ? 'text-white' : 'text-foreground'
+                          plan.featured ? 'text-lp-cream' : 'text-foreground'
                         )}
                       >
                         {plan.price}
@@ -163,7 +163,7 @@ export function Pricing() {
                       <span
                         className={cn(
                           'text-sm',
-                          plan.featured ? 'text-lp-green-muted' : 'text-lp-muted'
+                          plan.featured ? 'text-lp-cream-muted' : 'text-lp-ink-muted'
                         )}
                       >
                         /mo
@@ -175,7 +175,7 @@ export function Pricing() {
                   role="list"
                   className={cn(
                     'mt-6 flex-1 space-y-3 text-sm leading-6',
-                    plan.featured ? 'text-lp-green-muted' : 'text-[#4A4340]'
+                    plan.featured ? 'text-lp-cream-muted' : 'text-lp-ink-muted'
                   )}
                 >
                   {plan.features.map((feature) => (
@@ -183,7 +183,7 @@ export function Pricing() {
                       <CheckIcon
                         className={cn(
                           'h-6 w-6 flex-none',
-                          plan.featured ? 'text-white' : 'text-sunder-green'
+                          plan.featured ? 'text-lp-cream' : 'text-lp-black'
                         )}
                       />
                       {feature}
@@ -195,8 +195,8 @@ export function Pricing() {
                   className={cn(
                     'press-effect mt-6 rounded-full py-2.5 text-sm font-semibold transition-all sm:mt-8',
                     plan.featured
-                      ? 'bg-white text-sunder-green hover:bg-emerald-50'
-                      : 'bg-sunder-green text-white hover:bg-sunder-green-dark'
+                      ? 'bg-lp-cream text-lp-ink hover:bg-lp-lavender'
+                      : 'bg-lp-black text-lp-cream hover:bg-lp-lavender hover:text-lp-ink'
                   )}
                 >
                   {plan.contactSales ? 'Contact Sales' : plan.price === 'S$0' ? 'Get started' : 'Try for free'}
@@ -208,7 +208,7 @@ export function Pricing() {
               return (
                 <article
                   key={plan.name}
-                  className="relative flex flex-col overflow-hidden rounded-xl border border-sunder-green bg-[#024F46] p-6 text-white transition-transform duration-200 hover:-translate-y-1 lg:scale-[1.02] sm:p-8"
+                  className="relative flex flex-col overflow-hidden rounded-xl border border-lp-black bg-lp-black p-6 text-lp-cream transition-transform duration-200 hover:-translate-y-1 lg:scale-[1.02] sm:p-8"
                 >
                   {cardContent}
                 </article>
@@ -228,8 +228,8 @@ export function Pricing() {
 
         <ul className="mx-auto mt-10 flex max-w-lg flex-col items-center gap-3 sm:mt-12 sm:flex-row sm:justify-center sm:gap-8 lg:max-w-none">
           {valueProps.map((prop) => (
-            <li key={prop} className="flex gap-x-3 text-sm text-lp-muted">
-              <CheckIcon className="h-5 w-5 flex-none text-sunder-green" />
+            <li key={prop} className="flex gap-x-3 text-sm text-lp-ink-muted">
+              <CheckIcon className="h-5 w-5 flex-none text-lp-black" />
               {prop}
             </li>
           ))}

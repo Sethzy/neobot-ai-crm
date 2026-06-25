@@ -101,7 +101,7 @@ function MarqueeCard({ testimonial }: { testimonial: MarqueeTestimonial }) {
         />
         <div className="text-left">
           <span className="font-semibold text-lp-dark">{testimonial.author.name}</span>
-          <p className="text-xs text-lp-muted">{testimonial.author.role}</p>
+          <p className="text-xs text-lp-ink-muted">{testimonial.author.role}</p>
         </div>
       </figcaption>
     </figure>
@@ -114,12 +114,12 @@ function MarqueeCard({ testimonial }: { testimonial: MarqueeTestimonial }) {
 
 function FeaturedCard({ testimonial }: { testimonial: FeaturedTestimonial }) {
   return (
-    <figure className="relative flex flex-1 flex-col rounded-xl bg-sunder-green px-8 pt-6 pb-6 text-white sm:px-10 sm:pt-7 sm:pb-7">
-      <AppIcon name="arrowUpRight" className="absolute top-6 right-6 h-7 w-7 text-white/50 sm:top-7 sm:right-8" />
+    <figure className="relative flex flex-1 flex-col rounded-xl bg-lp-lavender px-8 pt-6 pb-6 text-lp-ink sm:px-10 sm:pt-7 sm:pb-7">
+      <AppIcon name="arrowUpRight" className="absolute top-6 right-6 h-7 w-7 text-lp-ink-muted sm:top-7 sm:right-8" />
       <h3 className="pr-10 text-3xl font-semibold tracking-[-0.025em] sm:text-4xl">
         {testimonial.stat}
       </h3>
-      <p className="mt-2 text-base text-white/80">
+      <p className="mt-2 text-base text-lp-ink-muted">
         {testimonial.tagline}
       </p>
       <figcaption className="mt-auto pt-8 flex items-center gap-3">
@@ -131,8 +131,8 @@ function FeaturedCard({ testimonial }: { testimonial: FeaturedTestimonial }) {
           className="h-10 w-10 rounded-full object-cover"
         />
         <div className="text-sm">
-          <div className="font-semibold text-white">{testimonial.author.name}</div>
-          <div className="text-white/70">{testimonial.author.role}</div>
+          <div className="font-semibold text-lp-ink">{testimonial.author.name}</div>
+          <div className="text-lp-ink-muted">{testimonial.author.role}</div>
         </div>
       </figcaption>
     </figure>
@@ -152,15 +152,14 @@ export function Testimonials() {
     <section
       id="testimonials"
       aria-label="What our customers are saying"
-      className="relative overflow-x-clip pt-16 pb-10 sm:pt-24 sm:pb-14"
-      style={{ backgroundColor: '#1A1A1A' }}
+      className="relative overflow-x-clip bg-lp-black pt-16 pb-10 sm:pt-24 sm:pb-14"
     >
       {/* Header */}
       <div
         ref={headerRef}
         className={`relative mx-auto max-w-3xl text-center px-6 pb-12 sm:pb-16 scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
       >
-        <h2 className="relative text-balance text-4xl font-semibold tracking-[-0.03em] text-white sm:text-5xl lg:text-6xl">
+        <h2 className="relative font-serif text-balance text-4xl font-medium leading-[0.98] tracking-[-0.03em] text-lp-cream sm:text-5xl lg:text-6xl">
           What operators say after NeoBot takes over the admin.
         </h2>
       </div>

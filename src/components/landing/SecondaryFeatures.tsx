@@ -74,8 +74,8 @@ function FeatureCard({
         className={cn(
           'flex h-12 w-14 items-center justify-center rounded-xl border transition-colors duration-300',
           isActive
-            ? 'border-white/20 bg-white/[0.08] text-white'
-            : 'border-white/10 bg-white/[0.04] text-white/45',
+            ? 'border-lp-cream/35 bg-lp-cream/[0.08] text-lp-cream'
+            : 'border-lp-cream/20 bg-lp-cream/[0.04] text-lp-cream-subtle',
         )}
       >
         <feature.icon className="h-7 w-7" />
@@ -83,15 +83,15 @@ function FeatureCard({
       <h3
         className={cn(
           'mt-4 text-lg font-semibold transition-colors',
-          isActive ? 'text-white' : 'text-white/55',
+          isActive ? 'text-lp-cream' : 'text-lp-cream-subtle',
         )}
       >
         {feature.name}
       </h3>
-      <p className="mt-2 text-xl font-semibold text-white">
+      <p className="mt-2 text-xl font-semibold text-lp-cream">
         {feature.summary}
       </p>
-      <p className="mt-4 text-sm text-white/70">{feature.description}</p>
+      <p className="mt-4 text-sm text-lp-cream-muted">{feature.description}</p>
     </div>
   )
 }
@@ -111,7 +111,7 @@ function FeaturesMobile() {
           <FeatureCard
             key={feature.value}
             feature={feature}
-            className="mx-auto max-w-2xl rounded-xl border border-white/10 bg-white/[0.06] p-4"
+            className="mx-auto max-w-2xl rounded-xl border border-lp-cream/20 bg-lp-cream/[0.06] p-4"
             isActive
           />
         ))}
@@ -142,18 +142,17 @@ export function SecondaryFeatures() {
     <section
       id="secondary-features"
       aria-label="Skills architecture"
-      className="relative overflow-hidden pt-20 pb-10 sm:pt-24 sm:pb-12 md:pt-32 md:pb-16"
-      style={{ backgroundColor: '#024F46' }}
+      className="relative overflow-hidden bg-lp-black pt-20 pb-10 sm:pt-24 sm:pb-12 md:pt-32 md:pb-16"
     >
       <Container>
         <div
           ref={headerRef}
           className={`mx-auto max-w-2xl md:text-center scroll-reveal ${headerVisible ? 'is-visible' : ''}`}
         >
-          <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] text-white sm:text-3xl md:text-5xl">
+          <h2 className="font-serif text-balance text-4xl font-medium leading-[0.98] tracking-[-0.03em] text-lp-cream sm:text-5xl md:text-6xl">
             Everything's already set up.
           </h2>
-          <p className="mt-4 text-base leading-7 text-white/70 sm:mt-6 sm:text-lg sm:leading-8">
+          <p className="mt-4 text-base leading-7 text-lp-cream-muted sm:mt-6 sm:text-lg sm:leading-8">
             No apps to download. No dashboards to learn. Your CRM, AI tools, and integrations — ready from day one.
           </p>
         </div>
@@ -161,7 +160,7 @@ export function SecondaryFeatures() {
         {isDesktop ? <FeaturesDesktop /> : null}
         {/* Animation on desktop/tablet only */}
         {isMdUp ? (
-          <div className="mt-10 hidden overflow-hidden rounded-xl border border-white/10 md:block lg:mt-16">
+          <div className="mt-10 hidden overflow-hidden rounded-xl border border-lp-cream/20 md:block lg:mt-16">
             <DocumentProcessingAnimation />
           </div>
         ) : null}

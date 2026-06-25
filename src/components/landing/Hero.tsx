@@ -15,11 +15,11 @@ export function Hero() {
         <div className="flex flex-col items-center text-center">
           <HeroIdentityAnimationShell className="mb-8 sm:mb-10" />
 
-          <h1 className="max-w-4xl px-2 text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.035em] text-lp-dark sm:px-0 sm:text-5xl md:text-6xl">
+          <h1 className="max-w-4xl px-2 font-serif text-balance text-5xl font-medium leading-[0.92] tracking-[-0.035em] text-lp-dark sm:px-0 sm:text-6xl md:text-7xl">
             <span className="sm:hidden">Acts before you ask.<br /></span>
             <span className="hidden sm:inline">Your AI rep acts before you ask.{' '}</span>
             <br className="hidden sm:inline" />
-            <span className="text-sunder-green">Work already done.</span>
+            <span className="text-lp-ink-muted">Work already done.</span>
           </h1>
 
           <p className="measure-copy mt-5 max-w-lg px-2 text-body text-lp-dark/80 sm:mt-6 sm:max-w-2xl sm:px-0 sm:text-subhead">
@@ -29,7 +29,7 @@ export function Hero() {
           <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-4 sm:mt-10">
             <Link
               href="/register"
-              className="press-effect rounded-full bg-sunder-green px-8 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sunder-green-dark hover:scale-[1.02] active:scale-[0.98] sm:px-10 sm:py-3.5 sm:text-base"
+              className="press-effect rounded-full bg-lp-black px-8 py-3 text-sm font-semibold text-lp-cream shadow-sm transition hover:scale-[1.02] hover:bg-lp-lavender hover:text-lp-ink active:scale-[0.98] sm:px-10 sm:py-3.5 sm:text-base"
             >
               Try for free
             </Link>

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { EB_Garamond } from "next/font/google";
 import localFont from "next/font/local";
 import { GeistMono } from "geist/font/mono";
 import { Agentation } from "agentation";
@@ -17,11 +18,10 @@ const figtree = localFont({
   display: "swap",
 });
 
-const fraunces = localFont({
-  src: [
-    { path: "../public/fonts/fraunces-latin-full-normal.woff2", style: "normal" },
-    { path: "../public/fonts/fraunces-latin-full-italic.woff2", style: "italic" },
-  ],
+const ebGaramond = EB_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
   variable: "--font-display",
   display: "swap",
 });
@@ -65,7 +65,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" className={cn(GeistMono.variable, figtree.variable, fraunces.variable)}>
+    <html lang="en" className={cn(GeistMono.variable, figtree.variable, ebGaramond.variable)}>
       <body>
         <script
           type="application/ld+json"

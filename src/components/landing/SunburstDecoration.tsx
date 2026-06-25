@@ -1,7 +1,7 @@
 /** Animated Swoosh: An elegant, stylized underline. */
 import { motion } from "framer-motion";
 
-const COLOR = "#FBA943"; // vibrant orange
+const COLOR = "#FF674D";
 
 export function SunburstDecoration({ className }: { className?: string }) {
   return (

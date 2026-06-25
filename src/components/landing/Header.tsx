@@ -141,7 +141,7 @@ export function Header() {
           className={`flex w-full items-center justify-between px-4 py-3 transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] sm:rounded-full sm:px-6 sm:py-2.5 ${
             isScrolled
               ? 'border-b border-lp-border bg-lp-panel/95 sm:border sm:bg-lp-panel sm:shadow-sm'
-              : 'bg-transparent'
+              : 'border-b border-lp-border bg-lp-panel/95 sm:border sm:bg-lp-panel/95'
           }`}
         >
           {/* Left group: Logo + nav links */}
@@ -162,7 +162,7 @@ export function Header() {
           <div className="flex items-center gap-x-3 sm:gap-x-4">
             <Link
               href="/login"
-              className="hidden rounded-full bg-sunder-green px-4 py-1.5 text-sm font-medium text-white transition hover:opacity-90 md:block"
+              className="hidden rounded-full bg-lp-black px-4 py-1.5 text-sm font-medium text-lp-cream transition hover:bg-lp-lavender hover:text-lp-ink md:block"
             >
               Sign in
             </Link>

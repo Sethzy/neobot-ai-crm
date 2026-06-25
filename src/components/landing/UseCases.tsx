@@ -301,8 +301,7 @@ export function UseCases() {
       id="use-cases"
       ref={sectionRef}
       aria-label="Use cases"
-      className="relative overflow-hidden py-20 sm:py-24 md:py-32"
-      style={{ backgroundColor: '#1A1A1A' }}
+      className="relative overflow-hidden bg-lp-black py-20 sm:py-24 md:py-32"
     >
 
       <Container className="relative">
@@ -310,10 +309,10 @@ export function UseCases() {
         <div
           className={`mx-auto max-w-2xl text-center scroll-reveal ${isVisible ? 'is-visible' : ''}`}
         >
-          <h2 className="text-balance text-2xl font-semibold tracking-[-0.025em] text-white sm:text-3xl md:text-5xl">
+          <h2 className="font-serif text-balance text-4xl font-medium leading-[0.98] tracking-[-0.03em] text-lp-cream sm:text-5xl md:text-6xl">
             <span>What will your sales assistant do?</span>
           </h2>
-          <p className="mt-4 text-base text-white/70 sm:mt-6 sm:text-lg sm:leading-relaxed">
+          <p className="mt-4 text-base text-lp-cream-muted sm:mt-6 sm:text-lg sm:leading-relaxed">
             From customer support to closing deals — one message is all it
             takes.
           </p>
@@ -325,7 +324,7 @@ export function UseCases() {
           className={`mt-6 sm:mt-8 scroll-reveal ${isVisible ? 'is-visible' : ''}`}
         >
           <div className="flex justify-center">
-            <div role="tablist" aria-label="Use case categories" className="flex items-center gap-1 rounded-full border border-white/15 bg-white/[0.06] p-1">
+            <div role="tablist" aria-label="Use case categories" className="flex items-center gap-1 rounded-full border border-lp-cream/35 bg-lp-cream/[0.06] p-1">
               {categories.map((cat, i) => {
                 const isActive = i === activeIndex
                 const panelId = `usecase-panel-${cat.label.toLowerCase().replace(/\s/g, '-')}`
@@ -339,11 +338,11 @@ export function UseCases() {
                     onClick={(e) => handleTabSwitch(i, e)}
                     onKeyDown={(e) => handleTabKeyDown(e, i)}
                     className={cn(
-                      'flex shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+                      'flex shrink-0 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lp-cream',
                       // Mobile: icon-only for inactive, icon+label for active — 44px min touch target
                       isActive
-                        ? 'gap-1.5 bg-white text-sunder-green-dark shadow-sm px-3.5 py-2 sm:gap-2 sm:px-4 sm:py-2.5'
-                        : 'text-white/60 hover:text-white/80 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 sm:gap-2',
+                        ? 'gap-1.5 bg-lp-cream text-lp-ink shadow-sm px-3.5 py-2 sm:gap-2 sm:px-4 sm:py-2.5'
+                        : 'text-lp-cream-muted hover:text-lp-cream min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-auto sm:h-auto sm:px-4 sm:py-2.5 sm:gap-2',
                     )}
                   >
                     <AppIcon name={cat.tabIcon} className="h-4 w-4 shrink-0" />
@@ -411,7 +410,7 @@ export function UseCases() {
               </div>
 
               {/* Description */}
-              <p className="mt-3 text-sm leading-relaxed text-lp-muted">
+              <p className="mt-3 text-sm leading-relaxed text-lp-ink-muted">
                 {card.description}
               </p>
             </motion.div>
