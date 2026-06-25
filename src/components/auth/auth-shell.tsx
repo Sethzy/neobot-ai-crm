@@ -79,9 +79,9 @@ export function AuthShell({
               return (
                 <div
                   key={item.title}
-                  className="flex gap-5 rounded-xl border border-lp-lavender/35 bg-lp-lavender-raised p-6 text-lp-cream transition-colors duration-200 hover:border-lp-lavender/55 hover:bg-lp-lavender-hover"
+                  className="flex gap-5 rounded-xl border border-lp-lavender/25 bg-lp-black-raised p-6 text-lp-cream transition-colors duration-200 hover:border-lp-lavender/45 hover:bg-lp-black-hover"
                 >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-lp-lavender/40 bg-lp-lavender/15 text-lp-lavender">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-lp-lavender/35 bg-lp-lavender/10 text-lp-cream">
                     <Icon aria-hidden="true" className="h-6 w-6" strokeWidth={1.7} />
                   </div>
                   <div>
