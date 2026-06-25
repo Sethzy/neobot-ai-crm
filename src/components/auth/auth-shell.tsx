@@ -39,8 +39,8 @@ export function AuthShell({
   title,
 }: AuthShellProps) {
   return (
-    <div className="relative flex min-h-dvh justify-center bg-lp-canvas md:px-12 lg:px-0">
-      <section className="relative z-10 flex flex-1 flex-col border-lp-border bg-background px-6 py-10 sm:justify-center md:flex-none md:px-28 lg:border-r">
+    <div className="relative flex min-h-dvh justify-center bg-lp-warm-surface md:px-12 lg:px-0">
+      <section className="relative z-10 flex flex-1 flex-col border-lp-border-warm bg-lp-warm-surface px-6 py-10 sm:justify-center md:flex-none md:px-28 lg:border-r">
         <main className="mx-auto w-full max-w-sm sm:px-4 md:w-80 md:px-0">
           <Link href="/" aria-label="Home" className="inline-flex items-center gap-3 text-foreground">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sunder-green text-xs font-bold text-white shadow-sm">
