@@ -13,7 +13,7 @@ const HeroIdentityAnimation = dynamic(
     ),
   {
     ssr: false,
-    loading: () => <div className="mb-8 h-28 w-full sm:mb-10 sm:h-32" />,
+    loading: () => <div className="mb-5 h-28 w-full sm:mb-6 sm:h-32" />,
   },
 );
 

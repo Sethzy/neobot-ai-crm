@@ -13,7 +13,7 @@ export function Hero() {
     >
       <Container className="relative">
         <div className="flex flex-col items-center text-center">
-          <HeroIdentityAnimationShell className="mb-8 sm:mb-10" />
+          <HeroIdentityAnimationShell className="mb-5 sm:mb-6" />
 
           <h1 className="max-w-4xl px-2 font-serif text-balance text-5xl font-medium leading-[0.92] tracking-[-0.035em] text-lp-dark sm:px-0 sm:text-6xl md:text-7xl">
             <span className="sm:hidden">Acts before you ask.<br /></span>
