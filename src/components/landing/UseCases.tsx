@@ -40,37 +40,37 @@ const categories: Category[] = [
       {
         title: 'Lead qualification',
         description:
-          "Handle initial inquiries until they're qualified, then message me when it's ready for hand off.",
+          "Qualify new inquiries, then message me when a lead is ready for handoff.",
         logos: ['/logos/whatsapp-icon.svg', '/logos/phone.svg'],
       },
       {
         title: 'Lead scraping',
         description:
-          'Scrape listing sites and databases daily for matching prospects, then add them to my pipeline automatically.',
+          'Scrape listing sites for matching prospects and add them to my pipeline daily.',
         logos: ['/logos/firecrawl.svg', '/logos/chrome.svg', '/logos/google-sheets.svg'],
       },
       {
         title: 'Lead research',
         description:
-          'New lead added? Pull their LinkedIn, company site, and public records. Get me a full brief before my first call.',
+          'Pull LinkedIn, company sites, and public records into a brief before my first call.',
         logos: ['/logos/linkedin.svg', '/logos/firecrawl.svg'],
       },
       {
         title: 'Daily LinkedIn',
         description:
-          'Every day, engage with people in my market and repost relevant industry content on LinkedIn.',
+          'Engage people in my market and repost relevant industry content every day.',
         logos: ['/logos/linkedin.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Referral timing',
         description:
-          'Client just closed and sentiment is high. Draft a warm referral ask and send it at the right moment.',
+          'After a happy close, draft a warm referral ask and send it at the right moment.',
         logos: ['/logos/whatsapp-icon.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Ad lead capture',
         description:
-          'Someone clicks my ad and lands on the page — NeoBot qualifies them, tags the source, and books a call.',
+          'Qualify ad leads, tag the source, and book the call from one landing-page visit.',
         logos: ['/logos/instagram-icon.svg', '/logos/meta.svg', '/logos/whatsapp-icon.svg'],
       },
     ],
@@ -82,37 +82,37 @@ const categories: Category[] = [
       {
         title: 'Client support',
         description:
-          'Triage incoming client questions about timelines, paperwork, and next steps — draft responses and escalate anything complex.',
+          'Answer timeline, paperwork, and next-step questions. Escalate anything tricky.',
         logos: ['/logos/whatsapp-icon.svg', '/logos/desktop.svg'],
       },
       {
         title: 'Reply nudges',
         description:
-          "If a client messages me and I don't respond within 30 minutes, send me a reminder with context so nothing slips.",
+          "If I miss a client message for 30 minutes, remind me with context.",
         logos: ['/logos/phone.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Birthday messages',
         description:
-          'Draft personalized birthday wishes for every client celebrating this week and send them a message.',
+          'Draft birthday wishes for clients celebrating this week and send the message.',
         logos: ['/logos/google-calendar.svg', '/logos/phone.svg'],
       },
       {
         title: 'Client outings',
         description:
-          "Find high-value clients I haven't reached out to in a while and events nearby to invite them to.",
+          "Find high-value clients I haven't reached lately and suggest nearby events.",
         logos: ['/logos/googleMaps.svg', '/logos/desktop.svg'],
       },
       {
         title: 'Event planning',
         description:
-          'Plan my client event this weekend — create sign-up forms, schedule reminders, and prep talking points.',
+          'Create sign-up forms, schedule reminders, and prep talking points for my event.',
         logos: ['/logos/google-calendar.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Milestone reminders',
         description:
-          "Client's anniversary is coming up. Remind me a week early and draft a personal note to send.",
+          "Remind me before client milestones and draft a personal note to send.",
         logos: ['/logos/desktop.svg', '/logos/n8n.svg'],
       },
     ],
@@ -124,37 +124,37 @@ const categories: Category[] = [
       {
         title: 'Meeting briefing',
         description:
-          'New appointment booked — research the prospect, pull relevant context, and prep me a brief before I walk in.',
+          'Research the prospect and prep a brief before each booked appointment.',
         logos: ['/logos/google-calendar.svg', '/logos/firecrawl.svg'],
       },
       {
         title: 'Meeting recaps',
         description:
-          "Just finished a client meeting. Here's my voice note — log key takeaways and create follow-up tasks.",
+          'Turn my post-meeting voice note into takeaways and follow-up tasks.',
         logos: ['/logos/phone.svg', '/logos/google-docs.svg'],
       },
       {
         title: 'Deal comparison',
         description:
-          'Upload competing offers or quotes. NeoBot extracts key terms — price, conditions, timeline — into a side-by-side table.',
+          'Extract price, conditions, and timelines from competing offers into a table.',
         logos: ['/logos/google-sheets.svg', '/logos/drive.svg'],
       },
       {
         title: 'Form filling',
         description:
-          'NeoBot opens the submission portal, fills the application from your deal file, and screenshots each step for your review.',
+          'Fill submission portals from the deal file and screenshot each step for review.',
         logos: ['/logos/desktop.svg', '/logos/chrome.svg'],
       },
       {
         title: 'Weekly pipeline review',
         description:
-          'Every Monday: deals in progress, tasks overdue, pipeline value, and areas that need my attention.',
+          'Every Monday: active deals, overdue tasks, pipeline value, and risks.',
         logos: ['/logos/google-sheets.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Due diligence',
         description:
-          'Pull transaction history, public filings, and background records from online databases. Get a summary before committing.',
+          'Pull records from online databases and summarize the risk before I commit.',
         logos: ['/logos/firecrawl.svg', '/logos/google.svg'],
       },
     ],
@@ -166,37 +166,37 @@ const categories: Category[] = [
       {
         title: 'Competitor monitoring',
         description:
-          "Monitor competitors' pricing and marketing — alert me the moment anything changes in my territory.",
+          'Monitor competitor pricing and marketing. Alert me when my territory changes.',
         logos: ['/logos/firecrawl.svg', '/logos/google.svg'],
       },
       {
         title: 'Market research',
         description:
-          "When I tag an email 'research', deep dive the topic and reply with a summary I can use with clients.",
+          "When I tag an email 'research', reply with a client-ready summary.",
         logos: ['/logos/gmail.svg', '/logos/firecrawl.svg'],
       },
       {
         title: 'Industry monitoring',
         description:
-          'Monitor industry podcasts and news for discussions relevant to my market and email me a summary.',
+          'Track relevant podcasts and news, then email me the useful takeaways.',
         logos: ['/logos/spotify.svg', '/logos/gmail.svg'],
       },
       {
         title: 'Lead gen audit',
         description:
-          "Review all my lead gen subscriptions — which sources are actually converting? Cut what's not working.",
+          "Review lead sources, show what's converting, and cut what isn't working.",
         logos: ['/logos/google-sheets.svg', '/logos/desktop.svg'],
       },
       {
         title: 'Auto-post wins',
         description:
-          'When I close a deal or hit a milestone, auto-generate a social post and schedule it across my channels.',
+          'Turn closed deals and milestones into scheduled social posts.',
         logos: ['/logos/instagram-icon.svg', '/logos/linkedin.svg'],
       },
       {
         title: 'Email tracking',
         description:
-          'Track opens on my outbound emails. When a prospect opens, research them and draft a personalized follow-up.',
+          'Track opens, research warm prospects, and draft personalized follow-ups.',
         logos: ['/logos/gmail.svg', '/logos/desktop.svg'],
       },
     ],
@@ -208,37 +208,37 @@ const categories: Category[] = [
       {
         title: 'Contract review',
         description:
-          'Review this agreement for unusual terms, track all deadlines, and flag anything that needs attention before I sign.',
+          'Review agreements, track deadlines, and flag anything before I sign.',
         logos: ['/logos/google-docs.svg', '/logos/drive.svg'],
       },
       {
         title: 'Document routing',
         description:
-          "Sort today's incoming docs — classify each by type, tag the right deal, and file them automatically.",
+          "Classify today's docs, tag the right deal, and file them automatically.",
         logos: ['/logos/drive.svg', '/logos/n8n.svg'],
       },
       {
         title: 'Financial docs',
         description:
-          'Upload bank statements, invoices, or commission slips. NeoBot extracts amounts, dates, and parties into a spreadsheet.',
+          'Extract amounts, dates, and parties from financial docs into a spreadsheet.',
         logos: ['/logos/google-sheets.svg', '/logos/drive.svg'],
       },
       {
         title: 'Expense receipts',
         description:
-          'Forward receipts from email or photos — client dinners, mileage, subscriptions — NeoBot categorizes everything for tax time.',
+          'Forward receipts from email or photos and categorize them for tax time.',
         logos: ['/logos/gmail.svg', '/logos/google-sheets.svg'],
       },
       {
         title: 'Compliance check',
         description:
-          'Run a compliance check on the transaction file before submission. NeoBot flags missing items and inconsistencies.',
+          'Check the transaction file before submission and flag missing items.',
         logos: ['/logos/google-docs.svg', '/logos/desktop.svg'],
       },
       {
         title: 'Receipt scanning',
         description:
-          'Snap a photo of any receipt. NeoBot reads it, categorizes the expense, and logs it to your tracker.',
+          'Read receipt photos, categorize the expense, and log it to your tracker.',
         logos: ['/logos/phone.svg', '/logos/google-sheets.svg'],
       },
     ],
@@ -365,7 +365,7 @@ export function UseCases() {
           role="tabpanel"
           id={`usecase-panel-${active.label.toLowerCase().replace(/\s/g, '-')}`}
           aria-label={`${active.label} use cases`}
-          className="mx-auto mt-10 grid max-w-5xl grid-cols-1 gap-3 sm:mt-14 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
+          className="mx-auto mt-10 grid max-w-5xl auto-rows-fr grid-cols-1 gap-3 sm:mt-14 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
         >
           {active.cards.map((card, i) => {
             /** First reveal: spring in from below. After that: instant. */
@@ -388,7 +388,7 @@ export function UseCases() {
                   ? () => setHasAnimatedCards(true)
                   : undefined
               }
-              className="group rounded-xl bg-lp-panel px-5 pt-5 pb-5 sm:px-7 sm:pt-6 sm:pb-6"
+              className="group flex h-full min-h-[10.75rem] flex-col rounded-xl bg-lp-panel px-5 pt-5 pb-5 sm:min-h-[12rem] sm:px-7 sm:pt-6 sm:pb-6 lg:min-h-[11.5rem]"
             >
               {/* Logos + title */}
               <div className="flex items-center justify-between gap-4">
