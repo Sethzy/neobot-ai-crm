@@ -3,7 +3,7 @@
  * @module components/auth/auth-shell
  */
 import Link from "next/link";
-import { CheckCircle2, Clock3, FileText, Link2, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Link2, ShieldCheck } from "lucide-react";
 
 import { siteBrand } from "@/lib/branding/site";
 
@@ -68,89 +68,33 @@ export function AuthShell({
 
       <aside className="hidden sm:contents lg:relative lg:block lg:flex-1">
         <div className="absolute inset-0 bg-sunder-green" />
+        <div className="absolute inset-0 bg-[url('/exports/hero-watercolor.webp')] bg-cover bg-center opacity-25 mix-blend-overlay" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_35%,rgba(64,145,108,0.32),transparent_42%),linear-gradient(135deg,rgba(2,79,70,0.96),rgba(2,79,70,0.86))]" />
 
         <div className="relative z-10 flex h-full items-center justify-center p-12">
-          <div className="grid w-full max-w-3xl gap-10 xl:grid-cols-[1fr_0.9fr] xl:items-center">
-            <div>
-              <p className="text-meta font-medium text-white/70">
-                Autopilot with approval built in
-              </p>
-              <h2 className="mt-4 max-w-lg text-4xl font-semibold leading-[1.04] tracking-[-0.035em] text-white">
-                The work is ready before you open the tab.
-              </h2>
-              <p className="mt-5 max-w-md text-base leading-7 text-white/72">
-                NeoBot handles the internal work, keeps the context attached,
-                and stops before anything client-facing leaves your desk.
-              </p>
-            </div>
+          <div className="flex w-full max-w-md flex-col gap-5">
+            {featureItems.map((item) => {
+              const Icon = item.icon;
 
-            <div className="rounded-xl border border-white/15 bg-white p-5 text-lp-dark shadow-sm">
-              <div className="flex items-center justify-between gap-4 border-b border-lp-border pb-4">
-                <div>
-                  <p className="text-caption font-semibold uppercase tracking-[0.12em] text-sunder-green">
-                    Ready for review
-                  </p>
-                  <h3 className="mt-1 text-lg font-semibold tracking-[-0.015em]">
-                    Follow-up drafted for Rachel Ng
-                  </h3>
-                </div>
-                <span className="rounded-full bg-sunder-green px-3 py-1 text-caption font-semibold text-white">
-                  Approval
-                </span>
-              </div>
-
-              <div className="space-y-4 py-5">
-                <div className="flex gap-3">
-                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-lp-panel-muted text-sunder-green">
-                    <FileText aria-hidden="true" className="h-4 w-4" />
+              return (
+                <div
+                  key={item.title}
+                  className="flex gap-5 rounded-xl border border-white/15 bg-[#0d645a]/70 p-6 text-white shadow-sm transition-colors duration-200 hover:bg-[#0d645a]/82"
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-white/18 bg-white/[0.08] text-white">
+                    <Icon aria-hidden="true" className="h-6 w-6" strokeWidth={1.7} />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">Context attached</p>
-                    <p className="mt-1 text-sm leading-6 text-lp-muted">
-                      Deal notes, last meeting recap, and open tasks are already linked.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-lp-panel-muted text-sunder-green">
-                    <Clock3 aria-hidden="true" className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">Next action queued</p>
-                    <p className="mt-1 text-sm leading-6 text-lp-muted">
-                      Send after you approve, then update the CRM automatically.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-lp-panel-muted px-4 py-3 text-sm leading-6 text-lp-muted">
-                "Hi Rachel, I pulled together the comparison we discussed..."
-              </div>
-            </div>
-
-            <div className="divide-y divide-white/15 border-y border-white/15 xl:col-span-2">
-              {featureItems.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <div
-                    key={item.title}
-                    className="grid gap-4 py-5 text-white sm:grid-cols-[2.5rem_1fr] xl:grid-cols-[2.5rem_14rem_1fr] xl:items-start"
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/20 text-white">
-                      <Icon aria-hidden="true" className="h-6 w-6" strokeWidth={1.7} />
-                    </div>
-                    <h3 className="text-base font-semibold tracking-[-0.01em] text-white">
+                    <h2 className="text-lg font-semibold tracking-[-0.01em] text-white">
                       {item.title}
-                    </h3>
-                    <p className="text-sm leading-relaxed text-white/72">
+                    </h2>
+                    <p className="mt-1 text-sm leading-relaxed text-white/78">
                       {item.description}
                     </p>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </aside>
