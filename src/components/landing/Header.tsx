@@ -129,19 +129,19 @@ export function Header() {
   }, [])
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex justify-center px-0 py-0 sm:px-6 sm:py-3">
+    <header className="fixed inset-x-0 top-0 z-50 flex justify-center px-0 py-0 md:px-6 md:py-3">
       {/* Outer wrapper — always centered, controls the width transition (desktop only) */}
       <div
         className={`mx-auto w-full transition-[max-width] duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
-          isScrolled ? 'sm:max-w-xl md:max-w-2xl' : 'sm:max-w-4xl md:max-w-5xl'
+          isScrolled ? 'md:max-w-2xl' : 'md:max-w-5xl'
         }`}
       >
         {/* Inner nav — handles visual treatment (bg, border, shadow) */}
         <nav
-          className={`flex w-full items-center justify-between px-4 py-3 transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] sm:rounded-full sm:px-6 sm:py-2.5 ${
+          className={`flex w-full items-center justify-between px-4 py-3 transition-all duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)] md:rounded-full md:px-6 md:py-2.5 ${
             isScrolled
-              ? 'border-b border-lp-border bg-lp-panel/95 sm:border sm:bg-lp-panel sm:shadow-sm'
-              : 'border-b border-lp-border bg-lp-panel/95 sm:border sm:bg-lp-panel/95'
+              ? 'border-b border-lp-border bg-lp-panel md:border md:bg-lp-panel md:shadow-sm'
+              : 'border-b border-lp-border bg-lp-panel md:border md:bg-lp-panel/95'
           }`}
         >
           {/* Left group: Logo + nav links */}
