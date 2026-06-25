@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { AuthShell } from "@/components/auth/auth-shell";
+import { AuthShell, authInputClassName } from "@/components/auth/auth-shell";
 import { captureOrQueueEmailAuthEvent } from "@/lib/analytics/posthog-auth-events";
 import { getSafeNextPath } from "@/lib/auth/browser-redirect";
 import { supabase } from "@/lib/supabase";
@@ -87,7 +87,7 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
               required
-              className="h-11 rounded-lg text-base shadow-sm"
+              className={`h-11 rounded-lg text-base ${authInputClassName}`}
             />
           </div>
 
@@ -106,7 +106,7 @@ export default function LoginPageClient({ redirect }: LoginPageClientProps) {
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
               required
-              className="h-11 rounded-lg text-base shadow-sm"
+              className={`h-11 rounded-lg text-base ${authInputClassName}`}
             />
           </div>
 

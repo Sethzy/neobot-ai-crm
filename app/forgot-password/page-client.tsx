@@ -7,7 +7,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { AuthShell } from "@/components/auth/auth-shell";
+import { AuthShell, authInputClassName } from "@/components/auth/auth-shell";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,7 +94,7 @@ export default function ForgotPasswordPageClient() {
             onChange={(e) => setEmail(e.target.value)}
             disabled={isLoading}
             required
-            className="h-11 text-base"
+            className={`h-11 text-base ${authInputClassName}`}
           />
         </div>
 

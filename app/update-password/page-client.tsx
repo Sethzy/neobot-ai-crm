@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import posthog from "posthog-js";
 
-import { AuthShell } from "@/components/auth/auth-shell";
+import { AuthShell, authInputClassName } from "@/components/auth/auth-shell";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,7 +86,7 @@ export default function UpdatePasswordPageClient() {
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
             required
-            className="h-11 text-base"
+            className={`h-11 text-base ${authInputClassName}`}
           />
         </div>
 
@@ -100,7 +100,7 @@ export default function UpdatePasswordPageClient() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             disabled={isLoading}
             required
-            className="h-11 text-base"
+            className={`h-11 text-base ${authInputClassName}`}
           />
         </div>
 

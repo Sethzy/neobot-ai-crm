@@ -32,6 +32,9 @@ const featureItems = [
   },
 ];
 
+export const authInputClassName =
+  "border-lp-border bg-white text-lp-ink shadow-sm focus-visible:border-lp-black focus-visible:ring-lp-black/10";
+
 export function AuthShell({
   children,
   description,
