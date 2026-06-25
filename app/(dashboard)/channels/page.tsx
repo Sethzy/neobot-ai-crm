@@ -18,13 +18,13 @@ interface ChannelPreview {
 const channelPreviews: ChannelPreview[] = [
   {
     name: "Telegram",
-    description: "Message your agent from your phone and receive approval prompts in chat.",
+    description: "Message your agent from your phone and handle approval prompts without opening the desktop app.",
     icon: "send",
     toneClassName: "bg-info/10 text-info ring-info/20",
   },
   {
     name: "WhatsApp",
-    description: "Keep client-facing work close to the channel advisors already use every day.",
+    description: "Keep client-facing follow-ups close to the channel advisors already use every day.",
     icon: "whatsapp",
     toneClassName: "bg-success/10 text-success ring-success/20",
   },
@@ -32,7 +32,7 @@ const channelPreviews: ChannelPreview[] = [
 
 export default function ChannelsPage() {
   return (
-    <PageCanvas contentClassName="max-w-4xl gap-7">
+    <PageCanvas contentClassName="max-w-4xl gap-6">
       <PageHeader
         title="Channels"
         description="Mobile approvals and client communication channels NeoBot will support next."
@@ -43,23 +43,25 @@ export default function ChannelsPage() {
         {channelPreviews.map((channel) => (
           <PageSurface
             key={channel.name}
-            className="flex min-h-44 flex-col justify-between gap-6"
-            padding="lg"
+            className="flex min-h-36 flex-col gap-5"
+            padding="md"
           >
             <div className="flex items-start justify-between gap-4">
               <div
-                className={`flex size-11 items-center justify-center rounded-full ring-1 ${channel.toneClassName}`}
+                className={`flex size-10 shrink-0 items-center justify-center rounded-full ring-1 ${channel.toneClassName}`}
               >
-                <AppIcon name={channel.icon} className="size-5" />
+                <AppIcon name={channel.icon} className="size-4.5" />
               </div>
-              <Badge variant="outline" className="rounded-full px-2.5 py-1 text-caption">
+              <Badge variant="outline" className="h-6 rounded-full px-2.5 type-row-meta">
                 Coming soon
               </Badge>
             </div>
 
-            <div>
-              <h2 className="type-toolbar-title">{channel.name}</h2>
-              <p className="mt-2 text-meta text-muted-foreground">{channel.description}</p>
+            <div className="max-w-[32rem]">
+              <h2 className="type-section-title">{channel.name}</h2>
+              <p className="mt-1.5 type-control-muted leading-relaxed">
+                {channel.description}
+              </p>
             </div>
           </PageSurface>
         ))}

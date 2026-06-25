@@ -78,6 +78,8 @@ describe("AutomationLauncherComposer", () => {
 
     render(<AutomationLauncherComposer />);
 
+    expect(screen.getByTestId("automation-launcher-shell")).toHaveClass("sticky", "bottom-0", "mt-auto");
+    expect(screen.getByTestId("automation-launcher-frame")).not.toHaveClass("shimmer-border");
     expect(screen.getByTestId("selected-chat-model")).toHaveTextContent(
       "anthropic/claude-opus-4-6",
     );

@@ -142,6 +142,25 @@ describe("CrmTasksCalendar", () => {
     expect(screen.getByText("+1 more")).toBeInTheDocument();
   });
 
+  it("keeps compact card metadata on one line", () => {
+    render(
+      <CrmTasksCalendar
+        tasks={[
+          {
+            ...tasks[0],
+            task_id: "compact-status",
+            status: "in_progress",
+            title: "Prepare diplomatic CMA for Michael",
+            due_date: "2026-03-05T10:00:00+08:00",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("In progress")).toHaveClass("whitespace-nowrap", "shrink-0");
+    expect(screen.getByText(/\d{1,2}:00 AM/)).toHaveClass("truncate", "whitespace-nowrap");
+  });
+
   it("keeps the empty-state copy tied to the selected month instead of padded adjacent weeks", () => {
     vi.setSystemTime(new Date("2026-04-15T09:00:00+08:00"));
 

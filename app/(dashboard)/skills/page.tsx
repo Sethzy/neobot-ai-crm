@@ -55,16 +55,17 @@ export default async function SkillsPage() {
   }));
 
   return (
-    <PageCanvas contentClassName="gap-5">
-        <PageHeader
-          title="Skills"
-          description="Give your agent specialized capabilities with reusable skill blocks."
-        />
+    <PageCanvas contentClassName="max-w-4xl gap-5">
+      <PageHeader
+        title="Skills"
+        description="Give your agent specialized capabilities with reusable skill blocks."
+        descriptionClassName="measure-copy"
+      />
 
-        <SkillsCatalog
-          installedCards={installedCards}
-          recommendedCards={recommendedCards}
-        />
+      <SkillsCatalog
+        installedCards={installedCards}
+        recommendedCards={recommendedCards}
+      />
     </PageCanvas>
   );
 }

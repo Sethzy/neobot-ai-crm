@@ -112,7 +112,7 @@ export function MarkdownRenderer({
                 .join("");
 
               return (
-                <div className="my-6 rounded-2xl border border-border/70 bg-background/70 px-5 py-4 shadow-sm">
+                <div className="markdown-nested-document my-6 rounded-2xl border border-border/70 bg-background/70 px-5 py-4 shadow-sm">
                   <MarkdownRenderer compact={compact} content={raw} />
                 </div>
               );
@@ -139,7 +139,7 @@ export function MarkdownRenderer({
           },
           table({ children }) {
             return (
-              <div className="my-6 overflow-x-auto rounded-2xl border border-border/70 bg-card shadow-sm">
+              <div className="markdown-table-container my-6 overflow-x-auto rounded-2xl border border-border/70 bg-card shadow-sm">
                 <table>{children}</table>
               </div>
             );

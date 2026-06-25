@@ -58,8 +58,11 @@ export function AutomationLauncherComposer() {
   }, [router]);
 
   return (
-    <div className="pointer-events-none sticky bottom-0 z-10 mt-8 pb-[max(env(safe-area-inset-bottom),0.75rem)] [&>*]:pointer-events-auto">
-      <div className="shimmer-border mx-auto max-w-[44rem] rounded-2xl p-[2px] shadow-lg shadow-primary/15">
+    <div
+      className="pointer-events-none sticky bottom-0 z-10 mt-auto pt-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] [&>*]:pointer-events-auto"
+      data-testid="automation-launcher-shell"
+    >
+      <div className="mx-auto w-full max-w-[44rem]" data-testid="automation-launcher-frame">
         <ChatComposer
           status="ready"
           selectedChatModel={selectedChatModel}
@@ -70,7 +73,7 @@ export function AutomationLauncherComposer() {
           placeholder="Describe an automation to create..."
           allowAttachments={false}
           className="px-0 pb-0"
-          innerClassName="rounded-[calc(1rem-2px)] border-0 bg-app-surface-elevated max-w-none"
+          innerClassName="automation-launcher-input max-w-none"
         />
       </div>
     </div>

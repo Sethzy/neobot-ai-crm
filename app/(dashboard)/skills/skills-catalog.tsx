@@ -116,7 +116,7 @@ export function SkillsCatalog({
           </p>
         </div>
         {filteredInstalled.length > 0 ? (
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="skills-card-grid">
             {filteredInstalled.map((card) => (
               <PredefinedCard
                 key={`installed-${card.skill.slug}`}
@@ -146,7 +146,7 @@ export function SkillsCatalog({
           </p>
         </div>
         {filteredRecommended.length > 0 ? (
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="skills-card-grid">
             {filteredRecommended.map((card) => (
               <PredefinedCard
                 key={`recommended-${card.skill.slug}`}

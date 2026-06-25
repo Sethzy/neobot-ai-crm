@@ -21,13 +21,13 @@ export function AutomationsPageClient() {
   const setTriggerEnabled = useSetTriggerEnabled();
 
   return (
-    <PageCanvas>
+    <PageCanvas contentClassName="min-h-[calc(100dvh-1rem)] md:min-h-[calc(100dvh-2rem)]">
       <PageHeader
         title="Automations"
         description="Create and manage automated tasks that run on a schedule."
       />
 
-      <div className="flex-1 pb-40 md:pb-32">
+      <div className="flex-1 pb-6">
         {isLoading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-foreground" />

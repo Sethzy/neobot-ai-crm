@@ -571,6 +571,42 @@
   .surface-app-elevated {
     @apply rounded-xl border border-app-border-strong/70 bg-app-surface-elevated text-foreground shadow-sm;
   }
+
+  .skills-card-grid {
+    @apply grid gap-2;
+  }
+
+  .skill-dialog-markdown .markdown-table-container,
+  .skill-dialog-markdown .markdown-nested-document {
+    @apply my-4 rounded-lg shadow-none;
+  }
+
+  .skill-dialog-markdown .markdown-table-container {
+    @apply border-app-border-subtle bg-app-surface;
+  }
+
+  .automation-launcher-input [data-slot="input-group"] {
+    border-color: var(--app-border-subtle);
+    border-radius: var(--radius-xl);
+    background: var(--app-surface-elevated);
+    box-shadow: var(--shadow-sm);
+    transition:
+      border-color var(--duration-hover) ease-out,
+      box-shadow var(--duration-hover) ease-out,
+      background-color var(--duration-hover) ease-out;
+  }
+
+  .automation-launcher-input [data-slot="input-group"]:focus-within,
+  .automation-launcher-input [data-slot="input-group"]:has([data-slot="input-group-control"]:focus-visible) {
+    border-color: var(--app-border-strong) !important;
+    box-shadow: 0 0 0 1px var(--app-border-subtle), var(--shadow-md) !important;
+  }
+}
+
+@media (min-width: 1180px) {
+  .skills-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* Scroll reveal utility classes - MOBILE ONLY */
@@ -764,32 +800,6 @@
 .icon-flame { animation: icon-flame 1.6s ease-in-out infinite; }
 .icon-key { animation: icon-key-settle 2.5s ease-in-out infinite; }
 .icon-clock { animation: icon-clock-tick 2.5s ease-in-out infinite; }
-
-@property --shimmer-angle {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 210deg;
-}
-
-@keyframes shimmer-spin {
-  to { --shimmer-angle: 570deg; }
-}
-
-.shimmer-border {
-  background: conic-gradient(
-    from var(--shimmer-angle) at 50% 50%,
-    var(--primary) 0deg,
-    color-mix(in oklch, var(--ring) 45%, white) 90deg,
-    var(--ring) 180deg,
-    var(--flexoki-cyan) 275deg,
-    var(--primary) 360deg
-  );
-  animation: shimmer-spin 8s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .shimmer-border { animation: none; }
-}
 
 /* Login page — showcase entrance + phone float */
 @keyframes login-slide-in {

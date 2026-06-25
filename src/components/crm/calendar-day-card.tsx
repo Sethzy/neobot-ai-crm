@@ -37,20 +37,28 @@ function getDueTimeLabel(dueDate: string | null) {
 
 function CalendarDayCardBody({ task }: { task: CrmTaskWithRelations }) {
   const dueTimeLabel = getDueTimeLabel(task.due_date);
+  const statusLabel = crmTaskStatusLabelMap[task.status];
 
   return (
-    <div className="min-w-0 space-y-1">
-      <p className="truncate text-caption font-medium text-foreground">{task.title}</p>
-      <div className="flex items-center justify-between gap-2">
+    <div className="min-w-0 space-y-0.5">
+      <p className="truncate text-caption leading-4 font-medium text-foreground" title={task.title}>
+        {task.title}
+      </p>
+      <div className="flex min-w-0 items-center gap-1">
         <span
+          title={statusLabel}
           className={cn(
-            "inline-flex min-w-0 rounded px-1.5 py-0.5 text-caption font-medium",
+            "inline-flex shrink-0 items-center whitespace-nowrap rounded px-1 py-0.5 text-caption leading-4 font-medium",
             taskStatusToneClassMap[task.status],
           )}
         >
-          {crmTaskStatusLabelMap[task.status]}
+          {statusLabel}
         </span>
-        {dueTimeLabel ? <span className="shrink-0 text-caption text-muted-foreground">{dueTimeLabel}</span> : null}
+        {dueTimeLabel ? (
+          <span className="min-w-0 truncate whitespace-nowrap text-caption leading-4 text-muted-foreground">
+            {dueTimeLabel}
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -74,7 +82,7 @@ function DraggableCalendarDayCard({
     <div
       ref={setNodeRef}
       className={cn(
-        "min-h-11 min-w-0 rounded-md border border-border/60 bg-card px-2 py-1.5 shadow-sm transition hover:bg-muted/10",
+        "min-h-10 min-w-0 rounded-md border border-border/60 bg-card px-1.5 py-1 shadow-xs transition hover:bg-muted/10",
         onTaskClick ? "cursor-pointer" : "",
         isDragging ? "opacity-30" : "",
       )}
@@ -96,7 +104,7 @@ function DraggableCalendarDayCard({
 export function CalendarDayCard(props: CalendarDayCardProps) {
   if (props.isOverlay) {
     return (
-      <div className="rounded-md border border-border/60 bg-card px-2 py-1.5 shadow-lg">
+      <div className="rounded-md border border-border/60 bg-card px-1.5 py-1 shadow-lg">
         <CalendarDayCardBody task={props.task} />
       </div>
     );
